@@ -1,0 +1,6 @@
+services:
+  fenics-sz:
+    image: ghcr.io/cianwilson/fenics-sz:release
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity

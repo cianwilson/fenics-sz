@@ -63,4 +63,5 @@ parse:
 
 exclude_patterns: [readme.md, typos.md,
                    notebooks/sz_suite_ss/template.ipynb,
-                   notebooks/sz_suite_td/template.ipynb]
+                   notebooks/sz_suite_td/template.ipynb,
+                   notebooks/sz_suite_diff/template.ipynb]

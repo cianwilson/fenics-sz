@@ -1,0 +1,20 @@
+{
+	"name": "fenics-sz",
+	"dockerComposeFile": "docker-compose.yaml",
+	"service": "fenics-sz",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"shutdownAction": "stopCompose",
+	"overrideCommand":true,
+	"customizations": {
+		"vscode": {
+			"extensions": [
+                "ms-python.python",
+				"ms-python.vscode-pylance",
+                "ms-toolsai.jupyter"
+            ],
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/bin/python3"
+            }
+		}
+	}
+}

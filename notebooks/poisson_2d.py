@@ -32,6 +32,7 @@
 
 from mpi4py import MPI
 import dolfinx as df
+from petsc4py import PETSc
 import dolfinx.fem.petsc
 import numpy as np
 import ufl
@@ -135,17 +136,39 @@ def solve_poisson_2d(ne, p=1, petsc_options={"ksp_type": "preonly", \
         # Get the unit vector normal to the facets
         n = ufl.FacetNormal(mesh)
         # Define the integral to be assembled into the stiffness matrix
-        S = ufl.inner(ufl.grad(T_t), ufl.grad(T_a))*ufl.dx
+        S = df.fem.form(ufl.inner(ufl.grad(T_t), ufl.grad(T_a))*ufl.dx)
         # Define the integral to be assembled into the forcing vector,
         # incorporating the Neumann boundary condition weakly
-        f = T_t*h*ufl.dx + T_t*ufl.inner(gN, n)*ufl.ds
+        f = df.fem.form(T_t*h*ufl.dx + T_t*ufl.inner(gN, n)*ufl.ds)
 
+
+    with record_time("Assemble problem "):
+        # # Compute the solution (given the boundary condition, bc)
+        # problem = df.fem.petsc.LinearProblem(S, f, bcs=[bc], \
+        #                                     petsc_options=petsc_options)
+        # T_i = problem.solve()
+
+        A = df.fem.petsc.assemble_matrix(S, bcs=[bc])
+        A.assemble()
+        b = df.fem.petsc.assemble_vector(f)
+        df.fem.petsc.apply_lifting(b, [S], bcs=[[bc]])
+        b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+
+        df.fem.petsc.set_bc(b, [bc])
 
     with record_time("Solve problem "):
-        # Compute the solution (given the boundary condition, bc)
-        problem = df.fem.petsc.LinearProblem(S, f, bcs=[bc], \
-                                            petsc_options=petsc_options)
-        T_i = problem.solve()
+        ksp = PETSc.KSP().create(MPI.COMM_WORLD)
+        ksp.setOperators(A)
+        ksp.setType("preonly")
+
+        pc = ksp.getPC()
+        pc.setType("lu")
+        pc.setFactorSolverType("mumps")
+        pc.setFactorSetUpSolverType()
+
+        T_i = df.fem.Function(V)
+
+        ksp.solve(b, T_i.x.petsc_vec)
 
     return T_i
 

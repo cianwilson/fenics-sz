@@ -51,6 +51,13 @@ if __name__ == "__main__":
     output_folder = pathlib.Path(os.path.join(basedir, "output"))
     output_folder.mkdir(exist_ok=True, parents=True)
 import time
+import dolfinx as df
+
+
+# In[ ]:
+
+
+print(MPI.COMM_WORLD.rank, MPI.COMM_WORLD.size)
 
 
 # In[ ]:
@@ -65,6 +72,7 @@ if __name__ == "__main__":
     end_time = time.time()
     comm = T_i.function_space.mesh.comm
     print(f"{comm.rank} ({T_i.function_space.dofmap.index_map.size_local}) - time taken: {end_time - start_time} seconds")
+    df.list_timings(comm, [df.common.TimingType.wall])
 
 
 # In[ ]:

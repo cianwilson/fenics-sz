@@ -72,7 +72,6 @@ if __name__ == "__main__":
     end_time = time.time()
     comm = T_i.function_space.mesh.comm
     print(f"{comm.rank} ({T_i.function_space.dofmap.index_map.size_local}) - time taken: {end_time - start_time} seconds")
-    df.list_timings(comm, [df.common.TimingType.wall])
 
 
 # In[ ]:

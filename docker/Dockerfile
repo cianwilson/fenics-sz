@@ -6,6 +6,8 @@ ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system
 ENV HDF5_MPI="ON"
 ENV HDF5_DIR="/usr/local"
 ENV PYVISTA_JUPYTER_BACKEND="static"
+ENV OMP_NUM_THREADS=1
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /tmp/
 # Requirements for pyvista (gl1 and render1) and jupyterlab (nodejs and curl)

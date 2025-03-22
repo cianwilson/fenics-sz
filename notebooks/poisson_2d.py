@@ -98,21 +98,17 @@ def solve_poisson_2d(ne, p=1, petsc_options={"ksp_type": "preonly", \
     # and also the tessellation of that domain into ne 
     # equally spaced squares in each dimension which are
     # subdivided into two triangular elements each
-    with record_time("Generate mesh "):
+    with df.common.Timer("Poisson Mesh"):
         mesh = df.mesh.create_unit_square(MPI.COMM_WORLD, ne, ne)
 
     # Define the solution function space using Lagrange polynomials
     # of order p
-    with record_time("Generate functionspace "):
+    with df.common.Timer("Poisson Functions"):
         V = df.fem.functionspace(mesh, ("Lagrange", p))
-
-    # Define the trial and test functions on the same function space (V)
-    with record_time("Generate functions "):
         T_a = ufl.TrialFunction(V)
         T_t = ufl.TestFunction(V)
 
-
-    with record_time("Generate Dirichlet bcs "):
+    with df.common.Timer("Poisson Dirichlet BCs"):
         # Define the location of the boundary condition, x=0 and y=0
         def boundary(x):
             return np.logical_or(np.isclose(x[0], 0), np.isclose(x[1], 0))
@@ -122,8 +118,7 @@ def solve_poisson_2d(ne, p=1, petsc_options={"ksp_type": "preonly", \
         gD.interpolate(lambda x: np.exp(x[0] + x[1]/2.))
         bc = df.fem.dirichletbc(gD, boundary_dofs)
 
-
-    with record_time("Generate Neumann bcs "):
+    with df.common.Timer("Poisson Neumann BCs"):
         # Get the coordinates
         x = ufl.SpatialCoordinate(mesh)
         # Define the Neumann boundary condition function
@@ -131,8 +126,7 @@ def solve_poisson_2d(ne, p=1, petsc_options={"ksp_type": "preonly", \
         # Define the right hand side function, h
         h = -5./4.*ufl.exp(x[0] + x[1]/2.)
 
-
-    with record_time("Generate forms "):
+    with df.common.Timer("Poisson Forms"):
         # Get the unit vector normal to the facets
         n = ufl.FacetNormal(mesh)
         # Define the integral to be assembled into the stiffness matrix
@@ -142,7 +136,7 @@ def solve_poisson_2d(ne, p=1, petsc_options={"ksp_type": "preonly", \
         f = df.fem.form(T_t*h*ufl.dx + T_t*ufl.inner(gN, n)*ufl.ds)
 
 
-    with record_time("Assemble problem "):
+    with df.common.Timer("Poisson Assemble"):
         # # Compute the solution (given the boundary condition, bc)
         # problem = df.fem.petsc.LinearProblem(S, f, bcs=[bc], \
         #                                     petsc_options=petsc_options)
@@ -156,7 +150,7 @@ def solve_poisson_2d(ne, p=1, petsc_options={"ksp_type": "preonly", \
 
         df.fem.petsc.set_bc(b, [bc])
 
-    with record_time("Solve problem "):
+    with df.common.Timer("Poisson Solve"):
         ksp = PETSc.KSP().create(MPI.COMM_WORLD)
         ksp.setOperators(A)
         ksp.setType("preonly")
@@ -165,6 +159,10 @@ def solve_poisson_2d(ne, p=1, petsc_options={"ksp_type": "preonly", \
         pc.setType("lu")
         pc.setFactorSolverType("mumps")
         pc.setFactorSetUpSolverType()
+
+        #opts = PETSc.Options()  # type: ignore
+        #opts["mat_mumps_icntl_4"] = 2
+        #ksp.setFromOptions()
 
         T_i = df.fem.Function(V)
 

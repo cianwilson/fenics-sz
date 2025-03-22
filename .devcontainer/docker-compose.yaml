@@ -1,6 +1,6 @@
 services:
   fenics-sz:
-    image: ghcr.io/cianwilson/fenics-sz:release
+    image: ghcr.io/cianwilson/fenics-sz:test-ipyparallel-amd64
     volumes:
       - ../..:/workspaces:cached
     command: sleep infinity

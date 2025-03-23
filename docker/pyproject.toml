@@ -16,6 +16,7 @@ dependencies = [
     "fenics-dolfinx==0.8.0",
     "ipdb==0.13.13",
     "ipylab==1.0.0",
+    "ipywidgets==7.7.1",
 ]
 
 [project.optional-dependencies]

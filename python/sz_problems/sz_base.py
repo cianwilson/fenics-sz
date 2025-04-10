@@ -86,7 +86,7 @@
 import os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
-params_filename = os.path.join(basedir, os.pardir, os.pardir, "data", "default_params.json")
+params_filename = os.path.join(basedir, os.path.pardir, os.path.pardir, "data", "default_params.json")
 
 
 # Loading this file
@@ -130,7 +130,7 @@ if __name__ == "__main__":
 # In[ ]:
 
 
-allsz_filename = os.path.join(basedir, os.pardir, os.pardir, "data", "all_sz.json")
+allsz_filename = os.path.join(basedir, os.path.pardir, os.path.pardir, "data", "all_sz.json")
 with open(allsz_filename, "r") as fp:
     allsz_params = json.load(fp)
 

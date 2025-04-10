@@ -164,7 +164,7 @@ if __name__ == "__main__" and "__file__" not in globals():
 # In[ ]:
 
 
-zipfilename = pathlib.Path(os.path.join(basedir, os.path.pardir, os.path.pardir, os.pardir, "data", "vankeken_wilson_peps_2023_TF_lowres_minimal.zip"))
+zipfilename = pathlib.Path(os.path.join(basedir, os.path.pardir, os.path.pardir, os.path.pardir, "data", "vankeken_wilson_peps_2023_TF_lowres_minimal.zip"))
 if not zipfilename.is_file():
     zipfileurl = 'https://zenodo.org/records/13234021/files/vankeken_wilson_peps_2023_TF_lowres_minimal.zip'
     r = requests.get(zipfileurl, allow_redirects=True)

@@ -17,7 +17,7 @@
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
-sys.path.append(os.path.join(basedir, os.path.pardir, os.pardir, 'python'))
+sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
 
 # Then load everything we need from `sz_problem` and also set our default plotting preferences.

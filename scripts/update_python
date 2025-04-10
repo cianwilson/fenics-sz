@@ -24,10 +24,23 @@ repo_path=$(dirname $script_path)
 
 for f in `find $repo_path/notebooks -not -path "*/.ipynb_checkpoints/*" -type f -name '*.ipynb'`;
 do
+  fname=$(basename $f)  # get the filename
+  nname=${fname#*_}     # strip any leading index_
+  rpath=$(dirname ${f#$repo_path/notebooks/})  # get the relative path
+  npath=${rpath#??_}    # strip any leading index_
+  # global_suites notebooks are special
+  if [[ $npath == global_suites/* ]] ;
+  then
+    npath=global_suites/${npath#global_suites/*_} # strip intermediate index_
+    nname=$fname   # leave the index in the filename
+  fi
+  npath=$repo_path/python/$npath # make a full path again
+  nbase=${nname%.*}   # remove the extension for output (added automatically)
   jupyter nbconvert --NbConvertApp.use_output_suffix=False \
                     --NbConvertApp.export_format=script \
-                    --FilesWriter.build_directory= \
+                    --FilesWriter.build_directory=$npath \
                     --ClearOutputPreprocessor.enabled=True \
+                    --NbConvertApp.output_base=$nbase \
                     $f
 done
 

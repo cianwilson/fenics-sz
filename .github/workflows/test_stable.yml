@@ -43,11 +43,16 @@ jobs:
             git diff --exit-code || { retcode=$?; echo "Jupyter notebooks are not clear.  Please clear output."; exit $retcode; }
 
       - name: Test background
-        working-directory: notebooks
+        working-directory: python/background
         run: |
             mpirun -n 2 python3 poisson_1d.py
             mpirun -n 2 python3 poisson_2d_tests.py
             mpirun -n 2 python3 batchelor.py
+            python3 blankenbach.py
+
+      - name: Test sz_problems
+        working-directory: python/sz_problems
+        run: |
             python3 sz_base.py
             python3 sz_slab.py
             python3 sz_geometry.py

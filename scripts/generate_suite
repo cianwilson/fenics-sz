@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
   suite = substitute(args.filename)
 
-  print("Please copy the following into the _toc.yml file...")
+  print("If new files have been added please copy the following into the _toc.yml file making sure to correct the relative paths (or rerun this script from the location of the _toc.yml file)...")
   print("")
   for name, filename in suite:
     print(toctemp.substitute({'title':name, 'filename':filename}))

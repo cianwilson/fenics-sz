@@ -62,5 +62,5 @@ parse:
 #    </div>
 
 exclude_patterns: [readme.md, typos.md,
-                   notebooks/sz_suite_ss/template.ipynb,
-                   notebooks/sz_suite_td/template.ipynb]
+                   notebooks/04_global_suites/4.1b_steady_state/template.ipynb,
+                   notebooks/04_global_suites/4.2b_steady_state/template.ipynb]

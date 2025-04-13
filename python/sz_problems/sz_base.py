@@ -24,7 +24,7 @@
 # Throughout our implementation, in the following notebooks, we will demonstrate its functionality using the simplified geometry previously laid out and repeated below in Figure 1. However our implementation will be applicable to a broader range of geometries and setups.
 # 
 # ![Figure 8a of Wilson & van Keken, 2023](images/benchmarkgeometry.png)
-# *Figure 1: Geometry and coefficients for a simplified 2D subduction zone model. All coefficients and parameters are nondimensional. The decoupling point is indicated by the star.*
+# *Figure 1: Geometry and coefficients for a simplified 2D subduction zone model. All coefficients and parameters are nondimensional. The decoupling point is indicated by the circle on the slab.*
 
 # ### Parameters
 # 
@@ -36,44 +36,45 @@
 # | Reference temperature scale                       | $ T_0$              | 1 K=1$^\circ$C                           | -                           |
 # | Surface temperature                               | $T^*_s$             | 273 K=0$^\circ$C                         | $T_s$=0                     |
 # | Mantle temperature                                | $T^*_m$             | 1623 K=1350$^\circ$C                     | $T_m$=1350                  |
-# | Surface heat flow	note{c}                         | $q^*_s$             | $^\S$ W/m$^2$                       | $q_s$$^\S$             |
+# | Surface heat flow	note{c}                         | $q^*_s$             | $^\S$ W/m$^2$                       | $q_s$ $^\S$             |
 # | Reference density                                 | $\rho_0$            | 3300 kg/m$^3$                            | -                           |
-# | Crustal density$^\text{c}$                          | $\rho^*_c$          | 2750 kg/m$^3$                            | $\rho_c$=0.833333           |
+# | Crustal density $^\text{c}$                          | $\rho^*_c$          | 2750 kg/m$^3$                            | $\rho_c$=0.833333           |
 # | Mantle density                                    | $\rho^*_m$          | 3300 kg/m$^3$                            | $\rho_m$=1                  |
 # | Reference thermal conductivity                    | $k_0$               | 3.1  W/(m K)                             | -                           |
-# | Crustal thermal conductivity$^\text{c}$             | $k^*_c$             | 2.5  W/(m K)                             | $k_c$=0.8064516             |
+# | Crustal thermal conductivity $^\text{c}$             | $k^*_c$             | 2.5  W/(m K)                             | $k_c$=0.8064516             |
 # | Mantle thermal conductivity                       | $k^*_m$             | 3.1  W/(m K)                             | $k_m$=1                     |
-# | Volumetric heat production (upper crust)$^\text{c}$ | $H^*_1$             | 1.3 $\mu$W/m$^3$                       | $H_1$=0.419354              |
-# | Volumetric heat production (lower crust)$^\text{c}$ | $H_2^*$             | 0.27 $\mu$W/m$^3$                      | $H_2$=0.087097              |
-# | Age of overriding crust$^\text{o}$                  | $A_c^*$             | $^\S$ Myr                           | $A_c$$^\S$             |
-# | Age of subduction$^\text{t}$                        | $A_s^*$             | $^\S$ Myr                           | $A_s$$^\S$             |
-# | Age of subducting slab                            | $A^*$               | $^\S$ Myr                           | $A$$^\S$               |
+# | Volumetric heat production (upper crust) $^\text{c}$ | $H^*_1$             | 1.3 $\mu$ W/m $^3$                       | $H_1$=0.419354              |
+# | Volumetric heat production (lower crust) $^\text{c}$ | $H_2^*$             | 0.27 $\mu$ W/m $^3$                      | $H_2$=0.087097              |
+# | Age of overriding crust $^\text{o}$                  | $A_c^*$             | $^\S$ Myr                           | $A_c$ $^\S$             |
+# | Age of subduction $^\text{t}$                        | $A_s^*$             | $^\S$ Myr                           | $A_s$ $^\S$             |
+# | Age of subducting slab                            | $A^*$               | $^\S$ Myr                           | $A$ $^\S$               |
 # | Reference length scale                            | $h_0$               | 1 km                                     | -                           |
-# | Depth of base of upper crust$^\text{c}$             | $z_1^*$             | 15 km                                    | $z_1$=15                    |
-# | Depth of base of lower crust (Moho)               | $z_2^*$             | $^\S$ km                            | $z_2$$^\S$             |
-# | Trench depth                                      | $z_\text{trench}^*$ | $^\S$ km                            | $z_\text{trench}$$^\S$ |
-# | Position of the coast line                        | $x_\text{coast}^*$  | $^\S$ km                            | $x_\text{coast}$$^\S$  |
-# | Wedge inflow/outflow transition depth             | $z_\text{io}^*$     | $^\S$ km                            | $z_\text{io}$$^\S$     |
-# | Depth of domain                                   | $D^*$               | $^\S$ km                            | $D$$^\S$               |
-# | Width of domain                                   | $L^*$               | $^\S$ km                            | $L$$^\S$               |
+# | Depth of base of upper crust $^\text{c}$             | $z_1^*$             | 15 km                                    | $z_1$=15                    |
+# | Depth of base of lower crust (Moho)               | $z_2^*$             | $^\S$ km                            | $z_2$ $^\S$             |
+# | Trench depth                                      | $z_\text{trench}^*$ | $^\S$ km                            | $z_\text{trench}$ $^\S$ |
+# | Position of the coast line                        | $x_\text{coast}^*$  | $^\S$ km                            | $x_\text{coast}$ $^\S$  |
+# | Wedge inflow/outflow transition depth             | $z_\text{io}^*$     | $^\S$ km                            | $z_\text{io}$ $^\S$     |
+# | Depth of domain                                   | $D^*$               | $^\S$ km                            | $D$ $^\S$               |
+# | Width of domain                                   | $L^*$               | $^\S$ km                            | $L$ $^\S$               |
 # | Depth of change from decoupling to coupling       | $d_c^*$             | 80 km                                    | $d_c$=80                    |
+# | Depth change from full decoupling to full coupling       | $\Delta d_c^*$             | 2.5 km                                    | $\Delta d_c$=2.5                    |
 # | Reference heat capacity                           | ${c_p}_0$           | 1250 J/(kg K)                            | -                           |
-# | Reference thermal diffusivity                     | $\kappa_0$          | 0.7515$\times$10$^{\textrm{-6}}$ m$^2$/s | -                           |
+# | Reference thermal diffusivity                     | $\kappa_0$          | 0.7515 $\times$ 10 $^{\textrm{-6}}$ m $^2$/s | -                           |
 # | Activation energy                                 | $E$                 | 540 kJ/mol                               | -                           |
 # | Powerlaw exponent                                 | $n$                 | 3.5                                      | -                           |
-# | Pre-exponential constant                          | $A^*_\eta$          | 28968.6 Pa s$^{1/n}$                     | -                           |
-# | Reference viscosity scale                         | $\eta_0$            | 10$^{\textrm{21}}$ Pa s                  | -                           |
-# | Viscosity cap                                     | $\eta^*_\text{max}$ | 10$^{\textrm{25}}$ Pa s                  | -                           |
+# | Pre-exponential constant                          | $A^*_\eta$          | 28968.6 Pa s $^{1/n}$                     | -                           |
+# | Reference viscosity scale                         | $\eta_0$            | 10 $^{\textrm{21}}$ Pa s                  | -                           |
+# | Viscosity cap                                     | $\eta^*_\text{max}$ | 10 $^{\textrm{25}}$ Pa s                  | -                           |
 # | Gas constant                                      | $R^*$               | 8.3145 J/(mol K)                         | -                           |
 # | Derived velocity scale                            | ${v}_0$             | 23.716014 mm/yr                          | -                           |
-# | Convergence velocity                              | $V_s^*$             | $^\S$ mm/yr                         | $V_s$$^\S$             |
+# | Convergence velocity                              | $V_s^*$             | $^\S$ mm/yr                         | $V_s$ $^\S$             |
 # 
 # |            |                                 |
 # |------------|---------------------------------|
-# |$^\text{c}$ | ocean-continent subduction only |
-# |$^\text{o}$ | ocean-ocean subduction only     |
-# |$^\text{t}$ | time-dependent simulations only |
-# |$^\S$       | varies between models           |
+# | $^\text{c}$ | ocean-continent subduction only |
+# | $^\text{o}$ | ocean-ocean subduction only     |
+# | $^\text{t}$ | time-dependent simulations only |
+# | $^\S$       | varies between models           |
 # 
 # *Table 1: Nomenclature and reference values*
 # 

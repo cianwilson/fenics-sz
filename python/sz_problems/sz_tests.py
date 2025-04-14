@@ -10,6 +10,7 @@
 # Some variations from the previous notebook
 # 
 # * Try higher resolution versions of the benchmark cases
+# * Varying the coupling depth
 # * Try some cases from the global suite using the data in `allsz_params`
 
 # ### Preamble
@@ -158,7 +159,68 @@ utils.plot_show(plotter_case2_resscale2)
 utils.plot_save(plotter_case2_resscale2, output_folder / "sz_tests_case2_resscale2_solution.png")
 
 
-# ### Global suite
+# ### Vary coupling depth
+
+# We will now re-use all of the parameters for case 2 but vary the coupling depth by passing in an additional keyword argument `coupling_depth` to `create_slab`.  The rest of the solution procedure is the same as before.
+# 
+# Let's loop over a series of coupling depths to see how varying it changes the solution.
+
+# In[ ]:
+
+
+# set a list of coupling depths to try
+coupling_depths = [60.0, 80.0, 100.0]
+
+# set up a list to save the diagnostics from each
+diagnostics = []
+# loop over the couplings depths
+for coupling_depth in coupling_depths:
+    # create the slab object, all of the input arguments are the same as in case 2
+    # but this time we also pass in the coupling_depth keyword argument to override
+    # the default value (80 km)
+    slab_dc = create_slab(xs, ys, resscale2, lc_depth, coupling_depth=coupling_depth)
+    # set up the geometry
+    geom_dc = create_sz_geometry(slab_dc, resscale2, sztype, io_depth_2, extra_width, 
+                                            coast_distance, lc_depth, uc_depth)
+    # set up the subduction zone problem
+    sz_dc = SubductionProblem(geom_dc, A=A, Vs=Vs, sztype=sztype, qs=qs)
+
+    # solve the steady state problem
+    if sz_dc.comm.rank == 0: print(f"\nSolving steady state flow with coupling depth = {coupling_depth}km...")
+    sz_dc.solve_steadystate_dislocationcreep()
+
+    # retrieve the diagnostics
+    diagnostics.append(sz_dc.get_diagnostics())
+
+    # plot the solution
+    plotter_dc = utils.plot_scalar(sz_dc.T_i, scale=sz_dc.T0, gather=True, cmap='coolwarm', 
+                                   scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+    utils.plot_vector_glyphs(sz_dc.vw_i, plotter=plotter_dc, gather=True, factor=0.05, color='k', 
+                             scale=utils.mps_to_mmpyr(sz_dc.v0))
+    utils.plot_vector_glyphs(sz_dc.vs_i, plotter=plotter_dc, gather=True, factor=0.05, color='k', 
+                             scale=utils.mps_to_mmpyr(sz_dc.v0))
+    utils.plot_geometry(sz_dc.geom, plotter=plotter_dc, color='green', width=2)
+    utils.plot_couplingdepth(sz_dc.geom.slab_spline, plotter=plotter_dc, render_points_as_spheres=True, 
+                             point_size=10.0, color='green')
+    utils.plot_show(plotter_dc)
+    utils.plot_save(plotter_dc, output_folder / f"sz_tests_dc{coupling_depth}_solution.png")
+
+
+# As well as visualizing the solutions we can see what effect varying the coupling depth has on the global diagnostics from the benchmark.
+
+# In[ ]:
+
+
+# print the varying coupling depth output
+print('')
+print('{:<12} {:<12} {:<12} {:<12} {:<12} {:<12}'.format('d_c', 'T_ndof', 'T_{200,-100}', 'Tbar_s', 'Tbar_w', 'Vrmsw'))
+for dc, diag in zip(coupling_depths, diagnostics):
+    print('{:<12.4g} {:<12d} {:<12.4f} {:<12.4f} {:<12.4f} {:<12.4f}'.format(dc, *diag))
+
+
+# Note the dramatic drop in temperature at (200, -100), `T_{200,-100}`, once the coupling depth reaches 100km.
+
+# ### Global suite examples
 
 # #### Alaska Peninsula (dislocation creep, low res)
 

@@ -1,0 +1,16 @@
+fenics-dolfinx=0.8.0
+mpich=4.3.0
+pyvista=0.43.5
+ipylab=1.0.0 
+python-gmsh=4.12.2
+scipy=1.13.0
+imageio=2.37.0
+pandas=2.2.2
+jupyterlab=4.1.6
+jupyter-book=1.0.0
+meshio=5.3.5
+h5py=3.11.0
+seaborn=0.13.2
+tqdm=4.66.4
+ipdb=0.13.13
+vtk=9.2.6

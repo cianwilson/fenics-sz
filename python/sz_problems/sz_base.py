@@ -24,7 +24,7 @@
 # Throughout our implementation, in the following notebooks, we will demonstrate its functionality using the simplified geometry previously laid out and repeated below in Figure 1. However our implementation will be applicable to a broader range of geometries and setups.
 # 
 # ![Figure 8a of Wilson & van Keken, 2023](images/benchmarkgeometry.png)
-# *Figure 1: Geometry and coefficients for a simplified 2D subduction zone model. All coefficients and parameters are nondimensional. The decoupling point is indicated by the star.*
+# *Figure 1: Geometry and coefficients for a simplified 2D subduction zone model. All coefficients and parameters are nondimensional. The decoupling point is indicated by the circle on the slab.*
 
 # ### Parameters
 # 
@@ -36,7 +36,7 @@
 # | Reference temperature scale                       | $ T_0$              | 1 K=1$^\circ$C                           | -                           |
 # | Surface temperature                               | $T^*_s$             | 273 K=0$^\circ$C                         | $T_s$=0                     |
 # | Mantle temperature                                | $T^*_m$             | 1623 K=1350$^\circ$C                     | $T_m$=1350                  |
-# | Surface heat flow	note{c}                         | $q^*_s$             | $^\S$ W/m$^2$                       | $q_s$$^\S$             |
+# | Surface heat flow$^\text{c}$                       | $q^*_s$             | $^\S$ W/m$^2$                       | $q_s$$^\S$             |
 # | Reference density                                 | $\rho_0$            | 3300 kg/m$^3$                            | -                           |
 # | Crustal density$^\text{c}$                          | $\rho^*_c$          | 2750 kg/m$^3$                            | $\rho_c$=0.833333           |
 # | Mantle density                                    | $\rho^*_m$          | 3300 kg/m$^3$                            | $\rho_m$=1                  |
@@ -57,6 +57,7 @@
 # | Depth of domain                                   | $D^*$               | $^\S$ km                            | $D$$^\S$               |
 # | Width of domain                                   | $L^*$               | $^\S$ km                            | $L$$^\S$               |
 # | Depth of change from decoupling to coupling       | $d_c^*$             | 80 km                                    | $d_c$=80                    |
+# | Depth range of partial to full coupling           | $\Delta d_c^*$      | 2.5 km                                   | $\Delta d_c$=2.5            |
 # | Reference heat capacity                           | ${c_p}_0$           | 1250 J/(kg K)                            | -                           |
 # | Reference thermal diffusivity                     | $\kappa_0$          | 0.7515$\times$10$^{\textrm{-6}}$ m$^2$/s | -                           |
 # | Activation energy                                 | $E$                 | 540 kJ/mol                               | -                           |

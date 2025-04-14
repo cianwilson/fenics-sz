@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
 # ### Slab geometry
 
-# In kinematic slab models the slab is typically described using a small number of points derived from seismic data which are then fitted with a spline to interpolate and extrapolate the geometry to other depths.  We will use a cubic spline provided by the [scipy](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.CubicSpline.html) module and wrapped for convenience in our own `geometry.py` python module.  We need to provide the points describing the spline, some information about the resolution we desire in the mesh at various points along the spline, and information about some points that we require to be included in the spline.  The most important of these are the partial and full coupling depths (`partial_coupling_depth` and `full_coupling_depth` previously loaded in `default_params` respectively), which will later be used as the locations where the slab becomes fully coupled to the mantle wedge.  These parameters are key in determining the subduction zone thermal structure.  We also include a point at `slab_det_depth` that we use to extract diagnostic information.
+# In kinematic slab models the slab is typically described using a small number of points derived from seismic data which are then fitted with a spline to interpolate and extrapolate the geometry to other depths.  We will use a cubic spline provided by the [scipy](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.CubicSpline.html) module and wrapped for convenience in our own `geometry.py` python module.  We need to provide the points describing the spline, some information about the resolution we desire in the mesh at various points along the spline, and information about some points that we require to be included in the spline.  The most important of these are the coupling depth (`coupling_depth`), at which coupling begins, and the depth at which full coupling occurs (calculated here from `coupling_depth + coupling_depth_range`). Both `coupling_depth` and `coupling_depth_range` were previously loaded in `default_params` and will later be used as the depths that determine where the slab becomes coupled to the mantle wedge.  These parameters are key in determining the subduction zone thermal structure.  We also include a point at `slab_det_depth` that we use to extract diagnostic information.
 # 
 # We set up the slab using the function `create_slab` below.
 
@@ -72,9 +72,9 @@ def create_slab(xs, ys, resscale, lc_depth,
      distances:
       * slab_diag1_depth - starting depth of slab diagnostic region
       * slab_diag2_depth - end depth of slab diagnostic region
-      * partial_coupling_depth - partial coupling depth on slab
-      * full_coupling_depth    - full coupling depth on slab
-      * slab_det_depth         - detector depth on slab
+      * coupling_depth   - partial coupling depth on slab
+      * coupling_depth_range - depth range over which slab goes from being partially to fully coupled
+      * slab_det_depth       - detector depth on slab
 
      resolutions factors (that get multiplied by the resscale to get the resolutions):
       * slab_diag1_res_fact             - start of slab diagnostic region
@@ -95,8 +95,8 @@ def create_slab(xs, ys, resscale, lc_depth,
     # depths
     slab_diag1_depth       = kwargs.get('slab_diag1_depth', default_params['slab_diag1_depth'])
     slab_diag2_depth       = kwargs.get('slab_diag2_depth', default_params['slab_diag2_depth'])
-    partial_coupling_depth = kwargs.get('partial_coupling_depth', default_params['partial_coupling_depth'])
-    full_coupling_depth    = kwargs.get('full_coupling_depth', default_params['full_coupling_depth'])
+    partial_coupling_depth = kwargs.get('coupling_depth', default_params['coupling_depth'])
+    full_coupling_depth    = partial_coupling_depth + kwargs.get('coupling_depth_range', default_params['coupling_depth_range'])
     slab_det_depth         = kwargs.get('slab_det_depth', default_params['slab_det_depth'])
     
     # resolutions

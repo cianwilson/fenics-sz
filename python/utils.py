@@ -18,7 +18,8 @@ mps_to_mmpyr = lambda v: v*1.0e3*365.25*24*60*60
 
 def create_submesh(mesh, cell_indices, cell_tags=None, facet_tags=None):
     """
-    Function to return a submesh based on the cell indices provided.
+    Function to return a submesh based on the cell indices provided using a split comm
+    that excludes ranks with no cells.
 
     Arguments:
       * mesh         - original (parent) mesh
@@ -36,8 +37,47 @@ def create_submesh(mesh, cell_indices, cell_tags=None, facet_tags=None):
     """
     tdim = mesh.topology.dim
     fdim = tdim-1
-    submesh, submesh_cell_map, submesh_vertex_map, submesh_geom_map = \
+    submesh0, submesh0_cell_map, submesh0_vertex_map, submesh0_geom_map = \
                   df.mesh.create_submesh(mesh, tdim, cell_indices)
+    
+    # create a split comm
+    new_comm = mesh.comm.Split(submesh0.topology.index_map(tdim).size_local>0)
+
+    # map from the rank on the original comm to the new split comm
+    # used to map index map owners to their new ranks
+    # this will include undefined negative numbers on ranks with no corresponding entry on the split comm that should cause failure if the mesh has ghosts on unexpected ranks
+    rank_map = np.asarray(submesh0.comm.group.Translate_ranks(None, new_comm.group), dtype=np.int32)
+
+    # create a new topology on the new comm
+    new_topo = df.cpp.mesh.Topology(new_comm, submesh0.topology.cell_type)
+
+    new_topo_im_0 = df.common.IndexMap(new_comm, 
+                                    submesh0.topology.index_map(0).size_local, 
+                                    submesh0.topology.index_map(0).ghosts, 
+                                    rank_map[submesh0.topology.index_map(0).owners])
+    new_topo.set_index_map(0, new_topo_im_0)
+
+    new_topo_im_tdim = df.common.IndexMap(new_comm, 
+                                    submesh0.topology.index_map(tdim).size_local, 
+                                    submesh0.topology.index_map(tdim).ghosts, 
+                                    rank_map[submesh0.topology.index_map(tdim).owners])
+    new_topo.set_index_map(tdim, new_topo_im_tdim)
+
+    new_topo.set_connectivity(submesh0.topology.connectivity(0,0), 0, 0)
+    new_topo.set_connectivity(submesh0.topology.connectivity(tdim, 0), tdim, 0)
+
+    gdim = submesh0.geometry.dim
+    new_geom_im = df.common.IndexMap(new_comm,
+                                    submesh0.geometry.index_map().size_local,
+                                    submesh0.geometry.index_map().ghosts,
+                                    rank_map[submesh0.geometry.index_map().owners])
+    new_geom = type(submesh0.geometry._cpp_object)(new_geom_im, submesh0.geometry.dofmap, 
+                                    submesh0.geometry.cmap._cpp_object, 
+                                    submesh0.geometry.x[:,:gdim], 
+                                    submesh0.geometry.input_global_indices)
+    
+    # set up a new submesh
+    submesh = df.mesh.Mesh(type(submesh0._cpp_object)(new_comm, new_topo, new_geom), submesh0.ufl_domain())
     submesh.topology.create_connectivity(fdim, tdim)
 
     # if cell_tags are provided then map to the submesh
@@ -47,13 +87,13 @@ def create_submesh(mesh, cell_indices, cell_tags=None, facet_tags=None):
         submesh_cell_tags_values  = []
         # loop over the submesh cells, checking if they're included in
         # the parent cell_tags
-        for i,parentind in enumerate(submesh_cell_map):
+        for i,parentind in enumerate(submesh0_cell_map):
             parent_cell_tags_indices = np.argwhere(cell_tags.indices==parentind)
             if parent_cell_tags_indices.shape[0]>0:
                 submesh_cell_tags_indices.append(i)
                 submesh_cell_tags_values.append(cell_tags.values[parent_cell_tags_indices[0][0]])
         submesh_cell_tags_indices = np.asarray(submesh_cell_tags_indices)
-        submesh_cell_tagsvalues  = np.asarray(submesh_cell_tags_values)
+        submesh_cell_tags_values  = np.asarray(submesh_cell_tags_values)
 
         # create a new meshtags object
         # indices should already be sorted by construction
@@ -75,7 +115,7 @@ def create_submesh(mesh, cell_indices, cell_tags=None, facet_tags=None):
         # (only for the facets that exist in the submesh)
         submesh_parentvs2subf = dict()
         for i in range(submesh_f2vs.num_nodes):
-            submesh_parentvs2subf[tuple(sorted([submesh_vertex_map[j] for j in submesh_f2vs.links(i)]))] = i
+            submesh_parentvs2subf[tuple(sorted([submesh0_vertex_map[j] for j in submesh_f2vs.links(i)]))] = i
 
         # loop over the facet_tags and map from the parent facet to the submesh facet
         # via the vertices, copying over the facet_tag values
@@ -94,7 +134,7 @@ def create_submesh(mesh, cell_indices, cell_tags=None, facet_tags=None):
                                               submesh_facet_tags_indices[perm], 
                                               submesh_facet_tags_values[perm])
     
-    return submesh, submesh_cell_tags, submesh_facet_tags, submesh_cell_map
+    return submesh, submesh_cell_tags, submesh_facet_tags, submesh0_cell_map
 
 def get_cell_collisions(x, mesh):
     """
@@ -122,7 +162,17 @@ def get_cell_collisions(x, mesh):
 
 @functools.singledispatch
 def vtk_mesh(mesh: df.mesh.Mesh):
-    return df.plot.vtk_mesh(mesh)
+    tdim = mesh.topology.dim
+    if mesh.topology.index_map(tdim).size_local > 0:
+        return df.plot.vtk_mesh(mesh)
+    else:
+        cell_type = df.cpp.mesh.cell_entity_type(mesh.topology.cell_type, tdim, 0)
+        vtk_type = df.cpp.io.get_vtk_cell_type(cell_type, tdim)
+        cell_types = np.full(0, vtk_type)
+        x = mesh.geometry.x
+        num_nodes_per_cell = mesh.geometry.dofmap.shape[-1]
+        topology = np.empty((0, num_nodes_per_cell + 1), dtype=np.int32)
+        return topology.reshape(-1), cell_types, x
 
 @vtk_mesh.register
 def _(V: df.fem.FunctionSpace):
@@ -206,12 +256,14 @@ def plot_mesh(mesh, tags=None, plotter=None, gather=False, **pv_kwargs):
 
         for r, grid in enumerate(grids):
             grid.cell_data["Marker"] = marker_g[r]
-        grid.set_active_scalars("Marker")
+            grid.set_active_scalars("Marker")
     
     if len(grids) > 0 and plotter is None: plotter = pv.Plotter()
 
     if plotter is not None:
-        for grid in grids: plotter.add_mesh(grid, **pv_kwargs)
+        for grid in grids: 
+            if grid.GetNumberOfPoints() > 0:
+                plotter.add_mesh(grid, **pv_kwargs)
         if mesh.geometry.dim == 2:
             plotter.enable_parallel_projection()
             plotter.view_xy()

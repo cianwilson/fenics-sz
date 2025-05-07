@@ -3,6 +3,7 @@ import numpy
 from scipy import interpolate as interp
 from scipy import integrate as integ
 from scipy import optimize as opt
+from mpi4py import MPI
 
 default_res = 50.0
 
@@ -100,12 +101,11 @@ class GmshFile:
     self.synchronize()
     gmsh.write(filename)
 
-  def mesh(self):
+  def mesh(self, comm=MPI.COMM_WORLD, partitioner=lambda model: None):
     from dolfinx.io import gmshio
-    from mpi4py import MPI
     self.synchronize()
-    gmsh.model.mesh.generate(2)
-    return gmshio.model_to_mesh(gmsh.model, MPI.COMM_WORLD, 0, gdim=2)
+    if comm.rank==0: gmsh.model.mesh.generate(2)
+    return gmshio.model_to_mesh(gmsh.model, comm, 0, gdim=2, partitioner=partitioner(gmsh.model, comm=comm))
 
 class ElementaryEntity:
   def __init__(self, name=None):
@@ -200,14 +200,14 @@ class InterpolatedCubicSpline:
 
   def x2delu(self, x, x0=None):
     """Convert from Delta x to Delta u:
-       u = \int_{x0}^{x} sqrt(1 + (dy(x')/dx')**2) dx'
+       u = \\int_{x0}^{x} sqrt(1 + (dy(x')/dx')**2) dx'
        x0 is the lower bound of integration - provide to get an incremental u"""
     if x0 is None: x0 = self.x[0]
     return integ.quad(lambda xp: self.du(xp), x0, x)[0]/self.length
 
   def delu2x(self, delu, x0=None):
     """Convert from u to x:
-       u(x) = \int_{x0}^x sqrt(1 + (dy(x')/dx')**2) dx'
+       u(x) = \\int_{x0}^x sqrt(1 + (dy(x')/dx')**2) dx'
        x0 is the lower bound of integration."""
     if x0 is None: x0 = self.x[0]
     return opt.fsolve(lambda x: self.x2delu(x, x0=x0)-delu, x0, fprime=lambda x: [self.du(x)])[0]
@@ -1028,6 +1028,92 @@ class SubductionGeometry:
     gmshfile = self.gmshfile()
     gmshfile.write(filename)
 
-  def generatemesh(self):
+  def generatemesh(self, comm=MPI.COMM_WORLD):
     gmshfile = self.gmshfile()
-    return gmshfile.mesh()
+    return gmshfile.mesh(comm=comm, partitioner=self.regionpartitioner)
+  
+  def regionpartitioner(self, model, comm=MPI.COMM_WORLD):
+    import dolfinx
+    if comm.rank == 0:
+      topologies = dolfinx.io.gmshio.extract_topology_and_markers(model)
+
+      num_cell_types = len(topologies.keys())
+      cell_information = dict()
+      cell_dimensions = numpy.zeros(num_cell_types, dtype=numpy.int32)
+      for i, element in enumerate(topologies.keys()):
+        _, dim, _, _, _, _ = model.mesh.getElementProperties(element)
+        cell_information[i] = {"id": element, "dim": dim}
+        cell_dimensions[i] = dim
+
+      # Sort elements by ascending dimension
+      perm_sort = numpy.argsort(cell_dimensions)
+      cell_id = cell_information[perm_sort[-1]]["id"]
+
+      # Here we are ignoring mixed cell meshes (but the gmshio code currently does that too)
+      # If this is changed then this should be a list for each cell type (not just len 1)
+      cell_values = [numpy.asarray(topologies[cell_id]["cell_data"], dtype=numpy.int32)]
+    else:
+      cell_values = [numpy.empty((0,), dtype=numpy.int32)]
+    
+    wedge_rids = tuple(set([v['rid'] for k,v in self.wedge_dividers.items()]+[self.wedge_rid]))
+    slab_rids  = tuple([self.slab_rid])
+    crust_rids = tuple(set([v['rid'] for k,v in self.crustal_layers.items()]))
+    
+    def partitioner(comm, commsize, celltypes, topos):
+      nverts = [abs(int(celltype.value)) for celltype in celltypes]
+      ncells = sum([int(len(topo)/nverts[t]) for t, topo in enumerate(topos)])
+      if commsize == 1:
+        # trivial case
+        procs = numpy.zeros(ncells, dtype=numpy.int32)
+        dest = dolfinx.graph.adjacencylist(procs)
+      elif commsize == 2:
+        groups = [slab_rids, wedge_rids + crust_rids]
+        procs = numpy.asarray([g for t in range(len(topos)) for val in cell_values[t] for g, group in enumerate(groups) if val in group], dtype=numpy.int32)
+        dest = dolfinx.graph.adjacencylist(procs)
+      # elif commsize == 3:
+      #   groups = [slab_rids, wedge_rids, crust_rids]
+      #   procs = numpy.asarray([g for t in range(len(topos)) for val in cell_values[t] for g, group in enumerate(groups) if val in group], dtype=numpy.int32)
+      #   dest = dolfinx.graph.adjacencylist(procs)
+      else:
+        groups = [slab_rids, wedge_rids, crust_rids]
+        if comm.rank == 0:
+            cellorder = [None]*ncells
+            lgrouptopos = [[[] for t in range(len(topos))] for g in range(len(groups))]
+            i = 0
+            for g, group in enumerate(groups):
+                for t, topo in enumerate(topos):
+                    for c, val in enumerate(cell_values[t]):
+                        if val in group:
+                            lgrouptopos[g][t] += topo[c*nverts[t]:(c+1)*nverts[t]].tolist()
+                            cellorder[c] = i # remember the order
+                            i += 1
+            grouptopos = [[numpy.array(grouptopo[t], dtype=numpy.int64) for t in range(len(topos))] for grouptopo in lgrouptopos]
+            groupsizes = [max(1, int(sum([len(grouptopo[t])/nverts[t] for t in range(len(topos))])*commsize/ncells)) for grouptopo in grouptopos]
+            print('0 groupsizes = ', groupsizes)
+            while sum(groupsizes) < commsize:
+                for g in [1, 0, 2]:
+                    groupsizes[g] = groupsizes[g] + 1
+                    if sum(groupsizes) == commsize: break
+            while sum(groupsizes) > commsize:
+                for g in [2, 0, 1]:
+                    if groupsizes[g] > 1: groupsizes[g] = groupsizes[g] - 1
+                    if sum(groupsizes) == commsize: break
+            print('1 groupsizes = ', groupsizes)
+            groupsizes = comm.bcast(groupsizes, root=0)
+        else:
+            cellorder = []
+            grouptopos = [[numpy.empty((0,), dtype=numpy.int64) for t in range(len(topos))] for g in range(len(groups))]
+            groupsizes = comm.bcast([None]*len(groups), root=0)
+        if sum(groupsizes) != commsize:
+            raise Exception("sum(groupsizes) != commsize")
+        values = numpy.empty((0,), dtype=numpy.int32)
+        for g in range(len(groups)):
+            destl = dolfinx.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.none)(
+                comm, groupsizes[g], celltypes, grouptopos[g])
+            values = numpy.concatenate((values, destl.array + sum(groupsizes[:g])), axis=0, dtype=numpy.int32)
+        dest = dolfinx.graph.adjacencylist(values[cellorder])
+      return dest
+    
+    return partitioner
+
+

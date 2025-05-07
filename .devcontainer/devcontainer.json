@@ -13,7 +13,7 @@
                 "ms-toolsai.jupyter"
             ],
 			"settings": {
-				"python.defaultInterpreterPath": "/usr/bin/python3"
+				"python.defaultInterpreterPath": "/dolfinx-env/bin/python3"
             }
 		}
 	}

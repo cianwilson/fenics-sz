@@ -50,6 +50,7 @@ import utils
 from mpi4py import MPI
 import dolfinx as df
 import dolfinx.fem.petsc
+from petsc4py import PETSc
 import numpy as np
 import scipy as sp
 import ufl
@@ -182,14 +183,14 @@ class SubductionProblem:
         self.wedge_cell_tags  = None
         self.wedge_facet_tags = None 
         self.wedge_cell_map   = None
-        self.wedge_reverse_cell_map = None
+        self.wedge_rank       = True
     
         # slab submesh
         self.slab_submesh    = None
         self.slab_cell_tags  = None
         self.slab_facet_tags = None
         self.slab_cell_map   = None
-        self.slab_reverse_cell_map = None
+        self.slab_rank       = True
     
         # functionspaces
         self.Vslab_vp  = None
@@ -299,11 +300,8 @@ class SubductionProblem(SubductionProblem):
         self.wedge_submesh, self.wedge_cell_tags, self.wedge_facet_tags, self.wedge_cell_map = \
                             utils.create_submesh(self.mesh, np.concatenate([self.cell_tags.find(rid) for rid in self.wedge_rids]), \
                                                  self.cell_tags, self.facet_tags)
-        # create a reverse cell map from the parent mesh to the submesh
-        # (entering -1s in the map where no cell exists in the submesh)
-        self.wedge_reverse_cell_map = np.full(self.num_cells, -1, dtype=np.int32)
-        self.wedge_reverse_cell_map[self.wedge_cell_map] = np.arange(len(self.wedge_cell_map))
-
+        # record whether this MPI rank has slab DOFs or not
+        self.wedge_rank = self.wedge_submesh.topology.index_map(self.tdim).size_local > 0
         
         # generate the slab submesh
         # this command also returns cell and facet tags mapped from the parent mesh to the submesh
@@ -311,10 +309,8 @@ class SubductionProblem(SubductionProblem):
         self.slab_submesh, self.slab_cell_tags, self.slab_facet_tags, self.slab_cell_map  = \
                             utils.create_submesh(self.mesh, np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids]), \
                                                  self.cell_tags, self.facet_tags)
-        # create a reverse cell map from the parent mesh to the submesh
-        # (entering -1s in the map where no cell exists in the submesh)
-        self.slab_reverse_cell_map = np.full(self.num_cells, -1, dtype=np.int32)
-        self.slab_reverse_cell_map[self.slab_cell_map] = np.arange(len(self.slab_cell_map))
+        # record whether this MPI rank has wedge DOFs or not
+        self.slab_rank = self.slab_submesh.topology.index_map(self.tdim).size_local > 0
 
 
 # ### 2-3. Function spaces & functions
@@ -385,7 +381,7 @@ class SubductionProblem(SubductionProblem):
         self.Vwedge_vp, self.Vwedge_v, \
                         self.wedge_vpw_i, \
                         self.wedge_vw_i, self.wedge_pw_i, \
-                        self.wedge_vpw_t, self.wedge_vpw_a = create_vp_functions(self.wedge_submesh, "slab_")
+                        self.wedge_vpw_t, self.wedge_vpw_a = create_vp_functions(self.wedge_submesh, "wedge_")
 
         # set up the mixed velocity, pressure functionspace (not stored)
         V_vp   = df.fem.functionspace(self.mesh, vp_e)
@@ -442,22 +438,22 @@ class SubductionProblem(SubductionProblem):
         """
         Update the temperature functions defined on the submeshes, given a solution on the full mesh.
         """
-        self.slab_T_i.interpolate(self.T_i, cell_map=self.slab_cell_map)
-        self.wedge_T_i.interpolate(self.T_i, cell_map=self.wedge_cell_map)
+        self.slab_T_i.interpolate(self.T_i, cells0=self.slab_cell_map, cells1=np.arange(len(self.slab_cell_map)))
+        self.wedge_T_i.interpolate(self.T_i, cells0=self.wedge_cell_map, cells1=np.arange(len(self.wedge_cell_map)))
     
     def update_v_functions(self):
         """
         Update the velocity functions defined on the full mesh, given solutions on the sub meshes.
         """
-        self.vs_i.interpolate(self.slab_vs_i, cells=self.slab_cell_map, cell_map=self.slab_reverse_cell_map)
-        self.vw_i.interpolate(self.wedge_vw_i, cells=self.wedge_cell_map, cell_map=self.wedge_reverse_cell_map)
+        self.vs_i.interpolate(self.slab_vs_i, cells0=np.arange(len(self.slab_cell_map)), cells1=self.slab_cell_map)
+        self.vw_i.interpolate(self.wedge_vw_i, cells0=np.arange(len(self.wedge_cell_map)), cells1=self.wedge_cell_map)
 
     def update_p_functions(self):
         """
         Update the pressure functions defined on the full mesh, given solutions on the sub meshes.
         """
-        self.ps_i.interpolate(self.slab_ps_i, cells=self.slab_cell_map, cell_map=self.slab_reverse_cell_map)
-        self.pw_i.interpolate(self.wedge_pw_i, cells=self.wedge_cell_map, cell_map=self.wedge_reverse_cell_map)
+        self.ps_i.interpolate(self.slab_ps_i, cells0=np.arange(len(self.slab_cell_map)), cells1=self.slab_cell_map)
+        self.pw_i.interpolate(self.wedge_pw_i, cells0=np.arange(len(self.wedge_cell_map)), cells1=self.wedge_cell_map)
 
 
 # ### 4. Boundary conditions
@@ -669,10 +665,10 @@ class SubductionProblem(SubductionProblem):
         # to the whole domain (not just the boundaries)
         # on the wedge and crust side of the domain apply the wedge condition
         nonslab_cells = np.concatenate([self.cell_tags.find(rid) for domain in [self.crust_rids, self.wedge_rids] for rid in domain])
-        self.T_i.interpolate(T_backarc_f, cells=nonslab_cells)
+        self.T_i.interpolate(T_backarc_f, cells0=nonslab_cells)
         # on the slab side of the domain apply the slab condition
         slab_cells = np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids])
-        self.T_i.interpolate(T_trench_f, cells=slab_cells)
+        self.T_i.interpolate(T_trench_f, cells0=slab_cells)
         # update the interpolated T functions for consistency
         self.update_T_functions()
 
@@ -1094,8 +1090,12 @@ class SubductionProblem(SubductionProblem):
                                                  petsc_options=petsc_options)
 
         # solve the Stokes problems
-        self.wedge_vpw_i = problem_vpw.solve()
-        self.slab_vps_i = problem_vps.solve()
+        if self.wedge_rank: 
+            print('Solving vp isoviscous in wedge')
+            self.wedge_vpw_i = problem_vpw.solve()
+        if self.slab_rank: 
+            print('Solving vp isoviscous in slab')
+            self.slab_vps_i = problem_vps.solve()
 
         # interpolate the solutions to the whole mesh
         self.update_v_functions()
@@ -1432,26 +1432,31 @@ class SubductionProblem(SubductionProblem):
         # set it to etamax everywhere (will get overwritten)
         eta_i.x.array[:] = self.etamax/self.eta0
         
-        def solve_viscosity(v_i, T_i, cell_map, reverse_cell_map):
+        def solve_viscosity(v_i, T_i):
             """
             Solve for the viscosity in subdomains and interpolate it to the parent Function
             """
             mesh = T_i.function_space.mesh
-            Vwedge_eta = df.fem.functionspace(mesh, ("DG", p_eta))
-            eta_a = ufl.TrialFunction(Vwedge_eta)
-            eta_t = ufl.TestFunction(Vwedge_eta)
+            V_eta = df.fem.functionspace(mesh, ("DG", p_eta))
+            eta_a = ufl.TrialFunction(V_eta)
+            eta_t = ufl.TestFunction(V_eta)
             Seta = eta_t*eta_a*ufl.dx
             feta = eta_t*self.etadisl(v_i, T_i)*ufl.dx
             problem = df.fem.petsc.LinearProblem(Seta, feta, petsc_options=petsc_options)
-            leta_i = problem.solve()
-            eta_i.interpolate(leta_i, cells=cell_map, cell_map=reverse_cell_map)
+            return problem.solve()
 
         # solve in the wedge
-        solve_viscosity(self.wedge_vw_i, self.wedge_T_i, \
-                        self.wedge_cell_map, self.wedge_reverse_cell_map)
+        if self.wedge_rank:
+            print('Solving eta in wedge')
+            leta_i = solve_viscosity(self.wedge_vw_i, self.wedge_T_i)
+            eta_i.interpolate(leta_i, cells0=np.arange(len(self.wedge_cell_map)), 
+                              cells1=self.wedge_cell_map)
         # solve in the slab
-        solve_viscosity(self.slab_vs_i, self.slab_T_i, \
-                        self.slab_cell_map, self.slab_reverse_cell_map)
+        if self.slab_rank:
+            print('Solving eta in slab')
+            leta_i = solve_viscosity(self.slab_vs_i, self.slab_T_i)
+            eta_i.interpolate(leta_i, cells0=np.arange(len(self.slab_cell_map)), 
+                              cells1=self.slab_cell_map)
 
         # return the viscosity
         return eta_i
@@ -1518,33 +1523,42 @@ class SubductionProblem(SubductionProblem):
             """
             Return the total residual of the problem
             """
-            rw_vec = df.fem.assemble_vector(df.fem.form(rw))
+            rw_vec = df.fem.petsc.assemble_vector(df.fem.form(rw))
+            rw_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             df.fem.set_bc(rw_vec.array, self.bcs_vpw, scale=0.0)
-            rs_vec = df.fem.assemble_vector(df.fem.form(rs))
+            rs_vec = df.fem.petsc.assemble_vector(df.fem.form(rs))
+            rs_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             df.fem.set_bc(rs_vec.array, self.bcs_vps, scale=0.0)
-            rT_vec = df.fem.assemble_vector(df.fem.form(rT))
+            rT_vec = df.fem.petsc.assemble_vector(df.fem.form(rT))
+            rT_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             df.fem.set_bc(rT_vec.array, self.bcs_T, scale=0.0)
-            r = np.sqrt(rw_vec.petsc_vec.norm()**2 + \
-                        rs_vec.petsc_vec.norm()**2 + \
-                        rT_vec.petsc_vec.norm()**2)
+            print("residual norms = ", rw_vec.norm(), rs_vec.norm(), rT_vec.norm())
+            r = np.sqrt(rw_vec.norm()**2 + \
+                        rs_vec.norm()**2 + \
+                        rT_vec.norm()**2)
             return r
 
         # calculate the initial residual
         r = calculate_residual()
         r0 = r
         rrel = r/r0  # 1
-        if self.comm.rank == 0:
-            print("{:<11} {:<12} {:<17}".format('Iteration','Residual','Relative Residual'))
-            print("-"*42)
+        #if self.comm.rank == 0:
+        print("{:<11} {:<12} {:<17}".format('Iteration','Residual','Relative Residual'))
+        print("-"*42)
 
         # iterate until the residual converges (hopefully)
         it = 0
-        if self.comm.rank == 0: print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
+        #if self.comm.rank == 0: 
+        print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
         while rrel > rtol and r > atol:
             if it > maxits: break
             # solve for v & p and interpolate it
-            self.wedge_vpw_i = problem_vpw.solve()
-            self.slab_vps_i  = problem_vps.solve()
+            if self.wedge_rank:
+                print('Solving vp dislocation creep in wedge')
+                self.wedge_vpw_i = problem_vpw.solve()
+            if self.slab_rank:
+                print('Solving vp dislocation creep in slab')
+                self.slab_vps_i  = problem_vps.solve()
             self.update_v_functions()
             # solve for T and interpolate it
             self.T_i = problem_T.solve()
@@ -1553,7 +1567,8 @@ class SubductionProblem(SubductionProblem):
             r = calculate_residual()
             rrel = r/r0
             it += 1
-            if self.comm.rank == 0: print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
+            #if self.comm.rank == 0: 
+            print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
 
         # check for convergence failures
         if it > maxits:
@@ -1908,15 +1923,18 @@ class SubductionProblem(SubductionProblem):
             """
             Return the total residual of the problem
             """
-            rw_vec = df.fem.assemble_vector(df.fem.form(rw))
+            rw_vec = df.fem.petsc.assemble_vector(df.fem.form(rw))
+            rw_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             df.fem.set_bc(rw_vec.array, self.bcs_vpw, scale=0.0)
-            rs_vec = df.fem.assemble_vector(df.fem.form(rs))
+            rs_vec = df.fem.petsc.assemble_vector(df.fem.form(rs))
+            rs_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             df.fem.set_bc(rs_vec.array, self.bcs_vps, scale=0.0)
-            rT_vec = df.fem.assemble_vector(df.fem.form(rT))
+            rT_vec = df.fem.petsc.assemble_vector(df.fem.form(rT))
+            rT_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             df.fem.set_bc(rT_vec.array, self.bcs_T, scale=0.0)
-            r = np.sqrt(rw_vec.petsc_vec.norm()**2 + \
-                        rs_vec.petsc_vec.norm()**2 + \
-                        rT_vec.petsc_vec.norm()**2)
+            r = np.sqrt(rw_vec.norm()**2 + \
+                        rs_vec.norm()**2 + \
+                        rT_vec.norm()**2)
             return r
 
         
@@ -1951,8 +1969,12 @@ class SubductionProblem(SubductionProblem):
                  self.T_i = problem_T.solve()
                  self.update_T_functions()
                  
-                 self.wedge_vpw_i = problem_vpw.solve()
-                 self.slab_vps_i  = problem_vps.solve()
+                 if self.wedge_rank:
+                    print("Solving vp dislocation creep time-dependent in wedge")
+                    self.wedge_vpw_i = problem_vpw.solve()
+                 if self.slab_rank:
+                    print("Solving vp dislocation creep time-dependent in slab")
+                    self.slab_vps_i  = problem_vps.solve()
                  self.update_v_functions()
 
                  r = calculate_residual()

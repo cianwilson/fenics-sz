@@ -174,9 +174,3 @@ if __name__ == "__main__" and "__file__" not in globals():
     app.commands.execute('docmanager:save')
     get_ipython().system('jupyter nbconvert --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_benchmark 3.2b_sz_benchmark.ipynb')
 
-
-# In[ ]:
-
-
-
-

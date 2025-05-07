@@ -8,6 +8,7 @@ ENV HDF5_DIR="/usr/local"
 ENV PYVISTA_JUPYTER_BACKEND="static"
 ENV OMP_NUM_THREADS=1
 ENV DEBIAN_FRONTEND=noninteractive
+ENV XDG_RUNTIME_DIR='/tmp'
 
 WORKDIR /tmp/
 # Requirements for pyvista (gl1 and render1) and jupyterlab (nodejs and curl)

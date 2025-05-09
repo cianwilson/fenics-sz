@@ -168,11 +168,7 @@ class SubductionProblem:
         self.tdim = None
         self.fdim = None
         self.num_cells = None
-    
-        # integral measures
-        self.dx = None
-        self.dS = None
-    
+
         # region ids
         self.wedge_rids       = None
         self.slab_rids        = None
@@ -191,6 +187,10 @@ class SubductionProblem:
         self.slab_facet_tags = None
         self.slab_cell_map   = None
         self.slab_rank       = True
+    
+        # integral measures
+        self.dx = None
+        self.wedge_ds = None
     
         # functionspaces
         self.Vslab_vp  = None
@@ -282,9 +282,6 @@ class SubductionProblem(SubductionProblem):
         self.tdim = self.mesh.topology.dim
         self.fdim = self.tdim - 1
 
-        self.dx = ufl.Measure("dx", domain=self.mesh, subdomain_data=self.cell_tags)
-        self.dS = ufl.Measure("dS", domain=self.mesh, subdomain_data=self.facet_tags)
-
         # get the number of cells
         cell_imap = self.mesh.topology.index_map(self.tdim)
         self.num_cells = cell_imap.size_local + cell_imap.num_ghosts
@@ -298,7 +295,8 @@ class SubductionProblem(SubductionProblem):
         # this command also returns cell and facet tags mapped from the parent mesh to the submesh
         # additionally a cell map maps cells in the submesh to the parent mesh
         self.wedge_submesh, self.wedge_cell_tags, self.wedge_facet_tags, self.wedge_cell_map = \
-                            utils.create_submesh(self.mesh, np.concatenate([self.cell_tags.find(rid) for rid in self.wedge_rids]), \
+                            utils.create_submesh(self.mesh, 
+                                                 np.concatenate([self.cell_tags.find(rid) for rid in self.wedge_rids]), \
                                                  self.cell_tags, self.facet_tags)
         # record whether this MPI rank has slab DOFs or not
         self.wedge_rank = self.wedge_submesh.topology.index_map(self.tdim).size_local > 0
@@ -307,10 +305,14 @@ class SubductionProblem(SubductionProblem):
         # this command also returns cell and facet tags mapped from the parent mesh to the submesh
         # additionally a cell map maps cells in the submesh to the parent mesh
         self.slab_submesh, self.slab_cell_tags, self.slab_facet_tags, self.slab_cell_map  = \
-                            utils.create_submesh(self.mesh, np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids]), \
+                            utils.create_submesh(self.mesh, 
+                                                 np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids]), \
                                                  self.cell_tags, self.facet_tags)
         # record whether this MPI rank has wedge DOFs or not
         self.slab_rank = self.slab_submesh.topology.index_map(self.tdim).size_local > 0
+
+        self.dx = ufl.Measure("dx", domain=self.mesh, subdomain_data=self.cell_tags)
+        self.wedge_ds = ufl.Measure("ds", domain=self.wedge_submesh, subdomain_data=self.wedge_facet_tags)
 
 
 # ### 2-3. Function spaces & functions
@@ -1090,13 +1092,9 @@ class SubductionProblem(SubductionProblem):
                                                  petsc_options=petsc_options)
 
         # solve the Stokes problems
-        if self.wedge_rank: 
-            print('Solving vp isoviscous in wedge')
-            self.wedge_vpw_i = problem_vpw.solve()
-        if self.slab_rank: 
-            print('Solving vp isoviscous in slab')
-            self.slab_vps_i = problem_vps.solve()
-
+        if self.wedge_rank: self.wedge_vpw_i = problem_vpw.solve()
+        if self.slab_rank:  self.slab_vps_i = problem_vps.solve()
+        
         # interpolate the solutions to the whole mesh
         self.update_v_functions()
         
@@ -1190,29 +1188,41 @@ class SubductionProblem(SubductionProblem):
         # work out location of spot tempeterature on slab and evaluate T
         xpt = np.asarray(self.geom.slab_spline.intersecty(-100.0)+[0.0])
         cinds, cells = utils.get_cell_collisions(xpt, self.mesh)
-        Tpt = self.T0*self.T_i.eval(xpt, cells[0])[0]
+        Tpt = np.nan
+        if len(cells) > 0: Tpt = self.T0*self.T_i.eval(xpt, cells[0])[0]
+        # FIXME: does this really have to be an allgather?
+        Tpts = self.comm.allgather(Tpt)
+        Tpt = float(next(T for T in Tpts if not np.isnan(T)))
         if self.comm.rank == 0: print("T_(200,-100) = {:.2f} deg C".format(Tpt,))
 
-        # a unit constant to evaluate slab length and wedge area
-        one_c = df.fem.Constant(self.mesh, df.default_scalar_type(1.0))
-
-        # evaluate average T along diagnostic section of slab
+        # evaluate the length of the slab along which we will take the average T
         slab_diag_sids = tuple([self.geom.wedge_dividers['WedgeFocused']['slab_sid']])
-        Tslab = self.T0*df.fem.assemble_scalar(df.fem.form(self.T_i*self.dS(slab_diag_sids)))\
-                        /df.fem.assemble_scalar(df.fem.form(one_c*self.dS(slab_diag_sids)))
+        slab_diag_length = df.fem.assemble_scalar(df.fem.form(df.fem.Constant(self.wedge_submesh, df.default_scalar_type(1.0))*self.wedge_ds(slab_diag_sids)))
+        slab_diag_length = self.comm.allreduce(slab_diag_length, op=MPI.SUM)
+        if self.comm.rank == 0: print("slab_diag_length = {:.2f}".format(slab_diag_length,))
+        
+        # evaluate average T along diagnostic section of slab
+        # to avoid having to share facets in parallel we evaluate the slab temperature
+        # on the wedge submesh so first we update the wedge_T_i function
+        self.update_T_functions()
+        Tslab = self.T0*df.fem.assemble_scalar(df.fem.form(self.wedge_T_i*self.wedge_ds(slab_diag_sids)))
+        Tslab = self.comm.allreduce(Tslab, op=MPI.SUM)/slab_diag_length
         if self.comm.rank == 0: print("T_slab = {:.2f} deg C".format(Tslab,))
         
+        # evaluate the area of the wedge in which we will take the average T and vrms
         wedge_diag_rids = tuple([self.geom.wedge_dividers['WedgeFocused']['rid']])
-        wedge_diag_area = df.fem.assemble_scalar(df.fem.form(one_c*self.dx(wedge_diag_rids)))
+        wedge_diag_area = df.fem.assemble_scalar(df.fem.form(df.fem.Constant(self.mesh, df.default_scalar_type(1.0))*self.dx(wedge_diag_rids)))
+        wedge_diag_area = self.comm.allreduce(wedge_diag_area, op=MPI.SUM)
+        if self.comm.rank == 0: print("wedge_diag_area = {:.2f}".format(wedge_diag_area,))
 
         # evaluate average T in wedge diagnostic region
-        Twedge = self.T0*df.fem.assemble_scalar(df.fem.form(self.T_i*self.dx(wedge_diag_rids)))\
-                         /wedge_diag_area
+        Twedge = self.T0*df.fem.assemble_scalar(df.fem.form(self.T_i*self.dx(wedge_diag_rids)))
+        Twedge = self.comm.allreduce(Twedge, op=MPI.SUM)/wedge_diag_area
         if self.comm.rank == 0: print("T_wedge = {:.2f} deg C".format(Twedge,))
 
         # evaluate average vrms in wedge diagnostic region
-        vrmswedge = np.sqrt(df.fem.assemble_scalar(df.fem.form(ufl.inner(self.vw_i, self.vw_i)*self.dx(wedge_diag_rids)))\
-                            /wedge_diag_area)*utils.mps_to_mmpyr(self.v0)
+        vrmswedge = df.fem.assemble_scalar(df.fem.form(ufl.inner(self.vw_i, self.vw_i)*self.dx(wedge_diag_rids)))
+        vrmswedge = ((self.comm.allreduce(vrmswedge, op=MPI.SUM)/wedge_diag_area)**0.5)*utils.mps_to_mmpyr(self.v0)
         if self.comm.rank == 0: print("V_rms,w = {:.2f} mm/yr".format(vrmswedge,))
 
         # return results
@@ -1447,13 +1457,11 @@ class SubductionProblem(SubductionProblem):
 
         # solve in the wedge
         if self.wedge_rank:
-            print('Solving eta in wedge')
             leta_i = solve_viscosity(self.wedge_vw_i, self.wedge_T_i)
             eta_i.interpolate(leta_i, cells0=np.arange(len(self.wedge_cell_map)), 
                               cells1=self.wedge_cell_map)
         # solve in the slab
         if self.slab_rank:
-            print('Solving eta in slab')
             leta_i = solve_viscosity(self.slab_vs_i, self.slab_T_i)
             eta_i.interpolate(leta_i, cells0=np.arange(len(self.slab_cell_map)), 
                               cells1=self.slab_cell_map)
@@ -1473,6 +1481,38 @@ class SubductionProblem(SubductionProblem):
 
 
 class SubductionProblem(SubductionProblem):
+
+    def calculate_residual(self, rw, rs, rT):
+        """
+        Given forms for the vpw, vps and T residuals, 
+        return the total residual of the problem.
+
+        Arguments:
+          * rw - residual form for the wedge velocity and pressure
+          * rs - residual form for the slab velocity and pressure
+          * rT - residual form for the temperature
+        
+        Returns:
+          * r  - 2-norm of the combined residual
+        """
+        # because some of our forms are defined on different MPI comms
+        # we need to calculate a squared 2-norm locally and use the global
+        # comm to reduce it
+        def calc_r_norm_sq(r, bcs, this_rank=True):
+            r_norm_sq = 0.0
+            if this_rank:
+                r_vec = df.fem.assemble_vector(df.fem.form(r))
+                r_vec.scatter_reverse(df.la.InsertMode.add)
+                df.fem.set_bc(r_vec.array, bcs, scale=0.0)
+                sl = r_vec.index_map.size_local
+                r_norm_sq = np.inner(r_vec.array[:sl], r_vec.array[:sl])
+            return r_norm_sq
+        r_norm_sq  = calc_r_norm_sq(rw, self.bcs_vpw, self.wedge_rank)
+        r_norm_sq += calc_r_norm_sq(rs, self.bcs_vps, self.slab_rank)
+        r_norm_sq += calc_r_norm_sq(rT, self.bcs_T)
+        r = self.comm.allreduce(r_norm_sq, op=MPI.SUM)**0.5
+        return r
+
     def solve_steadystate_dislocationcreep(self, rtol=5.e-6, atol=5.e-9, maxits=50,
                                            petsc_options=None):
         """
@@ -1519,56 +1559,31 @@ class SubductionProblem(SubductionProblem):
         # define the non-linear residual for the temperature
         rT = ufl.action(ST, self.T_i) - fT
 
-        def calculate_residual():
-            """
-            Return the total residual of the problem
-            """
-            rw_vec = df.fem.petsc.assemble_vector(df.fem.form(rw))
-            rw_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-            df.fem.set_bc(rw_vec.array, self.bcs_vpw, scale=0.0)
-            rs_vec = df.fem.petsc.assemble_vector(df.fem.form(rs))
-            rs_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-            df.fem.set_bc(rs_vec.array, self.bcs_vps, scale=0.0)
-            rT_vec = df.fem.petsc.assemble_vector(df.fem.form(rT))
-            rT_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-            df.fem.set_bc(rT_vec.array, self.bcs_T, scale=0.0)
-            print("residual norms = ", rw_vec.norm(), rs_vec.norm(), rT_vec.norm())
-            r = np.sqrt(rw_vec.norm()**2 + \
-                        rs_vec.norm()**2 + \
-                        rT_vec.norm()**2)
-            return r
-
         # calculate the initial residual
-        r = calculate_residual()
+        r = self.calculate_residual(rw, rs, rT)
         r0 = r
         rrel = r/r0  # 1
-        #if self.comm.rank == 0:
-        print("{:<11} {:<12} {:<17}".format('Iteration','Residual','Relative Residual'))
-        print("-"*42)
+        if self.comm.rank == 0:
+          print("{:<11} {:<12} {:<17}".format('Iteration','Residual','Relative Residual'))
+          print("-"*42)
 
         # iterate until the residual converges (hopefully)
         it = 0
-        #if self.comm.rank == 0: 
-        print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
+        if self.comm.rank == 0: print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
         while rrel > rtol and r > atol:
             if it > maxits: break
             # solve for v & p and interpolate it
-            if self.wedge_rank:
-                print('Solving vp dislocation creep in wedge')
-                self.wedge_vpw_i = problem_vpw.solve()
-            if self.slab_rank:
-                print('Solving vp dislocation creep in slab')
-                self.slab_vps_i  = problem_vps.solve()
+            if self.wedge_rank: self.wedge_vpw_i = problem_vpw.solve()
+            if self.slab_rank:  self.slab_vps_i  = problem_vps.solve()
             self.update_v_functions()
             # solve for T and interpolate it
             self.T_i = problem_T.solve()
             self.update_T_functions()
             # calculate a new residual
-            r = calculate_residual()
+            r = self.calculate_residual(rw, rs, rT)
             rrel = r/r0
             it += 1
-            #if self.comm.rank == 0: 
-            print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
+            if self.comm.rank == 0: print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
 
         # check for convergence failures
         if it > maxits:
@@ -1918,25 +1933,6 @@ class SubductionProblem(SubductionProblem):
         rs = ufl.action(Sss, self.slab_vps_i) - fss
         # define the non-linear residual for the temperature
         rT = ufl.action(ST, self.T_i) - fT
-
-        def calculate_residual():
-            """
-            Return the total residual of the problem
-            """
-            rw_vec = df.fem.petsc.assemble_vector(df.fem.form(rw))
-            rw_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-            df.fem.set_bc(rw_vec.array, self.bcs_vpw, scale=0.0)
-            rs_vec = df.fem.petsc.assemble_vector(df.fem.form(rs))
-            rs_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-            df.fem.set_bc(rs_vec.array, self.bcs_vps, scale=0.0)
-            rT_vec = df.fem.petsc.assemble_vector(df.fem.form(rT))
-            rT_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-            df.fem.set_bc(rT_vec.array, self.bcs_T, scale=0.0)
-            r = np.sqrt(rw_vec.norm()**2 + \
-                        rs_vec.norm()**2 + \
-                        rT_vec.norm()**2)
-            return r
-
         
         t = 0
         ti = 0
@@ -1954,7 +1950,7 @@ class SubductionProblem(SubductionProblem):
                 plotter.write_frame()
             self.T_n.x.array[:] = self.T_i.x.array
             # calculate the initial residual
-            r = calculate_residual()
+            r = self.calculate_residual(rw, rs, rT)
             r0 = r
             rrel = r/r0  # 1
             if self.comm.rank == 0 and verbosity>2:
@@ -1965,23 +1961,19 @@ class SubductionProblem(SubductionProblem):
             # Picard Iteration
             if self.comm.rank == 0 and verbosity>2: print("    {:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
             while r > atol and rrel > rtol:
-                 if it > maxits: break
-                 self.T_i = problem_T.solve()
-                 self.update_T_functions()
-                 
-                 if self.wedge_rank:
-                    print("Solving vp dislocation creep time-dependent in wedge")
-                    self.wedge_vpw_i = problem_vpw.solve()
-                 if self.slab_rank:
-                    print("Solving vp dislocation creep time-dependent in slab")
-                    self.slab_vps_i  = problem_vps.solve()
-                 self.update_v_functions()
+                if it > maxits: break
+                self.T_i = problem_T.solve()
+                self.update_T_functions()
+                
+                if self.wedge_rank: self.wedge_vpw_i = problem_vpw.solve()
+                if self.slab_rank:  self.slab_vps_i  = problem_vps.solve()
+                self.update_v_functions()
 
-                 r = calculate_residual()
-                 rrel = r/r0
-                 # increment iterations
-                 it+=1
-                 if self.comm.rank == 0 and verbosity>2: print("    {:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
+                r = self.calculate_residual(rw, rs, rT)
+                rrel = r/r0
+                # increment iterations
+                it+=1
+                if self.comm.rank == 0 and verbosity>2: print("    {:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
             # check for convergence failures
             if it > maxits:
                 raise Exception("Nonlinear iteration failed to converge after {} iterations (maxits = {}), r = {} (atol = {}), rrel = {} (rtol = {}).".format(it, \

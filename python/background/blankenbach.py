@@ -13,6 +13,7 @@
 
 
 from mpi4py import MPI
+import gmsh
 import dolfinx as df
 import dolfinx.fem.petsc
 import numpy as np
@@ -36,16 +37,68 @@ if __name__ == "__main__":
 # In[ ]:
 
 
-def stokes_function(mesh, p=1):
+def create_transfinite_square(comm, nx, ny, coeff=1):
+    """
+    A python function to create a mesh of a square domain with refinement
+    near the top and bottom boundaries, depending on the value of coeff.
+    Parameters:
+    * comm  - MPI comm used to distribute the mesh in parallel
+    * nx    - number of cells in the horizontal x direction
+    * ny    - number of cells in the vertical y direction
+    * coeff - transfinite coefficients, < 1 refines the mesh at 
+              the top and bottom boundaries [optional, default=1, no refinement]
+    """
+    
+    gmsh.initialize()
+
+    gmsh.model.add("square")
+
+    lc = 1e-2
+    gmsh.model.geo.addPoint(0, 0, 0, lc, 1)
+    gmsh.model.geo.addPoint(1, 0, 0, lc, 2)
+    gmsh.model.geo.addPoint(1, 1, 0, lc, 3)
+    gmsh.model.geo.addPoint(0, 1, 0, lc, 4)
+    gmsh.model.geo.addLine(1, 4, 1)
+    gmsh.model.geo.addLine(2, 3, 2)
+    gmsh.model.geo.addLine(1, 2, 3)
+    gmsh.model.geo.addLine(4, 3, 4)
+    gmsh.model.geo.addCurveLoop([3, 2, -4, -1], 1)
+    gmsh.model.geo.addPlaneSurface([1], 1)
+
+    gmsh.model.geo.mesh.setTransfiniteCurve(1, ny+1, "Bump", coeff)
+    gmsh.model.geo.mesh.setTransfiniteCurve(2, ny+1, "Bump", coeff)
+    gmsh.model.geo.mesh.setTransfiniteCurve(3, nx+1)
+    gmsh.model.geo.mesh.setTransfiniteCurve(4, nx+1)
+
+    gmsh.model.geo.mesh.setTransfiniteSurface(1, "Left")
+
+    gmsh.model.geo.synchronize()
+
+    gmsh.model.addPhysicalGroup(1, [1], 1)
+    gmsh.model.addPhysicalGroup(1, [2], 2)
+    gmsh.model.addPhysicalGroup(1, [3], 3)
+    gmsh.model.addPhysicalGroup(1, [4], 4)
+    gmsh.model.addPhysicalGroup(2, [1], 1)
+
+    if comm.rank == 0:
+        gmsh.model.mesh.generate(2)
+
+    return df.io.gmshio.model_to_mesh(gmsh.model, comm, 0, gdim=2)[0]
+
+
+# In[ ]:
+
+
+def stokes_function(mesh, pp=1):
     """
     A python function to return the Stokes finite element function.
     Parameters:
     * mesh - the mesh
-    * p    - polynomial order of the pressure solution (defaults to 1)
+    * pp   - polynomial order of the pressure solution (defaults to 1)
     """
     # Define velocity, pressure and temperature elements
-    v_e = basix.ufl.element("Lagrange", mesh.basix_cell(), p+1, shape=(mesh.geometry.dim,))
-    p_e = basix.ufl.element("Lagrange", mesh.basix_cell(), p)
+    v_e = basix.ufl.element("Lagrange", mesh.basix_cell(), pp+1, shape=(mesh.geometry.dim,))
+    p_e = basix.ufl.element("Lagrange", mesh.basix_cell(), pp)
 
     # Define the mixed element of the coupled velocity and pressure
     vp_e = basix.ufl.mixed_element([v_e, p_e])
@@ -58,15 +111,15 @@ def stokes_function(mesh, p=1):
 
     return vp
 
-def temperature_function(mesh, p=1):
+def temperature_function(mesh, pT=1):
     """
     A python function to return the temperature finite element function.
     Parameters:
     * mesh - the mesh
-    * p    - polynomial order (defaults to 1)
+    * pT   - polynomial order (defaults to 1)
     """
     # Define velocity, pressure and temperature elements
-    T_e = basix.ufl.element("Lagrange", mesh.basix_cell(), p)
+    T_e = basix.ufl.element("Lagrange", mesh.basix_cell(), pT)
 
     # Define the temperature function space
     V_T  = df.fem.functionspace(mesh, T_e)
@@ -232,7 +285,7 @@ def temperature_weakforms(vp, T):
 # In[ ]:
 
 
-def solve_blankenbach(Ra, ne, p=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.e-9, maxits=50, verbose=True):
+def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.e-9, maxits=50, verbose=True):
     """
     A python function to solve two-dimensional thermal convection 
     in a unit square domain.  By default this assumes an isoviscous rheology 
@@ -240,7 +293,8 @@ def solve_blankenbach(Ra, ne, p=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.e-9, ma
     Parameters:
     * Ra      - the Rayleigh number
     * ne      - number of elements in each dimension
-    * p       - polynomial order of the pressure and temperature solutions (defaults to 1)
+    * pp      - polynomial order of the pressure solution (defaults to 1)
+    * pT      - polynomial order of the temperature solutions (defaults to 1)
     * b       - temperature dependence of viscosity (defaults to isoviscous)
     * alpha   - nonlinear iteration relaxation parameter (defaults to 0.8)
     * rtol    - nonlinear iteration relative tolerance (defaults to 5.e-6)
@@ -252,10 +306,10 @@ def solve_blankenbach(Ra, ne, p=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.e-9, ma
     # and also the tessellation of that domain into ne
     # equally spaced squared in each dimension, which are
     # subduvided into two triangular elements each
-    mesh = df.mesh.create_unit_square(MPI.COMM_WORLD, ne, ne)
+    mesh = create_transfinite_square(MPI.COMM_WORLD, ne, ne, 1)
 
-    vp = stokes_function(mesh, p=p)
-    T = temperature_function(mesh, p=p)
+    vp = stokes_function(mesh, pp=pp)
+    T = temperature_function(mesh, pT=pT)
 
     bcs_s = stokes_bcs(vp)
     bcs_T = temperature_bcs(T)
@@ -288,8 +342,10 @@ def solve_blankenbach(Ra, ne, p=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.e-9, ma
         """
         rs_vec = df.fem.assemble_vector(df.fem.form(rs))
         df.fem.set_bc(rs_vec.array, bcs_s, scale=0.0)
+        rs_vec.scatter_reverse(df.la.InsertMode.add)
         rT_vec = df.fem.assemble_vector(df.fem.form(rT))
         df.fem.set_bc(rT_vec.array, bcs_T, scale=0.0)
+        rT_vec.scatter_reverse(df.la.InsertMode.add)
         r = np.sqrt(rs_vec.petsc_vec.norm()**2 + \
                     rT_vec.petsc_vec.norm()**2)
         return r
@@ -356,10 +412,11 @@ def blankenbach_diagnostics(v, T):
 if __name__ == "__main__":
     # code for Stokes Equation
     ne = 40
-    p = 1
+    pp = 1
+    pT = 1
     # Case 1a
     Ra = 1.e4
-    v_1a, p_1a, T_1a = solve_blankenbach(Ra, ne, p=p)
+    v_1a, p_1a, T_1a = solve_blankenbach(Ra, ne, pp=pp, pT=pT)
     T_1a.name = 'Temperature'
     print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_1a, T_1a)))
 
@@ -380,10 +437,11 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     # code for Stokes Equation
     ne = 40
-    p = 1
+    pp = 1
+    pT = 1
     # Case 1b
     Ra = 1.e5
-    v_1b, p_1b, T_1b = solve_blankenbach(Ra, ne, p=p)
+    v_1b, p_1b, T_1b = solve_blankenbach(Ra, ne, pp=pp, pT=pT)
     T_1b.name = 'Temperature'
     print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_1b, T_1b)))
 
@@ -404,10 +462,11 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     # code for Stokes Equation
     ne = 60
-    p = 1
+    pp = 1
+    pT = 1
     # Case 1c
     Ra = 1.e6
-    v_1c, p_1c, T_1c = solve_blankenbach(Ra, ne, p=p)
+    v_1c, p_1c, T_1c = solve_blankenbach(Ra, ne, pp=pp, pT=pT)
     T_1c.name = 'Temperature'
     print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_1c, T_1c)))
 
@@ -428,10 +487,11 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     # code for Stokes Equation
     ne = 60
-    p = 1
+    pp = 1
+    pT = 1
     # Case 2a
     Ra = 1.e4
-    v_2a, p_2a, T_2a = solve_blankenbach(Ra, ne, p=p, b=np.log(1.e3))
+    v_2a, p_2a, T_2a = solve_blankenbach(Ra, ne, pp=pp, pT=pT, b=np.log(1.e3))
     T_2a.name = 'Temperature'
     print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_2a, T_2a)))
 
@@ -485,7 +545,7 @@ if __name__ == "__main__":
 
     cases = ['1a', '1b', '1c', '2a']
     # List of polynomial orders to try
-    ps = [1]
+    pTs = [1]
     # List of resolutions to try
     nelements = [32, 64, 128]
     # Keep track of whether we get the expected order of convergence
@@ -498,7 +558,7 @@ if __name__ == "__main__":
         Nu_e   = values_c['Nu']
         vrms_e = values_c['vrms']
         # Loop over the polynomial orders
-        for p in ps:
+        for pT in pTs:
             # Accumulate the values and errors
             Nus = []
             vrmss = []
@@ -507,7 +567,7 @@ if __name__ == "__main__":
             # Loop over the resolutions
             for ne in nelements:
                 # Solve the 2D Batchelor corner flow problem
-                v_i, p_i, T_i = solve_blankenbach(Ra, ne, p=p, b=b, verbose=False)
+                v_i, p_i, T_i = solve_blankenbach(Ra, ne, pp=1, pT=pT, b=b, verbose=False)
                 Nu, vrms = blankenbach_diagnostics(v_i, T_i)
                 Nus.append(Nu)
                 vrmss.append(vrms)
@@ -517,14 +577,14 @@ if __name__ == "__main__":
                 errors_vrms.append(vrmserr)
                 # Print to screen and save if on rank 0
                 if T_i.function_space.mesh.comm.rank == 0:
-                    print('case={}, p={}, ne={}, Nu={:.3f}, vrms={:.3f}, Nu err={:.3e}, vrms err={:.3e}'.format(case,p,ne,Nu,vrms,Nuerr,vrmserr,))
+                    print('case={}, pT={}, ne={}, Nu={:.3f}, vrms={:.3f}, Nu err={:.3e}, vrms err={:.3e}'.format(case,pT,ne,Nu,vrms,Nuerr,vrmserr,))
     
-            # Work out the order of convergence at this p
-            hs = 1./np.array(nelements)/p
+            # Work out the order of convergence at this pT
+            hs = 1./np.array(nelements)/pT
     
             # Write the errors to disk
             if T_i.function_space.mesh.comm.rank == 0:
-                with open(output_folder / 'blankenbach_convergence_case{}_p{}.csv'.format(case, p), 'w') as f:
+                with open(output_folder / 'blankenbach_convergence_case{}_pT{}.csv'.format(case, pT), 'w') as f:
                     np.savetxt(f, np.c_[nelements, hs, Nus, vrmss, errors_Nu, errors_vrms], delimiter=',', 
                            header='nelements, hs, Nu, vrms, Nu_err, vrms_err')
     
@@ -532,11 +592,11 @@ if __name__ == "__main__":
             fitNu = np.polyfit(np.log(hs), np.log(errors_Nu),1)
             fitvrms = np.polyfit(np.log(hs), np.log(errors_vrms),1)
             if T_i.function_space.mesh.comm.rank == 0:
-                print("***********  case {} order of accuracy p={}, Nu order={}, vrms order={}".format(case,p,fitNu[0],fitvrms[0]))
+                print("***********  case {} order of accuracy pT={}, Nu order={}, vrms order={}".format(case,pT,fitNu[0],fitvrms[0]))
 
             # log-log plot of the error 
             label = '{}'.format(case,)
-            if len(ps) > 1: label = label+',p={}'.format(p,)
+            if len(pTs) > 1: label = label+',pT={}'.format(pT,)
             axNu.loglog(hs, errors_Nu, 'o-', label=label+',order={:.2f}'.format(fitNu[0],))
             axvrms.loglog(hs, errors_vrms, 'o-', label=label+',order={:.2f}'.format(fitvrms[0],))
         
@@ -545,7 +605,7 @@ if __name__ == "__main__":
 
     # Tidy up the plot
     axNu.set_xlabel('h')
-    axNu.set_ylabel('$|\Delta Nu|/Nu$')
+    axNu.set_ylabel('$|\\Delta Nu|/Nu$')
     axNu.grid()
     axNu.legend()
     axvrms.set_xlabel('h')

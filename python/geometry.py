@@ -101,7 +101,7 @@ class GmshFile:
     self.synchronize()
     gmsh.write(filename)
 
-  def mesh(self, comm=MPI.COMM_WORLD, partitioner=lambda model: None):
+  def mesh(self, comm=MPI.COMM_WORLD, partitioner=lambda model, comm: None):
     from dolfinx.io import gmshio
     self.synchronize()
     if comm.rank==0: gmsh.model.mesh.generate(2)
@@ -1028,9 +1028,12 @@ class SubductionGeometry:
     gmshfile = self.gmshfile()
     gmshfile.write(filename)
 
-  def generatemesh(self, comm=MPI.COMM_WORLD):
+  def generatemesh(self, comm=MPI.COMM_WORLD, partition_by_region=True):
     gmshfile = self.gmshfile()
-    return gmshfile.mesh(comm=comm, partitioner=self.regionpartitioner)
+    if partition_by_region:
+      return gmshfile.mesh(comm=comm, partitioner=self.regionpartitioner)
+    else:
+      return gmshfile.mesh(comm=comm)
   
   def regionpartitioner(self, model, comm=MPI.COMM_WORLD):
     import dolfinx
@@ -1089,7 +1092,6 @@ class SubductionGeometry:
                             i += 1
             grouptopos = [[numpy.array(grouptopo[t], dtype=numpy.int64) for t in range(len(topos))] for grouptopo in lgrouptopos]
             groupsizes = [max(1, int(sum([len(grouptopo[t])/nverts[t] for t in range(len(topos))])*commsize/ncells)) for grouptopo in grouptopos]
-            print('0 groupsizes = ', groupsizes)
             while sum(groupsizes) < commsize:
                 for g in [1, 0, 2]:
                     groupsizes[g] = groupsizes[g] + 1
@@ -1098,7 +1100,6 @@ class SubductionGeometry:
                 for g in [2, 0, 1]:
                     if groupsizes[g] > 1: groupsizes[g] = groupsizes[g] - 1
                     if sum(groupsizes) == commsize: break
-            print('1 groupsizes = ', groupsizes)
             groupsizes = comm.bcast(groupsizes, root=0)
         else:
             cellorder = []

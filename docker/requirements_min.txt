@@ -1,9 +1,9 @@
-fenics-dolfinx=0.8.0
+fenics-dolfinx=0.9.0
 mpich
 pyvista
 ipylab
-python-gmsh=4.12.2
-scipy=1.13.0
+python-gmsh=4.13.1
+scipy=1.14.1
 imageio
 pandas
 jupyterlab

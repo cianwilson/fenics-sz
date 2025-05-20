@@ -1,17 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Blankenbach Thermal Convection Example
-# 
-# Authors: Cameron Seebeck, Cian Wilson
-
-# ## Implementation
-
-# ### Preamble
-
-# In[ ]:
-
-
 from mpi4py import MPI
 import gmsh
 import dolfinx as df
@@ -34,10 +23,7 @@ if __name__ == "__main__":
     output_folder.mkdir(exist_ok=True, parents=True)
 
 
-# In[ ]:
-
-
-def create_transfinite_square(comm, nx, ny, coeff=1):
+def create_transfinite_square(comm, nx, ny, beta=1):
     """
     A python function to create a mesh of a square domain with refinement
     near the top and bottom boundaries, depending on the value of coeff.
@@ -45,13 +31,15 @@ def create_transfinite_square(comm, nx, ny, coeff=1):
     * comm  - MPI comm used to distribute the mesh in parallel
     * nx    - number of cells in the horizontal x direction
     * ny    - number of cells in the vertical y direction
-    * coeff - transfinite coefficients, < 1 refines the mesh at 
-              the top and bottom boundaries [optional, default=1, no refinement]
+    * beta  - beta mesh refinement coefficient, < 1 refines the mesh at 
+              the top and bottom boundaries (defaults to  1, no refinement]
     """
     
-    gmsh.initialize()
+    if not gmsh.is_initialized(): gmsh.initialize()
 
     gmsh.model.add("square")
+    # make gmsh quieter
+    gmsh.option.setNumber('General.Verbosity', 3)
 
     lc = 1e-2
     gmsh.model.geo.addPoint(0, 0, 0, lc, 1)
@@ -65,8 +53,8 @@ def create_transfinite_square(comm, nx, ny, coeff=1):
     gmsh.model.geo.addCurveLoop([3, 2, -4, -1], 1)
     gmsh.model.geo.addPlaneSurface([1], 1)
 
-    gmsh.model.geo.mesh.setTransfiniteCurve(1, ny+1, "Bump", coeff)
-    gmsh.model.geo.mesh.setTransfiniteCurve(2, ny+1, "Bump", coeff)
+    gmsh.model.geo.mesh.setTransfiniteCurve(1, ny+1, "Bump", beta)
+    gmsh.model.geo.mesh.setTransfiniteCurve(2, ny+1, "Bump", beta)
     gmsh.model.geo.mesh.setTransfiniteCurve(3, nx+1)
     gmsh.model.geo.mesh.setTransfiniteCurve(4, nx+1)
 
@@ -84,9 +72,6 @@ def create_transfinite_square(comm, nx, ny, coeff=1):
         gmsh.model.mesh.generate(2)
 
     return df.io.gmshio.model_to_mesh(gmsh.model, comm, 0, gdim=2)[0]
-
-
-# In[ ]:
 
 
 def stokes_function(mesh, pp=1):
@@ -130,9 +115,6 @@ def temperature_function(mesh, pT=1):
     T.interpolate(lambda x: 1.-x[1] + 0.2*np.cos(x[0]*np.pi)*np.sin(x[1]*np.pi))
 
     return T
-
-
-# In[ ]:
 
 
 def stokes_bcs(vp):
@@ -212,9 +194,6 @@ def temperature_bcs(T):
     return bcs
 
 
-# In[ ]:
-
-
 def stokes_weakforms(vp, T, Ra, b=None):
     """
     A python function to return the weak forms for the Stokes problem.
@@ -282,10 +261,9 @@ def temperature_weakforms(vp, T):
     return S, f
 
 
-# In[ ]:
-
-
-def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.e-9, maxits=50, verbose=True):
+def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, beta=1,
+                      alpha=0.8, rtol=5.e-6, atol=5.e-9, maxits=50, 
+                      petsc_options_s=None, petsc_options_T=None, verbose=True):
     """
     A python function to solve two-dimensional thermal convection 
     in a unit square domain.  By default this assumes an isoviscous rheology 
@@ -296,45 +274,75 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.
     * pp      - polynomial order of the pressure solution (defaults to 1)
     * pT      - polynomial order of the temperature solutions (defaults to 1)
     * b       - temperature dependence of viscosity (defaults to isoviscous)
+    * beta    - beta distribution parameter for mesh refinement, 
+                <1 refines the mesh at the top and bottom (defaults to 1, no refinement)
     * alpha   - nonlinear iteration relaxation parameter (defaults to 0.8)
     * rtol    - nonlinear iteration relative tolerance (defaults to 5.e-6)
     * atol    - nonlinear iteration absolute tolerance (defaults to 5.e-9)
     * maxits  - maximum number of nonlinear iterations (defaults to 50)
+    * petsc_options_s - a dictionary of petsc options to pass to the Stokes solver 
+                        (defaults to an LU direct solver using the MUMPS library)
+    * petsc_options_T - a dictionary of petsc options to pass to the temperature solver 
+                        (defaults to an LU direct solver using the MUMPS library)
     * verbose - print convergence information (defaults to True)
     """
+
+    # Set the default PETSc solver options if none have been supplied
+    # opts = PETSc.Options()
+    
+    # prefix_s = "stokes"
+    if petsc_options_s is None:
+        petsc_options_s = {"ksp_type": "preonly", \
+                           "pc_type": "lu",
+                           "pc_factor_mat_solver_type": "mumps"}
+    # opts.prefixPush(prefix_s)
+    # for k, v in petsc_options_s.items(): opts[k] = v
+    # opts.prefixPop()
+
+    # prefix_T = "temperature"
+    if petsc_options_T is None:
+        petsc_options_T = {"ksp_type": "preonly", \
+                           "pc_type": "lu",
+                           "pc_factor_mat_solver_type": "mumps"}
+    # opts.prefixPush(prefix_T)
+    # for k, v in petsc_options_T.items(): opts[k] = v
+    # opts.prefixPop()
+
     # Describe the domain (a unit square)
     # and also the tessellation of that domain into ne
-    # equally spaced squared in each dimension, which are
-    # subduvided into two triangular elements each
-    mesh = create_transfinite_square(MPI.COMM_WORLD, ne, ne, 1)
+    # squares in each dimension, which are
+    # subdivided into two triangular elements each
+    with df.common.Timer("Blankenbach Mesh"):
+        mesh = create_transfinite_square(MPI.COMM_WORLD, ne, ne, beta=beta)
 
-    vp = stokes_function(mesh, pp=pp)
-    T = temperature_function(mesh, pT=pT)
+    with df.common.Timer("Blankenbach Functions"):
+        vp = stokes_function(mesh, pp=pp)
+        vp_i = df.fem.Function(vp.function_space)
+        T = temperature_function(mesh, pT=pT)
+        T_i = df.fem.Function(T.function_space)
 
-    bcs_s = stokes_bcs(vp)
-    bcs_T = temperature_bcs(T)
+    with df.common.Timer("Blankenbach Dirichlet BCs"):
+        bcs_s = stokes_bcs(vp)
+        bcs_T = temperature_bcs(T)
 
-    Ss, fs = stokes_weakforms(vp, T, Ra, b=b)
-    ST, fT = temperature_weakforms(vp, T)
+    with df.common.Timer("Blankenbach Forms"):
+        Ss, fs = stokes_weakforms(vp, T, Ra, b=b)
+        ST, fT = temperature_weakforms(vp, T)
 
-    vp_i = df.fem.Function(vp.function_space)
-    # Set up the Stokes problem (given the boundary conditions, bcs)
-    problem_s = df.fem.petsc.LinearProblem(Ss, fs, bcs=bcs_s, u=vp_i, \
-                                           petsc_options={"ksp_type": "preonly", \
-                                                          "pc_type": "lu", \
-                                                          "pc_factor_mat_solver_type": "mumps"})
+        # Define the non-linear residual for the Stokes problem
+        rs = ufl.action(Ss, vp) - fs
+        # Define the non-linear residual for the temperature problem
+        rT = ufl.action(ST, T) - fT
     
-    T_i = df.fem.Function(T.function_space)
-    # Set up the Stokes problem (given the boundary conditions, bcs)
-    problem_T = df.fem.petsc.LinearProblem(ST, fT, bcs=bcs_T, u=T_i, \
-                                           petsc_options={"ksp_type": "preonly", \
-                                                          "pc_type": "lu", \
-                                                          "pc_factor_mat_solver_type": "mumps"})
-
-    # Define the non-linear residual for the Stokes problem
-    rs = ufl.action(Ss, vp) - fs
-    # Define the non-linear residual for the temperature problem
-    rT = ufl.action(ST, T) - fT
+    with df.common.Timer("Blankenbach Problem Setup Stokes"):
+        # Set up the Stokes problem (given the boundary conditions, bcs)
+        problem_s = df.fem.petsc.LinearProblem(Ss, fs, bcs=bcs_s, u=vp_i, \
+                                            petsc_options=petsc_options_s)
+        
+    with df.common.Timer("Blankenbach Problem Setup Temperature"):
+        # Set up the Stokes problem (given the boundary conditions, bcs)
+        problem_T = df.fem.petsc.LinearProblem(ST, fT, bcs=bcs_T, u=T_i, \
+                                            petsc_options=petsc_options_T)
 
     def calculate_residual():
         """
@@ -350,10 +358,12 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.
                     rT_vec.petsc_vec.norm()**2)
         return r
 
-    # calculate the initial residual
-    r = calculate_residual()
-    r0 = r
-    rrel = r/r0 # 1
+    with df.common.Timer("Blankenbach Residual"):
+        # calculate the initial residual
+        r = calculate_residual()
+        r0 = r
+        rrel = r/r0 # 1
+    
     if mesh.comm.rank and verbose == 0:
         print("{:<11} {:<12} {:<17}".format('Iteration','Residual','Relative Residual'))
         print("-"*42)
@@ -363,14 +373,17 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.
     if mesh.comm.rank == 0 and verbose: print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
     while rrel > rtol and r > atol:
         if it > maxits: break
-        vp_i = problem_s.solve()
-        vp.x.array[:] = (1-alpha)*vp.x.array + alpha*vp_i.x.array
-        T_i = problem_T.solve()
-        T.x.array[:] = (1-alpha)*T.x.array + alpha*T_i.x.array
+        with df.common.Timer("Blankenbach Solve Stokes"):
+            vp_i = problem_s.solve()
+            vp.x.array[:] = (1-alpha)*vp.x.array + alpha*vp_i.x.array
+        with df.common.Timer("Blankenbach Solve Temperature"):
+            T_i = problem_T.solve()
+            T.x.array[:] = (1-alpha)*T.x.array + alpha*T_i.x.array
         # calculate a new residual
-        r = calculate_residual()
-        rrel = r/r0
-        it += 1
+        with df.common.Timer("Blankenbach Residual"):
+            r = calculate_residual()
+            rrel = r/r0
+            it += 1
         if mesh.comm.rank == 0 and verbose: print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
 
     # Check for convergence failures
@@ -384,9 +397,6 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, alpha=0.8, rtol=5.e-6, atol=5.
 
     # Return the subfunctions for velocity and pressure and the function for temperature
     return vp.sub(0).collapse(), vp.sub(1).collapse(), T
-
-
-# In[ ]:
 
 
 def blankenbach_diagnostics(v, T):
@@ -406,9 +416,6 @@ def blankenbach_diagnostics(v, T):
     return Nu, vrms
 
 
-# In[ ]:
-
-
 if __name__ == "__main__":
     # code for Stokes Equation
     ne = 40
@@ -421,17 +428,11 @@ if __name__ == "__main__":
     print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_1a, T_1a)))
 
 
-# In[ ]:
-
-
 if __name__ == "__main__":
     # visualize
     plotter_1a = utils.plot_scalar(T_1a, cmap='coolwarm')
     utils.plot_vector_glyphs(v_1a, plotter=plotter_1a, color='k', factor=0.0005)
     utils.plot_show(plotter_1a)
-
-
-# In[ ]:
 
 
 if __name__ == "__main__":
@@ -446,17 +447,11 @@ if __name__ == "__main__":
     print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_1b, T_1b)))
 
 
-# In[ ]:
-
-
 if __name__ == "__main__":
     # visualize
     plotter_1b = utils.plot_scalar(T_1b, cmap='coolwarm')
     utils.plot_vector_glyphs(v_1b, plotter=plotter_1b, color='k', factor=0.00005)
     utils.plot_show(plotter_1b)
-
-
-# In[ ]:
 
 
 if __name__ == "__main__":
@@ -471,17 +466,11 @@ if __name__ == "__main__":
     print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_1c, T_1c)))
 
 
-# In[ ]:
-
-
 if __name__ == "__main__":
     # visualize
     plotter_1c = utils.plot_scalar(T_1c, cmap='coolwarm')
     utils.plot_vector_glyphs(v_1c, plotter=plotter_1c, color='k', factor=0.00001)
     utils.plot_show(plotter_1c)
-
-
-# In[ ]:
 
 
 if __name__ == "__main__":
@@ -496,24 +485,11 @@ if __name__ == "__main__":
     print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_2a, T_2a)))
 
 
-# In[ ]:
-
-
 if __name__ == "__main__":
     # visualize
     plotter_2a = utils.plot_scalar(T_2a, cmap='coolwarm')
     utils.plot_vector_glyphs(v_2a, plotter=plotter_2a, color='k', factor=0.00002)
     utils.plot_show(plotter_2a)
-
-
-# | case | $Ra$    | $\\eta$                  | $Nu$       | $V_\text{rms}$ | $Nu$        | $V_\text{rms}$ |
-# |------|---------|--------------------------|------------|------------------|-------------|--------------------|
-# | 1a   | $10^4$ | 1                        | 4.884409  | 42.864947       | 4.88440907 | 42.8649484        |
-# | 1b   | $10^5$ | 1                        | 10.534095 | 193.21454       | 10.53404   | 193.21445         |
-# | 1c   | $10^6$ | 1                        | 21.972465 | 833.98977       | 21.97242   | 833.9897          |
-# | 2a   | $10^4$  | $e^{-\ln(10^3) T}$ | 10.0660   | 480.4334        | 10.06597   | 480.4308          |
-
-# In[ ]:
 
 
 values_wvk = {
@@ -534,9 +510,6 @@ params = {
     '1c': {'Ra': 1.e6, 'b': None},
     '2a': {'Ra': 1.e4, 'b': np.log(1.e3)}
     }
-
-
-# In[ ]:
 
 
 if __name__ == "__main__":
@@ -625,21 +598,11 @@ if __name__ == "__main__":
     assert(test_passes)
 
 
-# ## Finish up
-
-# Convert this notebook to a python script (making sure to save first)
-
-# In[ ]:
-
-
 if __name__ == "__main__" and "__file__" not in globals():
     from ipylab import JupyterFrontEnd
     app = JupyterFrontEnd()
     app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/background --NbConvertApp.output_base=blankenbach 2.5b_blankenbach.ipynb')
-
-
-# In[ ]:
+    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/background --NbConvertApp.output_base=blankenbach 2.5b_blankenbach.ipynb')
 
 
 

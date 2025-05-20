@@ -1,28 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Subduction Zone Benchmark
-# 
-# Authors: Kidus Teshome, Cian Wilson
-
-# ## Convergence testing
-
-# ### Preamble
-
-# Let's start by adding the path to the modules in the `python` folder to the system path (so we can find the our custom modules).
-
-# In[ ]:
-
-
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
-
-
-# Then load everything we need from `sz_problem` and also set our default plotting preferences.
-
-# In[ ]:
 
 
 import utils
@@ -37,11 +19,6 @@ import pathlib
 if __name__ == "__main__":
     output_folder = pathlib.Path(os.path.join(basedir, "output"))
     output_folder.mkdir(exist_ok=True, parents=True)
-
-
-# ### Benchmark case 1
-
-# In[ ]:
 
 
 def solve_benchmark_case1(resscale):
@@ -71,9 +48,6 @@ def solve_benchmark_case1(resscale):
     return sz
 
 
-# In[ ]:
-
-
 if __name__ == "__main__":
     resscales = [4.0, 2.0, 1.0]
     diagnostics_case1 = []
@@ -82,27 +56,11 @@ if __name__ == "__main__":
         diagnostics_case1.append((resscale, sz.get_diagnostics()))
 
 
-# In[ ]:
-
-
 if __name__ == "__main__":
     print('')
     print('{:<12} {:<12} {:<12} {:<12} {:<12} {:<12}'.format('resscale', 'T_ndof', 'T_{200,-100}', 'Tbar_s', 'Tbar_w', 'Vrmsw'))
     for resscale, diag in diagnostics_case1:
         print('{:<12.4g} {:<12d} {:<12.4f} {:<12.4f} {:<12.4f} {:<12.4f}'.format(resscale, *diag))    
-
-
-# For comparison here are the values reported for case 1 using [TerraFERMA](https://terraferma.github.io) in [Wilson & van Keken, 2023](http://dx.doi.org/10.1186/s40645-023-00588-6):
-# 
-# | `resscale` | $T_{\text{ndof}} $ | $T_{(200,-100)}^*$ | $\overline{T}_s^*$ | $ \overline{T}_w^* $ |  $V_{\text{rms},w}^*$ |
-# | - | - | - | - | - | - |
-# | 2.0 | 21403  | 517.17 | 451.83 | 926.62 | 34.64 |
-# | 1.0 | 83935  | 516.95 | 451.71 | 926.33 | 34.64 |
-# | 0.5 | 332307 | 516.86 | 451.63 | 926.15 | 34.64 |
-
-# ### Benchmark case 2
-
-# In[ ]:
 
 
 def solve_benchmark_case2(resscale):
@@ -132,18 +90,12 @@ def solve_benchmark_case2(resscale):
     return sz
 
 
-# In[ ]:
-
-
 if __name__ == "__main__":
     resscales = [4.0, 2.0, 1.0]
     diagnostics_case2 = []
     for resscale in resscales:
         sz = solve_benchmark_case2(resscale)
         diagnostics_case2.append((resscale, sz.get_diagnostics()))
-
-
-# In[ ]:
 
 
 if __name__ == "__main__":
@@ -153,24 +105,9 @@ if __name__ == "__main__":
         print('{:<12.4g} {:<12d} {:<12.4f} {:<12.4f} {:<12.4f} {:<12.4f}'.format(resscale, *diag))    
 
 
-# For comparison here are the values reported for case 2 using [TerraFERMA](https://terraferma.github.io) in [Wilson & van Keken, 2023](http://dx.doi.org/10.1186/s40645-023-00588-6):
-# 
-# | `resscale` | $T_{\text{ndof}} $ | $T_{(200,-100)}^*$ | $\overline{T}_s^*$ | $ \overline{T}_w^* $ |  $V_{\text{rms},w}^*$ |
-# | - | - | - | - | - | - |
-# | 2.0 | 21403  | 683.05 | 571.58 | 936.65 | 40.89 |
-# | 1.0 | 83935 | 682.87 | 572.23 | 936.11 | 40.78 |
-# | 0.5 | 332307 | 682.80 | 572.05 | 937.37 | 40.77 |
-
-# ## Finish up
-
-# Convert this notebook to a python script (making sure to save first)
-
-# In[ ]:
-
-
 if __name__ == "__main__" and "__file__" not in globals():
     from ipylab import JupyterFrontEnd
     app = JupyterFrontEnd()
     app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_benchmark 3.2b_sz_benchmark.ipynb')
+    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_benchmark 3.2b_sz_benchmark.ipynb')
 

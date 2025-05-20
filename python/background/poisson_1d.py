@@ -1,71 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Poisson Example 1D
-# 
-# Authors: Kidus Teshome, Cian Wilson
-
-# ## Description
-
-# As a reminder we are seeking the approximate solution of the Poisson equation
-# \begin{align}
-# -\frac{d^2 T}{dx^2} &= h  % && \text{in }\Omega
-# \end{align}
-# on a 1D domain of unit length, $\Omega = [0,1]$, where we choose for this example $h=\frac{1}{4}\pi^2 \sin\left(\frac{\pi x}{2} \right)$.
-
-# At the boundaries, $x$=0 and $x$=1, we apply as boundary conditions \begin{align}
-# T &= 0 && \text{at } x=0  \\
-# \frac{dT}{dx} &= 0 && \text{at } x=1 
-# \end{align}
-# The first boundary condition is an example of an essential or Dirichlet boundary condition where we specify the 
-# value of the solution. The second boundary condition is an example of a natural or Neumann boundary condition that can be interpreted to mean that the solution is symmetrical around $x$=1.
-
-# The analytical solution to the Poisson equation in 1D with the given boundary conditions and forcing function is simply
-# \begin{equation}
-#   T = \sin\left(\frac{\pi x}{2}\right)
-# \end{equation}
-# but we will still solve this numerically as a verification test of our implementation.
-
-# ## Implementation
-
-# Traditionally, finite element methods have been implemented using Fortran or C/C++
-# based codes that, at the core, build the matrix-vector system by numerical integration, after which this system is solved by linear algebraic solvers. Most FEM codes provide options for time-dependence and the ability to solve nonlinear and nonlinearly coupled systems of PDEs. 
-# Examples of such codes that have been used in geodynamical applications including subduction zone modeling are
-# [ConMan](https://doi.org/10.1016/0031-9201(90)90225-M), [Sopale](https://doi.org/10.1111/j.1365-246X.1995.tb05908.x),
-# [Underworld](https://doi.org/10.1016/j.pepi.2007.06.009),
-# [CitcomS](https://doi.org/10.1029/2008GC002048), 
-# [MILAMIN](https://doi.org/10.1029/2007GC001719),
-# [ASPECT](https://doi.org/10.1111/j.1365-246X.2012.05609.x), 
-# [Sepran](https://doi.org/10.1007/s12583-015-0508-0), 
-# [Fluidity](https://doi.org/10.1029/2011GC003551),
-# and [Rhea](https://doi.org/10.1093/gji/ggs070).
-# A number of these are distributed as open-source
-# software and many among those are currently maintained through the 
-# [Computational Infrastructure for Geodynamics](https://geodynamics.org). 
-# These implementations can be shown to be accurate using intercomparisons
-# and benchmarks and make use of advances in parallel computing and efficient linear algebra solver techniques. Yet, modifications to the existing code requires deep insight into the structure of the Fortran/C/C++ code which is not trivial for experienced, let alone beginning, users.
-# 
-# In recent years an alternative approach for FEM has become available which elevates the user interface to simply specifying the FEM problem and solution method with the high-level approach. 
-# Python code is used to automatically build a finite element model that can be executed in a variety of environments ranging from [Jupyter notebooks](https://jupyter.org) and desktop computers to massively parallel high performance computers.
-# Two prominent examples of this approach are [Firedrake](https://www.firedrakeproject.org) and [FEniCS](https://www.fenicsproject.org). Examples of the use of these two approaches in geodynamical
-# applications are in [Davies et al., 2022](https://doi.org/10.5194/gmd-15-5127-2022) and [Vynnytska et al., 2013](https://doi.org/10.1016/j.cageo.2012.05.012).
-# 
-# This and following examples were presented by [Wilson & van Keken, 2023](http://dx.doi.org/10.1186/s40645-023-00588-6) using FEniCS v2019.1.0 and [TerraFERMA](https://terraferma.github.io), a GUI-based model building framework that also uses FEniCS v2019.1.0.  These simulations are publicly available in a [zenodo](https://doi.org/10.5281/zenodo.7843967) archive and can be run using a [docker](https://github.com/users/cianwilson/packages/container/package/vankeken_wilson_peps_2023) image.
-# 
-# Here we will focus on reproducing the results of [Wilson & van Keken, 2023](http://dx.doi.org/10.1186/s40645-023-00588-6) using the latest version of FEniCS, FEniCSx.
-# [FEniCS](https://doi.org/10.11588/ans.2015.100.20553) is a suite of open-source numerical libraries for the description of finite element problems.  Most importantly it provides a high-level, human-readable language 
-# for the description of equations in python Unified Form Language ([UFL](https://doi.org/10.1145/2566630))
-# and the FEniCS Form Compiler ([FFC](https://doi.org/10.1145/1163641.1163644))
-# to write fast code to assemble the resulting discrete matrix-vector system.
-# 
-
-# ### Preamble
-
-# We start by loading all the modules we will require and setting up an output folder.
-
-# In[ ]:
-
-
 from mpi4py import MPI
 import dolfinx as df
 import dolfinx.fem.petsc
@@ -81,24 +16,6 @@ import pathlib
 if __name__ == "__main__":
     output_folder = pathlib.Path(os.path.join(basedir, "output"))
     output_folder.mkdir(exist_ok=True, parents=True)
-
-
-# ### Solution
-
-# We then declare a python function `solve_poisson_1d` that contains a complete description of the discrete Poisson equation problem.
-# 
-# This function follows much the same flow as described in the introduction
-# 1. we describe the domain $\Omega$ and discretize it into `ne` elements or cells to make a `mesh`
-# 2. we declare the **function space**, `V`, to use Lagrange polynomials of degree `p`
-# 3. using this function space we declare trial, `T_a`, and test, `T_t`, functions
-# 4. we define the Dirichlet boundary condition, `bc` at $x=0$, setting the desired value there to be 0
-# 5. we define the right hand side forcing function $h$, `h`
-# 6. we describe the **discrete weak forms**, `S` and `f`, that will be used to assemble the matrix $\mathbf{S}$ and vector $\mathbf{f}$
-# 7. we solve the matrix problem using a linear algebra back-end and return the solution
-# 
-# For a more detailed description of solving the Poisson equation using FEniCSx, see [the FEniCSx tutorial](https://jsdokken.com/dolfinx-tutorial/chapter1/fundamentals.html).
-
-# In[ ]:
 
 
 def solve_poisson_1d(ne, p=1):
@@ -150,25 +67,11 @@ def solve_poisson_1d(ne, p=1):
     return T_i
 
 
-# We can then use `solve_poisson_1d` to solve on, for example, `ne = 4` elements with P1, `p = 1` elements.
-
-# In[ ]:
-
-
 if __name__ == "__main__":
     ne = 4
     p = 1
     T_P1 = solve_poisson_1d(ne, p=p)
     T_P1.name = "T (P1)"
-
-
-# ```{admonition} __main__
-# Note that this code block starts with `if __name__ == "__main__":` to prevent it from being run unless being run as a script or in a Jupyter notebook.  This prevents unecessary computations when this code is used as a python module.
-# ```
-
-# In order to visualize the solution, we write a python function that evaluates both the numerical and analytical solutions at a series of points and plots them both using [matplotlib](https://matplotlib.org/).
-
-# In[ ]:
 
 
 def plot_1d(T, x, filename=None):
@@ -203,19 +106,9 @@ def plot_1d(T, x, filename=None):
         if filename is not None: fig.savefig(filename)
 
 
-# Comparing the numerical, $\tilde{T}$, and analytical, $T$, solutions we can see that even at this small number of elements we do a good job at reproducing the correct answer.
-
-# In[ ]:
-
-
 if __name__ == "__main__":
     x = np.linspace(0, 1, 201)
     plot_1d(T_P1, x, filename=output_folder / '1d_poisson_P1_solution.pdf')
-
-
-# We can also try with a higher order element and see how it improves the solution.
-
-# In[ ]:
 
 
 if __name__ == "__main__":
@@ -225,21 +118,9 @@ if __name__ == "__main__":
     T_P2.name = "T (P2)"
 
 
-# The higher polynomial degree qualitatively appears to have a dramatic improvement in the solution accuracy.
-
-# In[ ]:
-
-
 if __name__ == "__main__":
     x = np.linspace(0, 1, 201)
     plot_1d(T_P2, x, filename=output_folder / '1d_poisson_P2_solution.pdf')
-
-
-# ## Testing
-
-# We can quantify the error in cases where the analytical solution is known by taking the L2 norm of the difference between the numerical and exact solutions.
-
-# In[ ]:
 
 
 def evaluate_error(T_i):
@@ -259,16 +140,6 @@ def evaluate_error(T_i):
     
     # Return the l2 norm of the error
     return l2err
-
-
-# Repeating the numerical experiments with increasing `ne` allows us to test the **convergence** of our approximate finite element solution to the known analytical solution.  A key feature of any discretization technique is that with an increasing number of degrees of freedom (DOFs) these solutions should converge, i.e. the error in our approximation should decrease.  As an error metric we will use the $L^2$ norm of the difference between the
-# approximate, $\tilde{T}$, and analytical, $T$, solutions
-# \begin{equation}
-# e_{L^2} = \sqrt{\int_\Omega \left(\tilde{T} - T\right)^2 dx}
-# \end{equation}
-# The rate at which this decreases is known as the order of convergence. Numerical analysis predicts a certain order depending on the type of the polynomials used as finite element shape functions and other constraints related to the well-posedness of the problem. For piecewise linear shape functions we expect second-order convergence, that is that the error decreases as $h^{-2}$ where $h$ is the nodal point spacing. With piecewise quadratic elements we expect to see third-order convergence.
-
-# In[ ]:
 
 
 if __name__ == "__main__":
@@ -335,23 +206,11 @@ if __name__ == "__main__":
     assert(test_passes)
 
 
-# The convergence tests show that we achieve the expected orders of convergence for all polynomial degrees.
-
-# ## Finish up
-
-# Convert this notebook to a python script (making sure to save first)
-
-# In[ ]:
-
-
 if __name__ == "__main__" and "__file__" not in globals():
     from ipylab import JupyterFrontEnd
     app = JupyterFrontEnd()
     app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/background --NbConvertApp.output_base=poisson_1d 2.2b_poisson_1d.ipynb')
-
-
-# In[ ]:
+    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/background --NbConvertApp.output_base=poisson_1d 2.2b_poisson_1d.ipynb')
 
 
 

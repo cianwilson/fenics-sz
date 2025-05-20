@@ -17,7 +17,7 @@ dependencies = [
     "ipdb==0.13.13",
     "ipylab==1.0.0",
     "ipywidgets==7.7.1",
-    "ipyparallel==7.1.0",
+    "ipyparallel==9.0.1",
 ]
 
 [project.optional-dependencies]

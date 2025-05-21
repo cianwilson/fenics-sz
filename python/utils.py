@@ -6,6 +6,7 @@ import functools
 import vtk
 import matplotlib.pyplot as pl
 import ipyparallel as ipp
+import logging
 
 try:
     pv.start_xvfb()
@@ -868,7 +869,7 @@ def run_parallel(nprocs, *args, **kwargs):
     """
     outputs = []
     for nproc in nprocs:
-        cluster = ipp.Cluster(engine_launcher_class="mpi", n=nproc)
+        cluster = ipp.Cluster(engine_launcher_class="mpi", n=nproc, log_level=logging.FATAL)
         rc = cluster.start_and_connect_sync()
         view = rc[:]
 
@@ -936,7 +937,7 @@ def profile_parallel(nprocs, labels, *args, output_basename=None, **kwargs):
     """
     maxtimes = []
     for nproc in nprocs:
-        cluster = ipp.Cluster(engine_launcher_class="mpi", n=nproc)
+        cluster = ipp.Cluster(engine_launcher_class="mpi", n=nproc, log_level=logging.FATAL)
         rc = cluster.start_and_connect_sync()
         view = rc[:]
 

@@ -68,10 +68,10 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False):
         petsc_options = {"ksp_type": "preonly", \
                          "pc_type": "lu",
                          "pc_factor_mat_solver_type": "mumps"}
-    pc_type = petsc_options.get('pc_type', None)
     
-    opts = PETSc.Options(); opts.clear()
+    opts = PETSc.Options()
     for k, v in petsc_options.items(): opts[k] = v
+    pc_type = opts.getString('pc_type')
 
     # Describe the domain (a unit square)
     # and also the tessellation of that domain into ne
@@ -211,8 +211,13 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False):
         p_i.x.array[:(len(x.array_r) - offset)] = x.array_r[offset:]
         v_i.x.scatter_forward()
         p_i.x.scatter_forward()
-
-    opts.clear()
+    
+    with df.common.Timer("Cleanup"):
+        ksp.destroy()
+        A.destroy()
+        if pc_type != "lu": B.destroy()
+        x.destroy()
+        b.destroy()
 
     return v_i, p_i
 

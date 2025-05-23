@@ -52,7 +52,7 @@ def v_exact_batchelor(mesh, U=1):
                           ufl.sin(theta)*d_psi_d_theta_over_r - ufl.cos(theta)*d_psi_d_r])
 
 
-def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False):
+def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False, use_matnest=False, attach_nearnullspace=False):
     """
     A python function to solve a two-dimensional corner flow 
     problem on a unit square domain.
@@ -157,26 +157,55 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False):
         if pc_type != "lu":
             # The pressure preconditioner
             M = ufl.inner(p_t, p_a)*ufl.dx
-            P = df.fem.form([[K, None], [None, M]])
 
     with df.common.Timer("Assemble"):
-        A = df.fem.petsc.assemble_matrix_block(S, bcs=bcs)
+        if use_matnest:
+            A = df.fem.petsc.assemble_matrix_nest(S, bcs=bcs)
+
+            A00 = A.getNestSubMatrix(0, 0)
+            A00.setOption(PETSc.Mat.Option.SPD, True)
+        else:
+            A = df.fem.petsc.assemble_matrix_block(S, bcs=bcs)
         A.assemble()
 
-        b = df.fem.petsc.assemble_vector_block(f, S, bcs=bcs)
+        if use_matnest:
+            b = df.fem.petsc.assemble_vector_nest(f)
+            df.fem.petsc.apply_lifting_nest(b, S, bcs=bcs)
+            for b_sub in b.getNestSubVecs():
+                b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+            bcs_by_block = df.fem.bcs_by_block(df.fem.extract_function_spaces(f), bcs)
+            df.fem.petsc.set_bc_nest(b, bcs_by_block)
+        else:
+            b = df.fem.petsc.assemble_vector_block(f, S, bcs=bcs)
 
         B = None
         if pc_type != "lu":
             # The pressure preconditioner
-            B = df.fem.petsc.assemble_matrix_block(P, bcs=bcs)
+            if use_matnest:
+                bcs_by_block = df.fem.bcs_by_block(df.fem.extract_function_spaces(f), bcs)
+                BM = df.fem.petsc.assemble_matrix(df.fem.form(M), bcs=bcs_by_block[1])
+                B = PETSc.Mat().createNest([[A.getNestSubMatrix(0, 0), None], [None, BM]])
+
+                B00, B11 = B.getNestSubMatrix(0, 0), B.getNestSubMatrix(1, 1)
+                B00.setOption(PETSc.Mat.Option.SPD, True)
+                B11.setOption(PETSc.Mat.Option.SPD, True)
+            else:
+                P = df.fem.form([[K, None], [None, M]])
+                B = df.fem.petsc.assemble_matrix_block(P, bcs=bcs)
             B.assemble()
         
         if attach_nullspace:
-            null_p = A.createVecLeft()
-            offset = V_v.dofmap.index_map.size_local*V_v.dofmap.index_map_bs
-            null_p.array[offset:] = 1.0
-            null_p.normalize()
-            nsp = PETSc.NullSpace().create(vectors=[null_p])
+            if use_matnest:
+                null_vec = df.fem.petsc.create_vector_nest(f)
+                null_vecs = null_vec.getNestSubVecs()
+                null_vecs[0].set(0.0)
+                null_vecs[1].set(1.0)
+            else:
+                null_vec = A.createVecLeft()
+                offset = V_v.dofmap.index_map.size_local*V_v.dofmap.index_map_bs
+                null_vec.array[offset:] = 1.0
+            null_vec.normalize()
+            nsp = PETSc.NullSpace().create(vectors=[null_vec])
             assert(nsp.test(A))
             A.setNullSpace(nsp)
     
@@ -186,29 +215,37 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False):
         ksp.setFromOptions()
         
         if pc_type == "fieldsplit":
-            map_v, bs_v = V_v.dofmap.index_map, V_v.dofmap.index_map_bs
-            map_p = V_p.dofmap.index_map
-            is_size_v = map_v.size_local*bs_v
-            is_first_v = map_v.local_range[0]*bs_v + map_p.local_range[0]
-            is_v = PETSc.IS().createStride(is_size_v, is_first_v, 1, comm=PETSc.COMM_SELF)
-            is_size_p = map_p.size_local
-            is_first_p = is_first_v + map_v.size_local*bs_v
-            is_p = PETSc.IS().createStride(is_size_p, is_first_p, 1, comm=PETSc.COMM_SELF)
-            ksp.getPC().setFieldSplitIS(("v", is_v), ("p", is_p))
+            if use_matnest:
+                iss = B.getNestISs()
+                ksp.getPC().setFieldSplitIS(("v", iss[0][0]), ("p", iss[0][1]))
+            else:
+                map_v, bs_v = V_v.dofmap.index_map, V_v.dofmap.index_map_bs
+                map_p = V_p.dofmap.index_map
+                is_size_v = map_v.size_local*bs_v
+                is_first_v = map_v.local_range[0]*bs_v + map_p.local_range[0]
+                is_v = PETSc.IS().createStride(is_size_v, is_first_v, 1, comm=PETSc.COMM_SELF)
+                is_size_p = map_p.size_local
+                is_first_p = is_first_v + map_v.size_local*bs_v
+                is_p = PETSc.IS().createStride(is_size_p, is_first_p, 1, comm=PETSc.COMM_SELF)
+                ksp.getPC().setFieldSplitIS(("v", is_v), ("p", is_p))
 
-            ksp.getPC().setUp()
-            ksp_v, ksp_p = ksp.getPC().getFieldSplitSubKSP()
-            Bv, _ = ksp_v.getPC().getOperators()
-            Bv.setBlockSize(bs_v)
+                ksp.getPC().setUp()
+                ksp_v, ksp_p = ksp.getPC().getFieldSplitSubKSP()
+                Bv, _ = ksp_v.getPC().getOperators()
+                Bv.setBlockSize(bs_v)
 
         # Compute the solution
-        x = A.createVecRight()
+        if use_matnest:
+            x = PETSc.Vec().createNest([v_i.x.petsc_vec, p_i.x.petsc_vec])
+        else:
+            x = A.createVecRight()
         ksp.solve(b, x)
 
         # Extract the velocity and pressure solutions for the coupled problem
-        offset = V_v.dofmap.index_map.size_local*V_v.dofmap.index_map_bs
-        v_i.x.array[:offset] = x.array_r[:offset]
-        p_i.x.array[:(len(x.array_r) - offset)] = x.array_r[offset:]
+        if not use_matnest:
+            offset = V_v.dofmap.index_map.size_local*V_v.dofmap.index_map_bs
+            v_i.x.array[:offset] = x.array_r[:offset]
+            p_i.x.array[:(len(x.array_r) - offset)] = x.array_r[offset:]
         v_i.x.scatter_forward()
         p_i.x.scatter_forward()
     
@@ -216,10 +253,41 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False):
         ksp.destroy()
         A.destroy()
         if pc_type != "lu": B.destroy()
-        x.destroy()
+        if not use_matnest: x.destroy()
         b.destroy()
+        if attach_nullspace: null_vec.destroy()
 
     return v_i, p_i
+
+
+ne = 10
+p = 1
+U = 1
+petsc_options = {'ksp_type':'minres', 
+                    'pc_type':'fieldsplit', 
+                    'pc_fieldsplit_type': 'additive',
+                    #'ksp_view':None,
+                    'fieldsplit_v_ksp_type':'cg',
+                    'fieldsplit_v_pc_type':'gamg',
+                    'fieldsplit_p_ksp_type':'cg',
+                    'fieldsplit_p_pc_type':'jacobi'}
+v, p = solve_batchelor(ne, p=p, U=U, petsc_options=petsc_options, attach_nullspace=True, use_matnest=True)
+v.name = "Velocity"
+
+
+ne = 10
+p = 1
+U = 1
+petsc_options = {'ksp_type':'minres', 
+                    'pc_type':'fieldsplit', 
+                    'pc_fieldsplit_type': 'additive',
+                    #'ksp_view':None,
+                    'fieldsplit_v_ksp_type':'cg',
+                    'fieldsplit_v_pc_type':'gamg',
+                    'fieldsplit_p_ksp_type':'cg',
+                    'fieldsplit_p_pc_type':'jacobi'}
+v, p = solve_batchelor(ne, p=p, U=U, petsc_options=petsc_options, attach_nullspace=False, use_matnest=True)
+v.name = "Velocity"
 
 
 def evaluate_error(v_i, U=1):
@@ -239,7 +307,7 @@ def evaluate_error(v_i, U=1):
     return l2err
 
 
-def run_convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nullspace=False):
+def run_convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nullspace=False, use_matnest=False, attach_nearnullspace=False):
     """
     A python function to run a convergence test of a two-dimensional corner flow 
     problem on a unit square domain.
@@ -262,7 +330,9 @@ def run_convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nul
             # Solve the 2D Batchelor corner flow problem
             v_i, p_i = solve_batchelor(ne, p=p, U=U, 
                                        petsc_options=petsc_options,
-                                       attach_nullspace=attach_nullspace)
+                                       attach_nullspace=attach_nullspace,
+                                       use_matnest=use_matnest,
+                                       attach_nearnullspace=attach_nearnullspace)
             # Evaluate the error in the approximate solution
             l2error = evaluate_error(v_i, U=U)
             errors_l2_p.append(l2error)
@@ -335,7 +405,7 @@ def test_convergence_batchelor(ps, nelements, errors_l2, output_basename=None):
     
     return test_passes
 
-def convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nullspace=False, output_basename=None):
+def convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nullspace=False, use_matnest=False, attach_nearnullspace=False, output_basename=None):
     """
     A python function to run and test convergence of a two-dimensional corner flow 
     problem on a unit square domain.
@@ -352,7 +422,9 @@ def convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nullspa
     
     errors = run_convergence_batchelor(ps, nelements, U=U, 
                                     petsc_options=petsc_options, 
-                                    attach_nullspace=attach_nullspace)
+                                    attach_nullspace=attach_nullspace,
+                                    use_matnest=use_matnest,
+                                    attach_nearnullspace=attach_nearnullspace)
     
     return test_convergence_batchelor(ps, nelements, errors, output_basename=output_basename)
 

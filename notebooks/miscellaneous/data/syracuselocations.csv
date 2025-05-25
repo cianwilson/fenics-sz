@@ -1,0 +1,57 @@
+﻿No,Name,Lat,Lon,Offx,Offy
+1,Alaska Peninsula,-158.8,56.5,0,-0.25
+2,Alaska,-153.6,58.9,0.1,-0.25
+3,British Columbia,-122,47,-0.35,0
+4,Cascadia,-121.5,42,-0.35,0
+5,Mexico,-99.5,19.1,-0.25,-0.25
+6,Guatemala/EI Salvador,-90.4,14.2,-0.25,0
+7,Nicaragua,-86.7,12.5,-0.25,-0.25
+8,Costa Rica,-84.7,10.5,-0.1,-0.25
+9,Colombia/Ecuador,-77.5,0,-0.25,0
+10,Northern Peru gap,-79,-6.8,-0.35,0
+11,Central Peru gap,-76.8,-11.2,-0.35,0
+12,Peru,-70.9,-16.6,-0.35,0
+13,North Chile,-68.6,-20.8,-0.35,0
+14,North-Central Chile,-68.5,-24.7,-0.35,0
+15,Central Chile gap,-69.5,-30,-0.35,0
+16,Central Chile,-70.6,-35.2,-0.35,0
+17,South-Central Chile,-71.7,-39.5,-0.35,0
+18,South Chile,-72.8,-43.8,-0.35,0
+19,North Lesser Antilles,-61.7,16.1,0.25,0.25
+20,South Lesser Antilles,-61.2,13.3,0.3,-0.2
+21,Scotia,-26.5,-57.8,0.35,0
+22,Aegean,25.4,36.4,0.25,-0.25
+23,North Sumatra,97.6,3.9,-0.35,0
+24,Central Sumatra,100,0.1,-0.35,-0.05
+25,South Sumatra,102.4,-3.4,-0.35,-0.1
+26,Sunda Strait,106.7,-6.8,-0.35,-0.1
+27,Java,111.8,-7.8,-0.25,-0.25
+28,Bali/Lombok,116.5,-8.4,-0.15,-0.35
+29,West Banda Sea,121.8,-8.8,0,-0.35
+30,East Banda Sea,129.5,-6.7,0.25,-0.15
+31,New Britain,150.9,-5.5,0,0.35
+32,Solomon,154.9,-5.8,0.25,0.25
+33,North Vanuatu,167.5,-13.8,0.25,0.25
+34,South Vanuatu,169.8,-20.2,-0.25,-0.25
+35,Tonga,-174.9,-19.2,0.35,0
+36,Kermadec,-178.5,-30.2,0.35,0
+37,New Zealand,177,-37.9,0.35,0
+38,South Philippines,125.5,9.6,0.35,0
+39,North Philippines,120.6,16.3,-0.35,0
+40,South Marianas,145.8,17.6,-0.25,-0.25
+41,North Marianas,143.4,21.9,0.35,0
+42,Bonin,140.9,27.2,0.35,0
+43,Izu,139.8,33.1,0.35,-0.05
+44,Kyushu,130.6,31.2,-0.35,0.1
+45,Ryukyu,128.3,27.9,0.25,-0.2
+46,Nankai,137.3,35.3,-0.1,0.3
+47,Central Honshu,140.3,37.6,0.35,0
+48,North Honshu,140.9,40.7,0.35,-0.05
+49,Hokkaido,147,44.6,0.3,-0.15
+50,South Kurile,151.8,46.8,0.3,-0.1
+51,North Kurile,155.4,50.3,0.3,-0.1
+52,Kamchatka,159.2,53.6,0.35,-0.05
+53,West Aleutians,-178.8,51.8,-0.1,-0.25
+54,Central Aleutians,-172.5,52.3,0,-0.25
+55,East Aleutians,-166,54.1,0.05,-0.25
+56,Calabria,15,38.5,-0.25,-0.25

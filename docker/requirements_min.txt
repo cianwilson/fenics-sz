@@ -12,3 +12,5 @@ h5py
 seaborn
 tqdm
 vtk
+ipyparallel=9.0.1
+ipywidgets=7.7.1

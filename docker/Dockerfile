@@ -13,7 +13,7 @@ ENV XDG_RUNTIME_DIR='/tmp'
 WORKDIR /tmp/
 # Requirements for pyvista (gl1 and render1) and jupyterlab (nodejs and curl)
 RUN apt-get update && \
-    apt-get install -y libgl1-mesa-dev libxrender1 xvfb curl vim ack zip gh && \
+    apt-get install -y libgl1-mesa-dev libxrender1 xvfb curl vim ack zip gh gmt libgmt-dev ghostscript && \
     curl -sL https://deb.nodesource.com/setup_18.x -o nodesource_setup.sh && \
     bash nodesource_setup.sh && \
     apt install nodejs && \

@@ -18,6 +18,7 @@ dependencies = [
     "ipylab==1.0.0",
     "ipywidgets==7.7.1",
     "ipyparallel==9.0.1",
+    "pygmt==0.15.0",
 ]
 
 [project.optional-dependencies]

@@ -13,20 +13,16 @@ import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
-import utils
-import pyvista as pv
-if __name__ == "__main__" and "__file__" in globals():
-    pv.OFF_SCREEN = True
+import utils.plot
 import pathlib
-if __name__ == "__main__":
-    output_folder = pathlib.Path(os.path.join(basedir, "output"))
-    output_folder.mkdir(exist_ok=True, parents=True)
+output_folder = pathlib.Path(os.path.join(basedir, "output"))
+output_folder.mkdir(exist_ok=True, parents=True)
 
 
 def v_exact_batchelor(mesh, U=1):
     """
     A python function that returns the exact Batchelor velocity solution
-    using UFL.
+    using UFL on the given mesh.
     Parameters:
     * mesh - the mesh on which we wish to define the coordinates for the solution
     * U    - convergence speed of lower boundary (defaults to 1)
@@ -52,35 +48,34 @@ def v_exact_batchelor(mesh, U=1):
                           ufl.sin(theta)*d_psi_d_theta_over_r - ufl.cos(theta)*d_psi_d_r])
 
 
-def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False, use_matnest=False, attach_nearnullspace=False):
+def unit_square_mesh(ne):
     """
-    A python function to solve a two-dimensional corner flow 
-    problem on a unit square domain.
+    A python function to set up a mesh of a unit square domain.
     Parameters:
-    * ne - number of elements in each dimension
-    * p  - polynomial order of the pressure solution (defaults to 1)
-    * U  - convergence speed of lower boundary (defaults to 1)
-    * petsc_options - a dictionary of petsc options to pass to the solver 
-                      (defaults to an LU direct solver using the MUMPS library)
+    * ne   - number of elements in each dimension
+    Returns:
+    * mesh - the mesh
     """
-
-    if petsc_options is None:
-        petsc_options = {"ksp_type": "preonly", \
-                         "pc_type": "lu",
-                         "pc_factor_mat_solver_type": "mumps"}
-    
-    opts = PETSc.Options()
-    for k, v in petsc_options.items(): opts[k] = v
-    pc_type = opts.getString('pc_type')
-
     # Describe the domain (a unit square)
     # and also the tessellation of that domain into ne
     # equally spaced squared in each dimension, which are
     # subduvided into two triangular elements each
     with df.common.Timer("Mesh"):
         mesh = df.mesh.create_unit_square(MPI.COMM_WORLD, ne, ne)
+    return mesh
 
-    with df.common.Timer("Functions"):
+
+def functionspaces(mesh, p):
+    """
+    A python function to set up velocity and pressure function spaces.
+    Parameters:
+    * mesh - the mesh to set up the functions on
+    * p    - polynomial order of the pressure solution (defaults to 1)
+    Returns:
+    * V_v  - velocity function space of polynomial order p+1
+    * V_p  - pressure function space of polynomial order p
+    """
+    with df.common.Timer("Function spaces"):
         # Define velocity and pressure elements
         v_e = basix.ufl.element("Lagrange", mesh.basix_cell(), p+1, shape=(mesh.geometry.dim,))
         p_e = basix.ufl.element("Lagrange", mesh.basix_cell(), p)
@@ -88,14 +83,27 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False, us
         # Define the velocity and pressure function spaces
         V_v = df.fem.functionspace(mesh, v_e)
         V_p = df.fem.functionspace(mesh, p_e)
+    
+    return V_v, V_p
 
-        # Define functions for the velocity and pressure solutions
-        v_i, p_i = df.fem.Function(V_v), df.fem.Function(V_p)
+
+def velocity_bcs(V_v, U=1):
+    """
+    A python function to set up the velocity boundary conditions.
+    Parameters:
+    * V_v - velocity function space
+    * U   - convergence speed of lower boundary (defaults to 1)
+    Returns:
+    * bcs - a list of boundary conditions
+    """
 
     with df.common.Timer("Dirichlet BCs"):
         # Declare a list of boundary conditions
         bcs = []
         
+        # Grab the mesh
+        mesh = V_v.mesh
+
         # Define the location of the left boundary and find the velocity DOFs
         def boundary_left(x):
             return np.isclose(x[0], 0)
@@ -122,17 +130,50 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False, us
         # Interpolate from a UFL expression, evaluated at the velocity interpolation points
         exact_v.interpolate(df.fem.Expression(v_exact_batchelor(mesh, U=U), V_v.element.interpolation_points()))
         bcs.append(df.fem.dirichletbc(exact_v, dofs_v_rightandtop))
+    
+    return bcs
 
-        if not attach_nullspace:
-            # Define the location of the lower left corner of the domain and find the pressure DOF there
-            def corner_lowerleft(x):
-                return np.logical_and(np.isclose(x[0], 0), np.isclose(x[1], 0))
-            dofs_p_lowerleft = df.fem.locate_dofs_geometrical(V_p, corner_lowerleft)
-            # Specify the arbitrary pressure value and define a Dirichlet boundary condition
-            zero_p = df.fem.Constant(mesh, df.default_scalar_type(0.0))
-            bcs.append(df.fem.dirichletbc(zero_p, dofs_p_lowerleft, V_p))
+def pressure_bcs(V_p):
+    """
+    A python function to set up the pressure boundary conditions.
+    Parameters:
+    * V_p - pressure function space
+    Returns:
+    * bcs - a list of boundary conditions
+    """
 
+    with df.common.Timer("Dirichlet BCs"):
+        # Declare a list of boundary conditions
+        bcs = []
+
+        # Grab the mesh
+        mesh = V_p.mesh
+
+        # Define the location of the lower left corner of the domain and find the pressure DOF there
+        def corner_lowerleft(x):
+            return np.logical_and(np.isclose(x[0], 0), np.isclose(x[1], 0))
+        dofs_p_lowerleft = df.fem.locate_dofs_geometrical(V_p, corner_lowerleft)
+        # Specify the arbitrary pressure value and define a Dirichlet boundary condition
+        zero_p = df.fem.Constant(mesh, df.default_scalar_type(0.0))
+        bcs.append(df.fem.dirichletbc(zero_p, dofs_p_lowerleft, V_p))
+    
+    return bcs
+
+
+def stokes_weakforms(V_v, V_p):  
+    """
+    A python function to return the weak forms of the Stokes problem.
+    Parameters:
+    * V_v - velocity function space
+    * V_p - pressure function space
+    Returns:
+    * S   - a bilinear form
+    * f   - a linear form
+    """  
     with df.common.Timer("Forms"):
+        # Grab the mesh
+        mesh = V_p.mesh
+
         # Define the trial functions for velocity and pressure
         v_a, p_a = ufl.TrialFunction(V_v), ufl.TrialFunction(V_p)
         # Define the test functions for velocity and pressure
@@ -142,159 +183,155 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None, attach_nullspace=False, us
         K = ufl.inner(ufl.sym(ufl.grad(v_t)), ufl.sym(ufl.grad(v_a))) * ufl.dx
         G = -ufl.div(v_t)*p_a*ufl.dx
         D = -p_t*ufl.div(v_a)*ufl.dx
-        if attach_nullspace:
-            S = df.fem.form([[K, G], [D, None]])
-        else:
-            S = df.fem.form([[K, G], [D, p_t*p_a*zero_p*ufl.dx]])
+        S = df.fem.form([[K, G], [D, None]])
+        # S = df.fem.form([[K, G], [D, p_t*p_a*zero_p*ufl.dx]])
 
         # Define the integral to the assembled into the forcing vector
         # which in this case is just zero
-        zero = df.fem.Constant(mesh, df.default_scalar_type(0.0))
-        f = df.fem.form([ufl.inner(v_t, zero_v)*ufl.dx, zero*p_t*ufl.dx])
-        
-        M = None
-        P = None
-        if pc_type != "lu":
-            # The pressure preconditioner
-            M = ufl.inner(p_t, p_a)*ufl.dx
-
-    with df.common.Timer("Assemble"):
-        if use_matnest:
-            A = df.fem.petsc.assemble_matrix_nest(S, bcs=bcs)
-
-            A00 = A.getNestSubMatrix(0, 0)
-            A00.setOption(PETSc.Mat.Option.SPD, True)
-        else:
-            A = df.fem.petsc.assemble_matrix_block(S, bcs=bcs)
-        A.assemble()
-
-        if use_matnest:
-            b = df.fem.petsc.assemble_vector_nest(f)
-            df.fem.petsc.apply_lifting_nest(b, S, bcs=bcs)
-            for b_sub in b.getNestSubVecs():
-                b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-            bcs_by_block = df.fem.bcs_by_block(df.fem.extract_function_spaces(f), bcs)
-            df.fem.petsc.set_bc_nest(b, bcs_by_block)
-        else:
-            b = df.fem.petsc.assemble_vector_block(f, S, bcs=bcs)
-
-        B = None
-        if pc_type != "lu":
-            # The pressure preconditioner
-            if use_matnest:
-                bcs_by_block = df.fem.bcs_by_block(df.fem.extract_function_spaces(f), bcs)
-                BM = df.fem.petsc.assemble_matrix(df.fem.form(M), bcs=bcs_by_block[1])
-                B = PETSc.Mat().createNest([[A.getNestSubMatrix(0, 0), None], [None, BM]])
-
-                B00, B11 = B.getNestSubMatrix(0, 0), B.getNestSubMatrix(1, 1)
-                B00.setOption(PETSc.Mat.Option.SPD, True)
-                B11.setOption(PETSc.Mat.Option.SPD, True)
-            else:
-                P = df.fem.form([[K, None], [None, M]])
-                B = df.fem.petsc.assemble_matrix_block(P, bcs=bcs)
-            B.assemble()
-        
-        if attach_nullspace:
-            if use_matnest:
-                null_vec = df.fem.petsc.create_vector_nest(f)
-                null_vecs = null_vec.getNestSubVecs()
-                null_vecs[0].set(0.0)
-                null_vecs[1].set(1.0)
-            else:
-                null_vec = A.createVecLeft()
-                offset = V_v.dofmap.index_map.size_local*V_v.dofmap.index_map_bs
-                null_vec.array[offset:] = 1.0
-            null_vec.normalize()
-            nsp = PETSc.NullSpace().create(vectors=[null_vec])
-            assert(nsp.test(A))
-            A.setNullSpace(nsp)
+        zero_p = df.fem.Constant(mesh, df.default_scalar_type(0.0))
+        zero_v = df.fem.Constant(mesh, df.default_scalar_type((0.0, 0.0)))
+        f = df.fem.form([ufl.inner(v_t, zero_v)*ufl.dx, zero_p*p_t*ufl.dx])
     
+    return S, f
+
+def pressure_weakforms(V_p):
+    """
+    A python function to return a dummy (zero) weak form for the pressure block of 
+    the Stokes problem.
+    Parameters:
+    * V_p - pressure function space
+    Returns:
+    * M   - a bilinear form
+    """  
+    with df.common.Timer("Forms"):
+        # Grab the mesh
+        mesh = V_p.mesh
+
+        # Define the trial function for the pressure
+        p_a = ufl.TrialFunction(V_p)
+        # Define the test function for the pressure
+        p_t = ufl.TestFunction(V_p)
+
+        # Define the dummy integrals to be assembled into a zero pressure mass matrix
+        zero_p = df.fem.Constant(mesh, df.default_scalar_type(0.0))
+        M = df.fem.form(p_t*p_a*zero_p*ufl.dx)
+    
+    return M
+
+
+def assemble(S, f, bcs):
+    """
+    A python function to assemble the forms into a matrix and a vector.
+    Parameters:
+    * S   - Stokes form
+    * f   - RHS form
+    * bcs - list of boundary conditions
+    Returns:
+    * A   - a matrix
+    * b   - a vector
+    """  
+    with df.common.Timer("Assemble"):
+        A = df.fem.petsc.assemble_matrix_block(S, bcs=bcs)
+        A.assemble()
+        b = df.fem.petsc.assemble_vector_block(f, S, bcs=bcs)
+    return A, b
+
+
+def solve(A, b, V_v, V_p, petsc_options=None):
+    """
+    A python function to solve a matrix vector system.
+    Parameters:
+    * A   - matrix
+    * b   - vector
+    * V_v - velocity function space
+    * V_p - pressure function space
+    * petsc_options - a dictionary of petsc options to pass to the solver 
+                      (defaults to an LU direct solver using the MUMPS library)
+    Returns:
+    * v_i - velocity solution function
+    * p_i - pressure solution function
+    """  
+
+    if petsc_options is None:
+        petsc_options = {"ksp_type": "preonly", \
+                         "pc_type": "lu",
+                         "pc_factor_mat_solver_type": "mumps"}
+    
+    opts = PETSc.Options()
+    for k, v in petsc_options.items(): opts[k] = v
+
     with df.common.Timer("Solve"):
-        ksp = PETSc.KSP().create(MPI.COMM_WORLD)
-        ksp.setOperators(A, B)
-        ksp.setFromOptions()
-        
-        if pc_type == "fieldsplit":
-            if use_matnest:
-                iss = B.getNestISs()
-                ksp.getPC().setFieldSplitIS(("v", iss[0][0]), ("p", iss[0][1]))
-            else:
-                map_v, bs_v = V_v.dofmap.index_map, V_v.dofmap.index_map_bs
-                map_p = V_p.dofmap.index_map
-                is_size_v = map_v.size_local*bs_v
-                is_first_v = map_v.local_range[0]*bs_v + map_p.local_range[0]
-                is_v = PETSc.IS().createStride(is_size_v, is_first_v, 1, comm=PETSc.COMM_SELF)
-                is_size_p = map_p.size_local
-                is_first_p = is_first_v + map_v.size_local*bs_v
-                is_p = PETSc.IS().createStride(is_size_p, is_first_p, 1, comm=PETSc.COMM_SELF)
-                ksp.getPC().setFieldSplitIS(("v", is_v), ("p", is_p))
+        solver = PETSc.KSP().create(MPI.COMM_WORLD)
+        solver.setOperators(A)
+        solver.setFromOptions()
 
-                ksp.getPC().setUp()
-                ksp_v, ksp_p = ksp.getPC().getFieldSplitSubKSP()
-                Bv, _ = ksp_v.getPC().getOperators()
-                Bv.setBlockSize(bs_v)
+        x = A.createVecRight()
+        solver.solve(b, x)
 
-        # Compute the solution
-        if use_matnest:
-            x = PETSc.Vec().createNest([v_i.x.petsc_vec, p_i.x.petsc_vec])
-        else:
-            x = A.createVecRight()
-        ksp.solve(b, x)
-
+        # Set up the solution functions
+        v_i = df.fem.Function(V_v)
+        p_i = df.fem.Function(V_p)
         # Extract the velocity and pressure solutions for the coupled problem
-        if not use_matnest:
-            offset = V_v.dofmap.index_map.size_local*V_v.dofmap.index_map_bs
-            v_i.x.array[:offset] = x.array_r[:offset]
-            p_i.x.array[:(len(x.array_r) - offset)] = x.array_r[offset:]
+        offset = V_v.dofmap.index_map.size_local*V_v.dofmap.index_map_bs
+        v_i.x.array[:offset] = x.array_r[:offset]
+        p_i.x.array[:(len(x.array_r) - offset)] = x.array_r[offset:]
         v_i.x.scatter_forward()
         p_i.x.scatter_forward()
     
     with df.common.Timer("Cleanup"):
-        ksp.destroy()
-        A.destroy()
-        if pc_type != "lu": B.destroy()
-        if not use_matnest: x.destroy()
-        b.destroy()
-        if attach_nullspace: null_vec.destroy()
+        solver.destroy()
+        x.destroy()
 
     return v_i, p_i
 
 
-ne = 10
-p = 1
-U = 1
-petsc_options = {'ksp_type':'minres', 
-                    'pc_type':'fieldsplit', 
-                    'pc_fieldsplit_type': 'additive',
-                    #'ksp_view':None,
-                    'fieldsplit_v_ksp_type':'cg',
-                    'fieldsplit_v_pc_type':'gamg',
-                    'fieldsplit_p_ksp_type':'cg',
-                    'fieldsplit_p_pc_type':'jacobi'}
-v, p = solve_batchelor(ne, p=p, U=U, petsc_options=petsc_options, attach_nullspace=True, use_matnest=True)
-v.name = "Velocity"
+def solve_batchelor(ne, p=1, U=1, petsc_options=None):
+    """
+    A python function to solve a two-dimensional corner flow 
+    problem on a unit square domain.
+    Parameters:
+    * ne - number of elements in each dimension
+    * p  - polynomial order of the pressure solution (defaults to 1)
+    * U  - convergence speed of lower boundary (defaults to 1)
+    * petsc_options - a dictionary of petsc options to pass to the solver 
+                      (defaults to an LU direct solver using the MUMPS library)
+    Returns:
+    * v_i - velocity solution function
+    * p_i - pressure solution function
+    """
 
+    # 1. Set up a mesh
+    mesh = unit_square_mesh(ne)
+    # 2. Declare the appropriate function spaces
+    V_v, V_p = functionspaces(mesh, p)
+    # 3. Collect all the boundary conditions into a list
+    bcs  = velocity_bcs(V_v, U=U)
+    bcs += pressure_bcs(V_p)
+    # 4. Declare the weak forms
+    S, f = stokes_weakforms(V_v, V_p)
+    # 5. Include a dummy zero pressure mass matrix to allow us to set a pressure constraint
+    S[1][1] = pressure_weakforms(V_p)
+    # 6. Assemble the matrix equation
+    A, b = assemble(S, f, bcs)
+    # 7. Solve the matrix equation using the supplied petsc_options
+    v_i, p_i = solve(A, b, V_v, V_p, petsc_options=petsc_options)
+    
+    with df.common.Timer("Cleanup"):
+        A.destroy()
+        b.destroy()
 
-ne = 10
-p = 1
-U = 1
-petsc_options = {'ksp_type':'minres', 
-                    'pc_type':'fieldsplit', 
-                    'pc_fieldsplit_type': 'additive',
-                    #'ksp_view':None,
-                    'fieldsplit_v_ksp_type':'cg',
-                    'fieldsplit_v_pc_type':'gamg',
-                    'fieldsplit_p_ksp_type':'cg',
-                    'fieldsplit_p_pc_type':'jacobi'}
-v, p = solve_batchelor(ne, p=p, U=U, petsc_options=petsc_options, attach_nullspace=False, use_matnest=True)
-v.name = "Velocity"
+    return v_i, p_i
 
 
 def evaluate_error(v_i, U=1):
     """
     A python function to evaluate the l2 norm of the error in 
-    the two dimensional Batchelor corner flow problem given the known analytical
-    solution.
+    the two dimensional Batchelor corner flow problem.
+    Parameters:
+    * v_i - numerical solution for velocity
+    * U   - convergence speed of lower boundary (defaults to 1)
+    Returns:
+    * l2err - l2 error of solution
     """
     # Define the exact solution (in UFL)
     ve = v_exact_batchelor(v_i.function_space.mesh, U=U)
@@ -307,12 +344,12 @@ def evaluate_error(v_i, U=1):
     return l2err
 
 
-def run_convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nullspace=False, use_matnest=False, attach_nearnullspace=False):
+def convergence_errors(ps, nelements, U=1, petsc_options=None):
     """
     A python function to run a convergence test of a two-dimensional corner flow 
     problem on a unit square domain.
     Parameters:
-    * ps        - a list of polynomial orders to test
+    * ps        - a list of pressure polynomial orders to test
     * nelements - a list of the number of elements to test
     * U         - convergence speed of lower boundary (defaults to 1)
     * petsc_options - a dictionary of petsc options to pass to the solver 
@@ -329,25 +366,27 @@ def run_convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nul
         for ne in nelements:
             # Solve the 2D Batchelor corner flow problem
             v_i, p_i = solve_batchelor(ne, p=p, U=U, 
-                                       petsc_options=petsc_options,
-                                       attach_nullspace=attach_nullspace,
-                                       use_matnest=use_matnest,
-                                       attach_nearnullspace=attach_nearnullspace)
+                                       petsc_options=petsc_options)
             # Evaluate the error in the approximate solution
             l2error = evaluate_error(v_i, U=U)
+            # Print to screen and save if on rank 0
+            if MPI.COMM_WORLD.rank == 0:
+                print('p={}, ne={}, l2error={}'.format(p, ne, l2error))
             errors_l2_p.append(l2error)
+        if MPI.COMM_WORLD.rank == 0:
+            print('*************************************************')
         errors_l2.append(errors_l2_p)
     
     return errors_l2
 
-def test_convergence_batchelor(ps, nelements, errors_l2, output_basename=None):
+
+def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
     """
-    A python function to test convergence of a two-dimensional corner flow 
-    problem on a unit square domain.
+    A python function to test and plot convergence of the given errors.
     Parameters:
-    * ps              - a list of polynomial orders to test
+    * ps              - a list of pressure polynomial orders to test
     * nelements       - a list of the number of elements to test
-    * errors_l2       - errors_l2 from convergence_batchelor
+    * errors_l2       - errors_l2 from convergence_errors
     * output_basename - basename for output (defaults to no output)
     Returns:
     * test_passes     - a boolean indicating if the convergence test has passed
@@ -362,19 +401,11 @@ def test_convergence_batchelor(ps, nelements, errors_l2, output_basename=None):
     test_passes = True
 
     # Loop over the polynomial orders
-    for pi, p in enumerate(ps):
-        # Loop over the resolutions
-        for nei, ne in enumerate(nelements):
-            # Print to screen and save if on rank 0
-            if MPI.COMM_WORLD.rank == 0:
-                print('ne = ', ne, ', l2error = ', errors_l2[pi][nei])
-
+    for i, p in enumerate(ps):
         # Work out the order of convergence at this p
         hs = 1./np.array(nelements)/p
-
         # Fit a line to the convergence data
-        fit = np.polyfit(np.log(hs), np.log(errors_l2[pi]),1)
-
+        fit = np.polyfit(np.log(hs), np.log(errors_l2[i]),1)
         # Test if the order of convergence is as expected (first order)
         test_passes = test_passes and abs(fit[0]-1) < 0.1
 
@@ -382,17 +413,18 @@ def test_convergence_batchelor(ps, nelements, errors_l2, output_basename=None):
         if MPI.COMM_WORLD.rank == 0:
             if output_basename is not None:
                 with open(str(output_basename) + '_p{}.csv'.format(p), 'w') as f:
-                    np.savetxt(f, np.c_[nelements, hs, errors_l2[pi]], delimiter=',', 
+                    np.savetxt(f, np.c_[nelements, hs, errors_l2[i]], delimiter=',', 
                              header='nelements, hs, l2errs')
-            print("***********  order of accuracy p={}, order={}".format(p,fit[0]))
+            
+            print("order of accuracy p={}, order={}".format(p,fit[0]))
         
             # log-log plot of the L2 error 
-            ax.loglog(hs,errors_l2[pi],'o-',label='p={}, order={:.2f}'.format(p,fit[0]))
+            ax.loglog(hs,errors_l2[i],'o-',label='p={}, order={:.2f}'.format(p,fit[0]))
         
     if MPI.COMM_WORLD.rank == 0:
         # Tidy up the plot
-        ax.set_xlabel('h')
-        ax.set_ylabel('||e||_2')
+        ax.set_xlabel(r'$h$')
+        ax.set_ylabel(r'$||e||_2$')
         ax.grid()
         ax.set_title('Convergence')
         ax.legend()
@@ -404,29 +436,6 @@ def test_convergence_batchelor(ps, nelements, errors_l2, output_basename=None):
             print("***********  convergence figure in "+str(output_basename)+".pdf")
     
     return test_passes
-
-def convergence_batchelor(ps, nelements, U=1, petsc_options=None, attach_nullspace=False, use_matnest=False, attach_nearnullspace=False, output_basename=None):
-    """
-    A python function to run and test convergence of a two-dimensional corner flow 
-    problem on a unit square domain.
-    Parameters:
-    * ps        - a list of polynomial orders to test
-    * nelements - a list of the number of elements to test
-    * U         - convergence speed of lower boundary (defaults to 1)
-    * petsc_options - a dictionary of petsc options to pass to the solver 
-                      (defaults to an LU direct solver using the MUMPS library)
-    * output_basename - basename for output (defaults to no output)
-    Returns:
-    * test_passes - a boolean indicating if the convergence test has passed
-    """
-    
-    errors = run_convergence_batchelor(ps, nelements, U=U, 
-                                    petsc_options=petsc_options, 
-                                    attach_nullspace=attach_nullspace,
-                                    use_matnest=use_matnest,
-                                    attach_nearnullspace=attach_nearnullspace)
-    
-    return test_convergence_batchelor(ps, nelements, errors, output_basename=output_basename)
 
 
 

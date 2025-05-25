@@ -13,8 +13,6 @@ basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 import utils.plot
-import pyvista as pv
-pv.OFF_SCREEN = "__file__" in globals()
 import pathlib
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
@@ -38,7 +36,7 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
                          "pc_factor_mat_solver_type": "mumps"}
     opts = PETSc.Options()
     for k, v in petsc_options.items(): opts[k] = v
-
+    
     # Describe the domain (a unit square)
     # and also the tessellation of that domain into ne 
     # equally spaced squares in each dimension which are
@@ -48,9 +46,8 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
 
     # Define the solution function space using Lagrange polynomials
     # of order p
-    with df.common.Timer("Functions"):
+    with df.common.Timer("Function spaces"):
         V = df.fem.functionspace(mesh, ("Lagrange", p))
-        T_i = df.fem.Function(V)
 
     with df.common.Timer("Dirichlet BCs"):
         # Define the location of the boundary condition, x=0 and y=0
@@ -106,7 +103,9 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
         solver = PETSc.KSP().create(MPI.COMM_WORLD)
         solver.setOperators(A)
         solver.setFromOptions()
-
+        
+        # Set up the solution function
+        T_i = df.fem.Function(V)
         # Call the solver
         solver.solve(b, T_i.x.petsc_vec)
         # Communicate the solution across processes

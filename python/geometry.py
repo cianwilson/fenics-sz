@@ -12,7 +12,7 @@ class GmshFile:
     self.pindex = 1
     self.cindex = 1
     self.sindex = 1
-    gmsh.initialize()
+    if not gmsh.is_initialized(): gmsh.initialize()
     gmsh.model.add(modelname)
     gmsh.option.setNumber('General.Verbosity', 3)
 

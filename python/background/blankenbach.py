@@ -13,7 +13,7 @@ import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
-import utils
+import utils.plot
 import pyvista as pv
 if __name__ == "__main__" and "__file__" in globals():
     pv.OFF_SCREEN = True
@@ -23,16 +23,17 @@ if __name__ == "__main__":
     output_folder.mkdir(exist_ok=True, parents=True)
 
 
-def create_transfinite_square(comm, nx, ny, beta=1):
+def transfinite_unit_square_mesh(nx, ny, beta=1):
     """
     A python function to create a mesh of a square domain with refinement
     near the top and bottom boundaries, depending on the value of coeff.
     Parameters:
-    * comm  - MPI comm used to distribute the mesh in parallel
     * nx    - number of cells in the horizontal x direction
     * ny    - number of cells in the vertical y direction
     * beta  - beta mesh refinement coefficient, < 1 refines the mesh at 
               the top and bottom boundaries (defaults to  1, no refinement]
+    Returns:
+    * mesh  - the resulting mesh
     """
     
     if not gmsh.is_initialized(): gmsh.initialize()
@@ -68,10 +69,14 @@ def create_transfinite_square(comm, nx, ny, beta=1):
     gmsh.model.addPhysicalGroup(1, [4], 4)
     gmsh.model.addPhysicalGroup(2, [1], 1)
 
-    if comm.rank == 0:
+    # generate the mesh on the first process
+    if MPI.COMM_WORLD.rank == 0:
         gmsh.model.mesh.generate(2)
+    
+    # distribute and build the global mesh
+    mesh = df.io.gmshio.model_to_mesh(gmsh.model, MPI.COMM_WORLD, 0, gdim=2)[0]
 
-    return df.io.gmshio.model_to_mesh(gmsh.model, comm, 0, gdim=2)[0]
+    return mesh
 
 
 def stokes_function(mesh, pp=1):
@@ -313,7 +318,7 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, beta=1,
     # squares in each dimension, which are
     # subdivided into two triangular elements each
     with df.common.Timer("Blankenbach Mesh"):
-        mesh = create_transfinite_square(MPI.COMM_WORLD, ne, ne, beta=beta)
+        mesh = transfinite_unit_square_mesh(ne, ne, beta=beta)
 
     with df.common.Timer("Blankenbach Functions"):
         vp = stokes_function(mesh, pp=pp)
@@ -430,9 +435,9 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     # visualize
-    plotter_1a = utils.plot_scalar(T_1a, cmap='coolwarm')
-    utils.plot_vector_glyphs(v_1a, plotter=plotter_1a, color='k', factor=0.0005)
-    utils.plot_show(plotter_1a)
+    plotter_1a = utils.plot.plot_scalar(T_1a, cmap='coolwarm')
+    utils.plot.plot_vector_glyphs(v_1a, plotter=plotter_1a, color='k', factor=0.0005)
+    utils.plot.plot_show(plotter_1a)
 
 
 if __name__ == "__main__":
@@ -449,9 +454,9 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     # visualize
-    plotter_1b = utils.plot_scalar(T_1b, cmap='coolwarm')
-    utils.plot_vector_glyphs(v_1b, plotter=plotter_1b, color='k', factor=0.00005)
-    utils.plot_show(plotter_1b)
+    plotter_1b = utils.plot.plot_scalar(T_1b, cmap='coolwarm')
+    utils.plot.plot_vector_glyphs(v_1b, plotter=plotter_1b, color='k', factor=0.00005)
+    utils.plot.plot_show(plotter_1b)
 
 
 if __name__ == "__main__":
@@ -468,9 +473,9 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     # visualize
-    plotter_1c = utils.plot_scalar(T_1c, cmap='coolwarm')
-    utils.plot_vector_glyphs(v_1c, plotter=plotter_1c, color='k', factor=0.00001)
-    utils.plot_show(plotter_1c)
+    plotter_1c = utils.plot.plot_scalar(T_1c, cmap='coolwarm')
+    utils.plot.plot_vector_glyphs(v_1c, plotter=plotter_1c, color='k', factor=0.00001)
+    utils.plot.plot_show(plotter_1c)
 
 
 if __name__ == "__main__":
@@ -487,9 +492,9 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     # visualize
-    plotter_2a = utils.plot_scalar(T_2a, cmap='coolwarm')
-    utils.plot_vector_glyphs(v_2a, plotter=plotter_2a, color='k', factor=0.00002)
-    utils.plot_show(plotter_2a)
+    plotter_2a = utils.plot.plot_scalar(T_2a, cmap='coolwarm')
+    utils.plot.plot_vector_glyphs(v_2a, plotter=plotter_2a, color='k', factor=0.00002)
+    utils.plot.plot_show(plotter_2a)
 
 
 values_wvk = {

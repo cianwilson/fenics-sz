@@ -13,8 +13,6 @@ import numpy as np
 import ufl
 import utils.plot
 import matplotlib.pyplot as pl
-import pyvista as pv
-pv.OFF_SCREEN = "__file__" in globals()
 import pathlib
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
@@ -79,7 +77,7 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
     Parameters:
     * ps              - a list of polynomial orders to test
     * nelements       - a list of the number of elements to test
-    * errors_l2       - errors_l2 from convergence_batchelor
+    * errors_l2       - errors_l2 from convergence_errors
     * output_basename - basename for output (defaults to no output)
     Returns:
     * test_passes     - a boolean indicating if the convergence test has passed
@@ -99,7 +97,7 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
         hs = 1./np.array(nelements)/p
         # Fit a line to the convergence data
         fit = np.polyfit(np.log(hs), np.log(errors_l2[i]),1)
-        # Test if the order of convergence is as expected
+        # Test if the order of convergence is as expected (polynomial degree plus 1)
         test_passes = test_passes and fit[0] > p+0.9
         
         # Write the errors to disk

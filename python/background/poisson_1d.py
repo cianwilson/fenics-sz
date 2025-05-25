@@ -11,7 +11,7 @@ import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
-import utils
+import utils.mesh
 import pathlib
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
@@ -35,10 +35,6 @@ def solve_poisson_1d(ne, p=1):
     # of order p
     V = df.fem.functionspace(mesh, ("Lagrange", p))
 
-    # Define the trial and test functions on the same function space (V)
-    T_a = ufl.TrialFunction(V)
-    T_t = ufl.TestFunction(V)
-
     # Define the location of the boundary, x=0
     def boundary(x):
         return np.isclose(x[0], 0)
@@ -51,6 +47,10 @@ def solve_poisson_1d(ne, p=1):
     x = ufl.SpatialCoordinate(mesh)
     h = (ufl.pi**2)*ufl.sin(ufl.pi*x[0]/2)/4
 
+    # Define the trial and test functions on the same function space (V)
+    T_a = ufl.TrialFunction(V)
+    T_t = ufl.TestFunction(V)
+    
     # Define the integral to be assembled into the stiffness matrix
     S = ufl.inner(ufl.grad(T_t), ufl.grad(T_a))*ufl.dx
     # Define the integral to be assembled into the forcing vector
@@ -73,7 +73,7 @@ def plot_1d(T, x, filename=None):
     xyz = np.stack((x, np.zeros_like(x), np.zeros_like(x)), axis=1)
     # work out which cells those points are in using a utility function we provide
     mesh = T.function_space.mesh
-    cinds, cells = utils.get_cell_collisions(xyz, mesh)
+    cinds, cells = utils.mesh.get_cell_collisions(xyz, mesh)
     # evaluate the numerical solution
     T_x = T.eval(xyz[cinds], cells)[:,0]
     # if running in parallel gather the solution to the rank-0 process

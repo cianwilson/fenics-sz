@@ -38,7 +38,7 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
                          "pc_factor_mat_solver_type": "mumps"}
     opts = PETSc.Options()
     for k, v in petsc_options.items(): opts[k] = v
-    
+
     # Describe the domain (a unit square)
     # and also the tessellation of that domain into ne 
     # equally spaced squares in each dimension which are
@@ -106,11 +106,16 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
         solver = PETSc.KSP().create(MPI.COMM_WORLD)
         solver.setOperators(A)
         solver.setFromOptions()
-        
+
         # Call the solver
         solver.solve(b, T_i.x.petsc_vec)
         # Communicate the solution across processes
         T_i.x.scatter_forward()
+
+    with df.common.Timer("Cleanup"):
+        solver.destroy()
+        A.destroy()
+        b.destroy()
 
     return T_i
 

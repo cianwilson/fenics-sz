@@ -98,7 +98,7 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, **
     maxtimes = MPI.COMM_WORLD.reduce(times, op=MPI.MAX)
     return maxtimes
 
-def profile_parallel(nprocs, labels, *args, output_basename=None, **kwargs):
+def profile_parallel(nprocs, labels, *args, output_filename=None, **kwargs):
     """
     A python function that runs a function over a series of number of proceses and prints and returns the timings.
     Parameters:
@@ -109,7 +109,7 @@ def profile_parallel(nprocs, labels, *args, output_basename=None, **kwargs):
         * module_name - name of module where function can be found
         * func_name   - name of function to profile
         * func_args   - arguments to pass to the function
-    * output_basename - basename for output (defaults to no output)
+    * output_filename - filename for plot (defaults to no output)
     * kwargs          - additional keyword arguments to pass to profile_local function
         * number      - number of runs of function to time
         * func_kwargs - keyword arguments to pass to the function
@@ -126,7 +126,7 @@ def profile_parallel(nprocs, labels, *args, output_basename=None, **kwargs):
 
         rc.shutdown(hub=True)
 
-    print('=========================', flush=True)
+    print('=========================')
     print('\t'.join(['\t']+[repr(nproc) for nproc in nprocs]))
     for l, label in enumerate(labels):
         print('\t'.join([label]+[repr(t[l]) for t in maxtimes]))
@@ -149,9 +149,9 @@ def profile_parallel(nprocs, labels, *args, output_basename=None, **kwargs):
         ax_r.legend()
 
         # Write profiling to disk
-        if output_basename is not None:
-            fig.savefig(str(output_basename) + '.pdf')
+        if output_filename is not None:
+            fig.savefig(output_filename)
 
-            print("***********  profiling figure in "+str(output_basename)+".pdf")
+            print("***********  profiling figure in "+str(output_filename))
 
     return maxtimes

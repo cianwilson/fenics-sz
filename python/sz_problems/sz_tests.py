@@ -51,13 +51,13 @@ print('{:<12} {:<12} {:<12} {:<12} {:<12} {:<12}'.format('resscale', 'T_ndof', '
 print('{:<12.4g} {:<12d} {:<12.4f} {:<12.4f} {:<12.4f} {:<12.4f}'.format(resscale2, *diag_resscale2))
 
 
-plotter_case1_resscale2 = utils.plot_scalar(sz_case1_resscale2.T_i, scale=sz_case1_resscale2.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-utils.plot_vector_glyphs(sz_case1_resscale2.vw_i, plotter=plotter_case1_resscale2, gather=True, factor=0.05, color='k', scale=utils.mps_to_mmpyr(sz_case1_resscale2.v0))
-utils.plot_vector_glyphs(sz_case1_resscale2.vs_i, plotter=plotter_case1_resscale2, gather=True, factor=0.05, color='k', scale=utils.mps_to_mmpyr(sz_case1_resscale2.v0))
-utils.plot_geometry(sz_case1_resscale2.geom, plotter=plotter_case1_resscale2, color='green', width=2)
-utils.plot_couplingdepth(sz_case1_resscale2.geom.slab_spline, plotter=plotter_case1_resscale2, render_points_as_spheres=True, point_size=10.0, color='green')
-utils.plot_show(plotter_case1_resscale2)
-utils.plot_save(plotter_case1_resscale2, output_folder / "sz_tests_case1_resscale2_solution.png")
+plotter_case1_resscale2 = utils.plot.plot_scalar(sz_case1_resscale2.T_i, scale=sz_case1_resscale2.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+utils.plot.plot_vector_glyphs(sz_case1_resscale2.vw_i, plotter=plotter_case1_resscale2, gather=True, factor=0.05, color='k', scale=utils.mps_to_mmpyr(sz_case1_resscale2.v0))
+utils.plot.plot_vector_glyphs(sz_case1_resscale2.vs_i, plotter=plotter_case1_resscale2, gather=True, factor=0.05, color='k', scale=utils.mps_to_mmpyr(sz_case1_resscale2.v0))
+utils.plot.plot_geometry(sz_case1_resscale2.geom, plotter=plotter_case1_resscale2, color='green', width=2)
+utils.plot.plot_couplingdepth(sz_case1_resscale2.geom.slab_spline, plotter=plotter_case1_resscale2, render_points_as_spheres=True, point_size=10.0, color='green')
+utils.plot.plot_show(plotter_case1_resscale2)
+utils.plot.plot_save(plotter_case1_resscale2, output_folder / "sz_tests_case1_resscale2_solution.png")
 
 
 io_depth_2 = 154.0
@@ -77,13 +77,13 @@ print('{:<12} {:<12} {:<12} {:<12} {:<12} {:<12}'.format('resscale', 'T_ndof', '
 print('{:<12.4g} {:<12d} {:<12.4f} {:<12.4f} {:<12.4f} {:<12.4f}'.format(resscale2, *diag_case2_resscale2))
 
 
-plotter_case2_resscale2 = utils.plot_scalar(sz_case2_resscale2.T_i, scale=sz_case2_resscale2.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-utils.plot_vector_glyphs(sz_case2_resscale2.vw_i, plotter=plotter_case2_resscale2, gather=True, factor=0.05, color='k', scale=utils.mps_to_mmpyr(sz_case2_resscale2.v0))
-utils.plot_vector_glyphs(sz_case2_resscale2.vs_i, plotter=plotter_case2_resscale2, gather=True, factor=0.05, color='k', scale=utils.mps_to_mmpyr(sz_case2_resscale2.v0))
-utils.plot_geometry(sz_case2_resscale2.geom, plotter=plotter_case2_resscale2, color='green', width=2)
-utils.plot_couplingdepth(sz_case2_resscale2.geom.slab_spline, plotter=plotter_case2_resscale2, render_points_as_spheres=True, point_size=10.0, color='green')
-utils.plot_show(plotter_case2_resscale2)
-utils.plot_save(plotter_case2_resscale2, output_folder / "sz_tests_case2_resscale2_solution.png")
+plotter_case2_resscale2 = utils.plot.plot_scalar(sz_case2_resscale2.T_i, scale=sz_case2_resscale2.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+utils.plot.plot_vector_glyphs(sz_case2_resscale2.vw_i, plotter=plotter_case2_resscale2, gather=True, factor=0.05, color='k', scale=utils.mps_to_mmpyr(sz_case2_resscale2.v0))
+utils.plot.plot_vector_glyphs(sz_case2_resscale2.vs_i, plotter=plotter_case2_resscale2, gather=True, factor=0.05, color='k', scale=utils.mps_to_mmpyr(sz_case2_resscale2.v0))
+utils.plot.plot_geometry(sz_case2_resscale2.geom, plotter=plotter_case2_resscale2, color='green', width=2)
+utils.plot.plot_couplingdepth(sz_case2_resscale2.geom.slab_spline, plotter=plotter_case2_resscale2, render_points_as_spheres=True, point_size=10.0, color='green')
+utils.plot.plot_show(plotter_case2_resscale2)
+utils.plot.plot_save(plotter_case2_resscale2, output_folder / "sz_tests_case2_resscale2_solution.png")
 
 
 # set a list of coupling depths to try
@@ -111,17 +111,17 @@ for coupling_depth in coupling_depths:
     diagnostics.append(sz_dc.get_diagnostics())
 
     # plot the solution
-    plotter_dc = utils.plot_scalar(sz_dc.T_i, scale=sz_dc.T0, gather=True, cmap='coolwarm', 
+    plotter_dc = utils.plot.plot_scalar(sz_dc.T_i, scale=sz_dc.T0, gather=True, cmap='coolwarm', 
                                    scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    utils.plot_vector_glyphs(sz_dc.vw_i, plotter=plotter_dc, gather=True, factor=0.05, color='k', 
+    utils.plot.plot_vector_glyphs(sz_dc.vw_i, plotter=plotter_dc, gather=True, factor=0.05, color='k', 
                              scale=utils.mps_to_mmpyr(sz_dc.v0))
-    utils.plot_vector_glyphs(sz_dc.vs_i, plotter=plotter_dc, gather=True, factor=0.05, color='k', 
+    utils.plot.plot_vector_glyphs(sz_dc.vs_i, plotter=plotter_dc, gather=True, factor=0.05, color='k', 
                              scale=utils.mps_to_mmpyr(sz_dc.v0))
-    utils.plot_geometry(sz_dc.geom, plotter=plotter_dc, color='green', width=2)
-    utils.plot_couplingdepth(sz_dc.geom.slab_spline, plotter=plotter_dc, render_points_as_spheres=True, 
+    utils.plot.plot_geometry(sz_dc.geom, plotter=plotter_dc, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_dc.geom.slab_spline, plotter=plotter_dc, render_points_as_spheres=True, 
                              point_size=10.0, color='green')
-    utils.plot_show(plotter_dc)
-    utils.plot_save(plotter_dc, output_folder / f"sz_tests_dc{coupling_depth}_solution.png")
+    utils.plot.plot_show(plotter_dc)
+    utils.plot.plot_save(plotter_dc, output_folder / f"sz_tests_dc{coupling_depth}_solution.png")
 
 
 # print the varying coupling depth output
@@ -143,21 +143,21 @@ if sz_ak.comm.rank==0: print("\nSolving steady state flow with isoviscous rheolo
 sz_ak.solve_steadystate_dislocationcreep()
 
 
-plotter_ak = utils.plot_scalar(sz_ak.T_i, scale=sz_ak.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-utils.plot_vector_glyphs(sz_ak.vw_i, plotter=plotter_ak, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz_ak.v0))
-utils.plot_vector_glyphs(sz_ak.vs_i, plotter=plotter_ak, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz_ak.v0))
-utils.plot_geometry(sz_ak.geom, plotter=plotter_ak, color='green', width=2)
-utils.plot_couplingdepth(sz_ak.geom.slab_spline, plotter=plotter_ak, render_points_as_spheres=True, point_size=10.0, color='green')
-utils.plot_show(plotter_ak)
-utils.plot_save(plotter_ak, output_folder / "sz_tests_ak_solution.png")
+plotter_ak = utils.plot.plot_scalar(sz_ak.T_i, scale=sz_ak.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+utils.plot.plot_vector_glyphs(sz_ak.vw_i, plotter=plotter_ak, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz_ak.v0))
+utils.plot.plot_vector_glyphs(sz_ak.vs_i, plotter=plotter_ak, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz_ak.v0))
+utils.plot.plot_geometry(sz_ak.geom, plotter=plotter_ak, color='green', width=2)
+utils.plot.plot_couplingdepth(sz_ak.geom.slab_spline, plotter=plotter_ak, render_points_as_spheres=True, point_size=10.0, color='green')
+utils.plot.plot_show(plotter_ak)
+utils.plot.plot_save(plotter_ak, output_folder / "sz_tests_ak_solution.png")
 
 
 eta_ak = sz_ak.project_dislocationcreep_viscosity()
-plotter_eta_ak = utils.plot_scalar(eta_ak, scale=sz_ak.eta0, gather=True, log_scale=True, show_edges=True, scalar_bar_args={'title': 'Viscosity (Pa s)', 'bold':True})
-utils.plot_geometry(sz_ak.geom, plotter=plotter_eta_ak, color='green', width=2)
-utils.plot_couplingdepth(sz_ak.geom.slab_spline, plotter=plotter_eta_ak, render_points_as_spheres=True, point_size=10.0, color='green')
-utils.plot_show(plotter_eta_ak)
-utils.plot_save(plotter_eta_ak, output_folder / "sz_tests_ak_eta.png")
+plotter_eta_ak = utils.plot.plot_scalar(eta_ak, scale=sz_ak.eta0, gather=True, log_scale=True, show_edges=True, scalar_bar_args={'title': 'Viscosity (Pa s)', 'bold':True})
+utils.plot.plot_geometry(sz_ak.geom, plotter=plotter_eta_ak, color='green', width=2)
+utils.plot.plot_couplingdepth(sz_ak.geom.slab_spline, plotter=plotter_eta_ak, render_points_as_spheres=True, point_size=10.0, color='green')
+utils.plot.plot_show(plotter_eta_ak)
+utils.plot.plot_save(plotter_eta_ak, output_folder / "sz_tests_ak_eta.png")
 
 
 resscale_ant = 5.0
@@ -172,26 +172,26 @@ if sz_ant.comm.rank==0: print("\nSolving steady state flow with isoviscous rheol
 sz_ant.solve_steadystate_dislocationcreep()
 
 
-plotter_ant = utils.plot_scalar(sz_ant.T_i, scale=sz_ant.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-utils.plot_vector_glyphs(sz_ant.vw_i, plotter=plotter_ant, gather=True, factor=0.25, color='k', scale=utils.mps_to_mmpyr(sz_ant.v0))
-utils.plot_vector_glyphs(sz_ant.vs_i, plotter=plotter_ant, gather=True, factor=0.25, color='k', scale=utils.mps_to_mmpyr(sz_ant.v0))
-utils.plot_geometry(sz_ant.geom, plotter=plotter_ant, color='green', width=2)
-utils.plot_couplingdepth(sz_ant.geom.slab_spline, plotter=plotter_ant, render_points_as_spheres=True, point_size=10.0, color='green')
-utils.plot_show(plotter_ant)
-utils.plot_save(plotter_ant, output_folder / "sz_tests_ant_solution.png")
+plotter_ant = utils.plot.plot_scalar(sz_ant.T_i, scale=sz_ant.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+utils.plot.plot_vector_glyphs(sz_ant.vw_i, plotter=plotter_ant, gather=True, factor=0.25, color='k', scale=utils.mps_to_mmpyr(sz_ant.v0))
+utils.plot.plot_vector_glyphs(sz_ant.vs_i, plotter=plotter_ant, gather=True, factor=0.25, color='k', scale=utils.mps_to_mmpyr(sz_ant.v0))
+utils.plot.plot_geometry(sz_ant.geom, plotter=plotter_ant, color='green', width=2)
+utils.plot.plot_couplingdepth(sz_ant.geom.slab_spline, plotter=plotter_ant, render_points_as_spheres=True, point_size=10.0, color='green')
+utils.plot.plot_show(plotter_ant)
+utils.plot.plot_save(plotter_ant, output_folder / "sz_tests_ant_solution.png")
 
 
 eta_ant = sz_ant.project_dislocationcreep_viscosity()
-plotter_eta_ant = utils.plot_scalar(eta_ant, scale=sz_ant.eta0, gather=True, log_scale=True, show_edges=True, scalar_bar_args={'title': 'Viscosity (Pa s)', 'bold':True})
-utils.plot_geometry(sz_ant.geom, plotter=plotter_eta_ant, color='green', width=2)
-utils.plot_couplingdepth(sz_ant.geom.slab_spline, plotter=plotter_eta_ant, render_points_as_spheres=True, point_size=10.0, color='green')
-utils.plot_show(plotter_eta_ant)
-utils.plot_save(plotter_eta_ant, output_folder / "sz_tests_ant_eta.png")
+plotter_eta_ant = utils.plot.plot_scalar(eta_ant, scale=sz_ant.eta0, gather=True, log_scale=True, show_edges=True, scalar_bar_args={'title': 'Viscosity (Pa s)', 'bold':True})
+utils.plot.plot_geometry(sz_ant.geom, plotter=plotter_eta_ant, color='green', width=2)
+utils.plot.plot_couplingdepth(sz_ant.geom.slab_spline, plotter=plotter_eta_ant, render_points_as_spheres=True, point_size=10.0, color='green')
+utils.plot.plot_show(plotter_eta_ant)
+utils.plot.plot_save(plotter_eta_ant, output_folder / "sz_tests_ant_eta.png")
 
 
 if __name__ == "__main__" and "__file__" not in globals():
     from ipylab import JupyterFrontEnd
     app = JupyterFrontEnd()
     app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_tests 3.1f_sz_tests.ipynb')
+    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_tests 3.2e_sz_tests.ipynb')
 

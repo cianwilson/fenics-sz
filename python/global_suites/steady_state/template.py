@@ -57,13 +57,13 @@ sz.solve_steadystate_dislocationcreep()
 
 
 plotter = pv.Plotter()
-utils.plot_scalar(sz.T_i, plotter=plotter, scale=sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-utils.plot_vector_glyphs(sz.vw_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz.v0))
-utils.plot_vector_glyphs(sz.vs_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz.v0))
-utils.plot_geometry(geom, plotter=plotter, color='green', width=2)
-utils.plot_couplingdepth(slab, plotter=plotter, render_points_as_spheres=True, point_size=10.0, color='green')
-utils.plot_show(plotter)
-utils.plot_save(plotter, output_folder / "{}_ss_solution_resscale_{:.2f}.png".format(name, resscale))
+utils.plot.plot_scalar(sz.T_i, plotter=plotter, scale=sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+utils.plot.plot_vector_glyphs(sz.vw_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz.v0))
+utils.plot.plot_vector_glyphs(sz.vs_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz.v0))
+utils.plot.plot_geometry(geom, plotter=plotter, color='green', width=2)
+utils.plot.plot_couplingdepth(slab, plotter=plotter, render_points_as_spheres=True, point_size=10.0, color='green')
+utils.plot.plot_show(plotter)
+utils.plot.plot_save(plotter, output_folder / "{}_ss_solution_resscale_{:.2f}.png".format(name, resscale))
 
 
 filename = output_folder / "{}_ss_solution_resscale_{:.2f}.bp".format(name, resscale)
@@ -89,19 +89,19 @@ with zipfile.ZipFile(zipfilename, 'r') as z:
     z.extract(tffilename, path=tffilepath)
 
 
-fxgrid = utils.grids_scalar(sz.T_i)[0]
+fxgrid = utils.plot.grids_scalar(sz.T_i)[0]
 
 tfgrid = pv.get_reader(os.path.join(tffilepath, tffilename)).read()
 
-diffgrid = utils.pv_diff(fxgrid, tfgrid, field_name_map={'T':'Temperature::PotentialTemperature'}, pass_point_data=True)
+diffgrid = utils.plot.pv_diff(fxgrid, tfgrid, field_name_map={'T':'Temperature::PotentialTemperature'}, pass_point_data=True)
 
 
 diffgrid.set_active_scalars('T')
 plotter_diff = pv.Plotter()
 clim = None
 plotter_diff.add_mesh(diffgrid, cmap='coolwarm', clim=clim, scalar_bar_args={'title': 'Temperature Difference (deg C)', 'bold':True})
-utils.plot_geometry(geom, plotter=plotter_diff, color='green', width=2)
-utils.plot_couplingdepth(slab, plotter=plotter_diff, render_points_as_spheres=True, point_size=5.0, color='green')
+utils.plot.plot_geometry(geom, plotter=plotter_diff, color='green', width=2)
+utils.plot.plot_couplingdepth(slab, plotter=plotter_diff, render_points_as_spheres=True, point_size=5.0, color='green')
 plotter_diff.enable_parallel_projection()
 plotter_diff.view_xy()
 plotter_diff.show()

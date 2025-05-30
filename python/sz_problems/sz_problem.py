@@ -25,8 +25,6 @@ import basix.ufl as bu
 import matplotlib.pyplot as pl
 import copy
 import pyvista as pv
-if __name__ == "__main__" and "__file__" in globals():
-    pv.OFF_SCREEN = True
 import pathlib
 if __name__ == "__main__":
     output_folder = pathlib.Path(os.path.join(basedir, "output"))
@@ -230,7 +228,7 @@ class SubductionProblem(SubductionProblem):
         # this command also returns cell and facet tags mapped from the parent mesh to the submesh
         # additionally a cell map maps cells in the submesh to the parent mesh
         self.wedge_submesh, self.wedge_cell_tags, self.wedge_facet_tags, self.wedge_cell_map = \
-                            utils.create_submesh(self.mesh, 
+                            utils.mesh.create_submesh(self.mesh, 
                                                  np.concatenate([self.cell_tags.find(rid) for rid in self.wedge_rids]), \
                                                  self.cell_tags, self.facet_tags)
         # record whether this MPI rank has slab DOFs or not
@@ -240,7 +238,7 @@ class SubductionProblem(SubductionProblem):
         # this command also returns cell and facet tags mapped from the parent mesh to the submesh
         # additionally a cell map maps cells in the submesh to the parent mesh
         self.slab_submesh, self.slab_cell_tags, self.slab_facet_tags, self.slab_cell_map  = \
-                            utils.create_submesh(self.mesh, 
+                            utils.mesh.create_submesh(self.mesh, 
                                                  np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids]), \
                                                  self.cell_tags, self.facet_tags)
         # record whether this MPI rank has wedge DOFs or not
@@ -672,12 +670,12 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
-    plotter_ic = utils.plot_scalar(sz_case1.T_i, scale=sz_case1.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    utils.plot_vector_glyphs(sz_case1.vw_i, plotter=plotter_ic, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz_case1.v0))
-    utils.plot_geometry(sz_case1.geom, plotter=plotter_ic, color='green', width=2)
-    utils.plot_couplingdepth(sz_case1.geom.slab_spline, plotter=plotter_ic, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot_show(plotter_ic)
-    utils.plot_save(plotter_ic, output_folder / "sz_problem_case1_ics.png")
+    plotter_ic = utils.plot.plot_scalar(sz_case1.T_i, scale=sz_case1.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+    utils.plot.plot_vector_glyphs(sz_case1.vw_i, plotter=plotter_ic, gather=True, factor=0.1, color='k', scale=utils.mps_to_mmpyr(sz_case1.v0))
+    utils.plot.plot_geometry(sz_case1.geom, plotter=plotter_ic, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_case1.geom.slab_spline, plotter=plotter_ic, render_points_as_spheres=True, point_size=10.0, color='green')
+    utils.plot.plot_show(plotter_ic)
+    utils.plot.plot_save(plotter_ic, output_folder / "sz_problem_case1_ics.png")
 
 
 class SubductionProblem(SubductionProblem):
@@ -830,7 +828,7 @@ class SubductionProblem(SubductionProblem):
         
         # work out location of spot tempeterature on slab and evaluate T
         xpt = np.asarray(self.geom.slab_spline.intersecty(-100.0)+[0.0])
-        cinds, cells = utils.get_cell_collisions(xpt, self.mesh)
+        cinds, cells = utils.mesh.get_cell_collisions(xpt, self.mesh)
         Tpt = np.nan
         if len(cells) > 0: Tpt = self.T0*self.T_i.eval(xpt, cells[0])[0]
         # FIXME: does this really have to be an allgather?
@@ -890,13 +888,13 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
-    plotter_iso = utils.plot_scalar(sz_case1.T_i, scale=sz_case1.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    utils.plot_vector_glyphs(sz_case1.vw_i, plotter=plotter_iso, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case1.v0))
-    utils.plot_vector_glyphs(sz_case1.vs_i, plotter=plotter_iso, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case1.v0))
-    utils.plot_geometry(sz_case1.geom, plotter=plotter_iso, color='green', width=2)
-    utils.plot_couplingdepth(sz_case1.geom.slab_spline, plotter=plotter_iso, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot_show(plotter_iso)
-    utils.plot_save(plotter_iso, output_folder / "sz_problem_case1_solution.png")
+    plotter_iso = utils.plot.plot_scalar(sz_case1.T_i, scale=sz_case1.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+    utils.plot.plot_vector_glyphs(sz_case1.vw_i, plotter=plotter_iso, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case1.v0))
+    utils.plot.plot_vector_glyphs(sz_case1.vs_i, plotter=plotter_iso, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case1.v0))
+    utils.plot.plot_geometry(sz_case1.geom, plotter=plotter_iso, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_case1.geom.slab_spline, plotter=plotter_iso, render_points_as_spheres=True, point_size=10.0, color='green')
+    utils.plot.plot_show(plotter_iso)
+    utils.plot.plot_save(plotter_iso, output_folder / "sz_problem_case1_solution.png")
 
 
 if __name__ == "__main__":
@@ -926,10 +924,10 @@ def plot_slab_temperatures(sz):
     fig = pl.figure()
     ax = fig.gca()
     # plot the slab temperatures
-    cinds, cells = utils.get_cell_collisions(slabpoints, sz.mesh)
+    cinds, cells = utils.mesh.get_cell_collisions(slabpoints, sz.mesh)
     ax.plot(sz.T_i.eval(slabpoints, cells)[:,0], -slabpoints[:,1], label='slab surface')
     # plot the moho temperatures
-    mcinds, mcells = utils.get_cell_collisions(slabmohopoints, sz.mesh)
+    mcinds, mcells = utils.mesh.get_cell_collisions(slabmohopoints, sz.mesh)
     ax.plot(sz.T_i.eval(slabmohopoints, mcells)[:,0], -slabmohopoints[:,1], label='slab moho')
     # labels, title etc.
     ax.set_xlabel('T ($^\circ$C)')
@@ -1179,13 +1177,13 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
-    plotter_dis = utils.plot_scalar(sz_case2.T_i, scale=sz_case2.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    utils.plot_vector_glyphs(sz_case2.vw_i, plotter=plotter_dis, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case2.v0))
-    utils.plot_vector_glyphs(sz_case2.vs_i, plotter=plotter_dis, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case2.v0))
-    utils.plot_geometry(sz_case2.geom, plotter=plotter_dis, color='green', width=2)
-    utils.plot_couplingdepth(sz_case2.geom.slab_spline, plotter=plotter_dis, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot_show(plotter_dis)
-    utils.plot_save(plotter_dis, output_folder / "sz_problem_case2_solution.png")
+    plotter_dis = utils.plot.plot_scalar(sz_case2.T_i, scale=sz_case2.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+    utils.plot.plot_vector_glyphs(sz_case2.vw_i, plotter=plotter_dis, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case2.v0))
+    utils.plot.plot_vector_glyphs(sz_case2.vs_i, plotter=plotter_dis, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case2.v0))
+    utils.plot.plot_geometry(sz_case2.geom, plotter=plotter_dis, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_case2.geom.slab_spline, plotter=plotter_dis, render_points_as_spheres=True, point_size=10.0, color='green')
+    utils.plot.plot_show(plotter_dis)
+    utils.plot.plot_save(plotter_dis, output_folder / "sz_problem_case2_solution.png")
 
 
 if __name__ == "__main__":
@@ -1200,11 +1198,11 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     eta_i = sz_case2.project_dislocationcreep_viscosity()
-    plotter_eta = utils.plot_scalar(eta_i, scale=sz_case2.eta0, log_scale=True, show_edges=True, scalar_bar_args={'title': 'Viscosity (Pa) [log scale]', 'bold':True})
-    utils.plot_geometry(sz_case2.geom, plotter=plotter_eta, color='green', width=2)
-    utils.plot_couplingdepth(sz_case2.geom.slab_spline, plotter=plotter_eta, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot_show(plotter_eta)
-    utils.plot_save(plotter_eta, output_folder / "sz_problem_case2_eta.png")
+    plotter_eta = utils.plot.plot_scalar(eta_i, scale=sz_case2.eta0, log_scale=True, show_edges=True, scalar_bar_args={'title': 'Viscosity (Pa) [log scale]', 'bold':True})
+    utils.plot.plot_geometry(sz_case2.geom, plotter=plotter_eta, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_case2.geom.slab_spline, plotter=plotter_eta, render_points_as_spheres=True, point_size=10.0, color='green')
+    utils.plot.plot_show(plotter_eta)
+    utils.plot.plot_save(plotter_eta, output_folder / "sz_problem_case2_eta.png")
 
 
 if __name__ == "__main__":
@@ -1338,9 +1336,9 @@ if __name__ == "__main__":
 
     fps = 5
     plotter_gif = pv.Plotter(notebook=False, off_screen=True)
-    utils.plot_scalar(sz_case1td.T_i, plotter=plotter_gif, scale=sz_case1td.T0, gather=True, cmap='coolwarm', clim=[0.0, sz_case1td.Tm*sz_case1td.T0], scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    utils.plot_geometry(sz_case1td.geom, plotter=plotter_gif, color='green', width=2)
-    utils.plot_couplingdepth(sz_case1td.geom.slab_spline, plotter=plotter_gif, render_points_as_spheres=True, point_size=10.0, color='green')
+    utils.plot.plot_scalar(sz_case1td.T_i, plotter=plotter_gif, scale=sz_case1td.T0, gather=True, cmap='coolwarm', clim=[0.0, sz_case1td.Tm*sz_case1td.T0], scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+    utils.plot.plot_geometry(sz_case1td.geom, plotter=plotter_gif, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_case1td.geom.slab_spline, plotter=plotter_gif, render_points_as_spheres=True, point_size=10.0, color='green')
     plotter_gif.open_gif( str(output_folder / "sz_problem_case1td_solution.gif"), fps=fps)
     
     sz_case1td.solve_timedependent_isoviscous(25, 0.05, theta=0.5, plotter=plotter_gif)
@@ -1349,13 +1347,13 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
-    plotter_isotd = utils.plot_scalar(sz_case1td.T_i, scale=sz_case1td.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    utils.plot_vector_glyphs(sz_case1td.vw_i, plotter=plotter_isotd, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case1td.v0))
-    utils.plot_vector_glyphs(sz_case1td.vs_i, plotter=plotter_isotd, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case1td.v0))
-    utils.plot_geometry(sz_case1td.geom, plotter=plotter_isotd, color='green', width=2)
-    utils.plot_couplingdepth(sz_case1td.geom.slab_spline, plotter=plotter_isotd, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot_show(plotter_isotd)
-    utils.plot_save(plotter_isotd, output_folder / "sz_problem_case1td_solution.png")
+    plotter_isotd = utils.plot.plot_scalar(sz_case1td.T_i, scale=sz_case1td.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+    utils.plot.plot_vector_glyphs(sz_case1td.vw_i, plotter=plotter_isotd, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case1td.v0))
+    utils.plot.plot_vector_glyphs(sz_case1td.vs_i, plotter=plotter_isotd, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case1td.v0))
+    utils.plot.plot_geometry(sz_case1td.geom, plotter=plotter_isotd, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_case1td.geom.slab_spline, plotter=plotter_isotd, render_points_as_spheres=True, point_size=10.0, color='green')
+    utils.plot.plot_show(plotter_isotd)
+    utils.plot.plot_save(plotter_isotd, output_folder / "sz_problem_case1td_solution.png")
 
 
 class SubductionProblem(SubductionProblem):
@@ -1484,9 +1482,9 @@ if __name__ == "__main__":
     
     fps = 5
     plotter_gif2 = pv.Plotter(notebook=False, off_screen=True)
-    utils.plot_scalar(sz_case2td.T_i, plotter=plotter_gif2, scale=sz_case2td.T0, gather=True, cmap='coolwarm', clim=[0.0, sz_case2td.Tm*sz_case2td.T0], scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    utils.plot_geometry(sz_case2td.geom, plotter=plotter_gif2, color='green', width=2)
-    utils.plot_couplingdepth(sz_case2td.geom.slab_spline, plotter=plotter_gif2, render_points_as_spheres=True, point_size=10.0, color='green')
+    utils.plot.plot_scalar(sz_case2td.T_i, plotter=plotter_gif2, scale=sz_case2td.T0, gather=True, cmap='coolwarm', clim=[0.0, sz_case2td.Tm*sz_case2td.T0], scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+    utils.plot.plot_geometry(sz_case2td.geom, plotter=plotter_gif2, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_case2td.geom.slab_spline, plotter=plotter_gif2, render_points_as_spheres=True, point_size=10.0, color='green')
     plotter_gif2.open_gif( str(output_folder / "sz_problem_case2td_solution.gif"), fps=fps)
     
     sz_case2td.solve_timedependent_dislocationcreep(10, 0.05, theta=0.5, rtol=1.e-3, plotter=plotter_gif2)
@@ -1495,20 +1493,20 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
-    plotter_distd = utils.plot_scalar(sz_case2td.T_i, scale=sz_case2td.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    utils.plot_vector_glyphs(sz_case2td.vw_i, plotter=plotter_distd, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case2td.v0))
-    utils.plot_vector_glyphs(sz_case2td.vs_i, plotter=plotter_distd, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case2td.v0))
-    utils.plot_geometry(sz_case1td.geom, plotter=plotter_distd, color='green', width=2)
-    utils.plot_couplingdepth(sz_case1td.geom.slab_spline, plotter=plotter_distd, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot_show(plotter_distd)
-    utils.plot_save(plotter_distd, output_folder / "sz_problem_case2td_solution.png")
+    plotter_distd = utils.plot.plot_scalar(sz_case2td.T_i, scale=sz_case2td.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+    utils.plot.plot_vector_glyphs(sz_case2td.vw_i, plotter=plotter_distd, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case2td.v0))
+    utils.plot.plot_vector_glyphs(sz_case2td.vs_i, plotter=plotter_distd, factor=0.1, gather=True, color='k', scale=utils.mps_to_mmpyr(sz_case2td.v0))
+    utils.plot.plot_geometry(sz_case1td.geom, plotter=plotter_distd, color='green', width=2)
+    utils.plot.plot_couplingdepth(sz_case1td.geom.slab_spline, plotter=plotter_distd, render_points_as_spheres=True, point_size=10.0, color='green')
+    utils.plot.plot_show(plotter_distd)
+    utils.plot.plot_save(plotter_distd, output_folder / "sz_problem_case2td_solution.png")
 
 
 if __name__ == "__main__" and "__file__" not in globals():
     from ipylab import JupyterFrontEnd
     app = JupyterFrontEnd()
     app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_problem 3.1e_sz_problem.ipynb')
+    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_problem 3.2d_sz_problem.ipynb')
 
 
 

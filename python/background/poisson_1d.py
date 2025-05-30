@@ -25,7 +25,7 @@ def solve_poisson_1d(ne, p=1):
       * ne - number of elements
       * p  - polynomial order of the solution function space
     """
-    
+
     # Describe the domain (a one-dimensional unit interval)
     # and also the tessellation of that domain into ne 
     # equally spaced elements
@@ -50,7 +50,7 @@ def solve_poisson_1d(ne, p=1):
     # Define the trial and test functions on the same function space (V)
     T_a = ufl.TrialFunction(V)
     T_t = ufl.TestFunction(V)
-    
+
     # Define the integral to be assembled into the stiffness matrix
     S = ufl.inner(ufl.grad(T_t), ufl.grad(T_a))*ufl.dx
     # Define the integral to be assembled into the forcing vector
@@ -108,12 +108,12 @@ def evaluate_error(T_i):
     # Define the exact solution
     x  = ufl.SpatialCoordinate(T_i.function_space.mesh)
     Te = ufl.sin(ufl.pi*x[0]/2)
-    
+
     # Define the error between the exact solution and the given
     # approximate solution
     l2err = df.fem.assemble_scalar(df.fem.form((T_i - Te)*(T_i - Te)*ufl.dx))
     l2err = T_i.function_space.mesh.comm.allreduce(l2err, op=MPI.SUM)**0.5
-    
+
     # Return the l2 norm of the error
     return l2err
 

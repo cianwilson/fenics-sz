@@ -43,7 +43,7 @@ parts:
             title: Parallel scaling
   - caption: Subduction Zone Problems
     chapters:
-      - file: notebooks/03_sz_problems/3.1a_sz_intro
+      - file: notebooks/03_sz_problems/3.1_sz_intro
         title: Introduction
       - file:  notebooks/03_sz_problems/3.2a_sz_base
         title: Setup
@@ -63,7 +63,7 @@ parts:
             title: Convergence
   - caption: Global Suites
     chapters:
-      - file: notebooks/04_global_suites/4.1a_global_suites_intro
+      - file: notebooks/04_global_suites/4.1_global_suites_intro
         title: Introduction
       - file: notebooks/04_global_suites/4.2a_steady_state
         title: Steady state

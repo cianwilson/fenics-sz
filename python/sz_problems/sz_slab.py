@@ -14,9 +14,8 @@ import geometry as geo
 from mpi4py import MPI
 import matplotlib.pyplot as pl
 import pathlib
-if __name__ == "__main__":
-    output_folder = pathlib.Path(os.path.join(basedir, "output"))
-    output_folder.mkdir(exist_ok=True, parents=True)
+output_folder = pathlib.Path(os.path.join(basedir, "output"))
+output_folder.mkdir(exist_ok=True, parents=True)
 
 
 def create_slab(xs, ys, resscale, lc_depth, 
@@ -100,7 +99,7 @@ def create_slab(xs, ys, resscale, lc_depth,
     # set up the slab spline object
     slab = geo.SlabSpline(xs, ys, res=res, sid=sids, name="Slab")
 
-    assert full_coupling_depth > partial_coupling_depth
+    assert(full_coupling_depth > partial_coupling_depth)
     # adding the coupling depths may or may not be necessary
     # depending on if they were included in the slab spline data already or not
     # the slab class should ignore them if they aren't necessary
@@ -119,25 +118,10 @@ def create_slab(xs, ys, resscale, lc_depth,
     return slab
 
 
-if __name__ == "__main__":
-    resscale = 5.0
-
-
-if __name__ == "__main__":
-    # points in slab (just linear)
-    xs = [0.0, 140.0, 240.0, 400.0]
-    ys = [0.0, -70.0, -120.0, -200.0]
-
-
-if __name__ == "__main__":
-    lc_depth = 40
-
-
-if __name__ == "__main__":
-    slab = create_slab(xs, ys, resscale, lc_depth)
-
-
 def plot_slab(slab):
+    """
+    A python function to plot the given slab and return a matplotlib figure.
+    """
     interpx = [curve.points[0].x for curve in slab.interpcurves]+[slab.interpcurves[-1].points[1].x]
     interpy = [curve.points[0].y for curve in slab.interpcurves]+[slab.interpcurves[-1].points[1].y]
     fig = pl.figure()
@@ -148,32 +132,6 @@ def plot_slab(slab):
     ax.set_aspect('equal')
     ax.set_title('Slab Geometry')
     return fig
-    pl.savefig(output_folder / 'sz_slab_benchmark.png')
-
-
-if __name__ == "__main__":
-    fig = plot_slab(slab)
-    fig.gca().set_title('Benchmark Slab Geometry')
-    fig.savefig(output_folder / 'sz_slab_benchmark.png')
-
-
-if __name__ == "__main__":
-    resscale = 5.0
-    szdict_ak = allsz_params['01_Alaska_Peninsula']
-    slab_ak = create_slab(szdict_ak['xs'], szdict_ak['ys'], resscale, szdict_ak['lc_depth'])
-
-
-if __name__ == "__main__":
-    fig = plot_slab(slab_ak)
-    fig.gca().set_title('Alaska Peninsula Slab Geometry')
-    pl.savefig(output_folder / 'sz_slab_ak.png')
-
-
-if __name__ == "__main__" and "__file__" not in globals():
-    from ipylab import JupyterFrontEnd
-    app = JupyterFrontEnd()
-    app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_slab 3.2b_sz_slab.ipynb')
 
 
 

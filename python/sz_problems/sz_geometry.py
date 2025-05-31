@@ -14,13 +14,9 @@ from sz_problems.sz_slab import create_slab
 import geometry as geo
 import utils.plot
 from mpi4py import MPI
-import pyvista as pv
-if __name__ == "__main__" and "__file__" in globals():
-    pv.OFF_SCREEN = True
 import pathlib
-if __name__ == "__main__":
-    output_folder = pathlib.Path(os.path.join(basedir, "output"))
-    output_folder.mkdir(exist_ok=True, parents=True)
+output_folder = pathlib.Path(os.path.join(basedir, "output"))
+output_folder.mkdir(exist_ok=True, parents=True)
 
 
 def create_sz_geometry(slab, resscale, sztype, io_depth, extra_width, 
@@ -195,141 +191,6 @@ def create_sz_geometry(slab, resscale, sztype, io_depth, extra_width,
 
     # return the geometry object
     return geom
-
-
-if __name__ == "__main__":
-    resscale = 5.0
-    # points in slab (just linear)
-    xs = [0.0, 140.0, 240.0, 400.0]
-    ys = [0.0, -70.0, -120.0, -200.0]
-    lc_depth = 40
-    slab = create_slab(xs, ys, resscale, lc_depth)
-
-
-if __name__ == "__main__":
-    coast_distance = 0
-    extra_width = 0
-    uc_depth = 15
-    lc_depth = 40
-    sztype = 'continental'
-
-
-if __name__ == "__main__":
-    io_depth_1 = 139
-
-
-if __name__ == "__main__":
-    geom = create_sz_geometry(slab, resscale, sztype, io_depth_1, extra_width, 
-                              coast_distance, lc_depth, uc_depth)
-
-
-if __name__ == "__main__":
-    if MPI.COMM_WORLD.rank == 0:
-        fig = geom.plot(label_sids=False, label_rids=False)
-        fig.savefig(output_folder / "sz_geometry_benchmark.png")
-
-
-if __name__ == "__main__":
-    mesh, cell_tags, facet_tags = geom.generatemesh()
-
-
-if __name__ == "__main__":
-    plotter_mesh = utils.plot.plot_mesh(mesh, tags=cell_tags, gather=True, show_edges=True, line_width=1)
-    utils.plot.plot_geometry(geom, plotter=plotter_mesh, color='green', width=2)
-    utils.plot.plot_couplingdepth(slab, plotter=plotter_mesh, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot.plot_show(plotter_mesh)
-    utils.plot.plot_save(plotter_mesh, output_folder / "sz_geometry_benchmark_mesh.png")
-
-
-if __name__ == "__main__":
-    filename = output_folder / "sz_geometry_benchmark"
-    geom.writegeofile(str(filename.with_suffix('.geo_unrolled')))
-
-
-if __name__ == "__main__":
-    if MPI.COMM_WORLD.rank == 0:
-        szdict_ak = allsz_params['01_Alaska_Peninsula']
-        print("{:<35} {:<10}".format('Key','Value'))
-        print("-"*100)
-        for k, v in szdict_ak.items():
-            if v is not None: print("{:<35} {}".format(k, v))
-
-
-if __name__ == "__main__":
-    resscale = 5.0
-    slab_ak = create_slab(szdict_ak['xs'], szdict_ak['ys'], resscale, szdict_ak['lc_depth'])
-    geom_ak = create_sz_geometry(slab_ak, resscale, szdict_ak['sztype'], szdict_ak['io_depth'], szdict_ak['extra_width'], 
-                                 szdict_ak['coast_distance'], szdict_ak['lc_depth'], szdict_ak['uc_depth'])
-
-
-if __name__ == "__main__":
-    if MPI.COMM_WORLD.rank == 0:
-        fig_ak = geom_ak.plot(label_sids=False, label_rids=False)
-        fig_ak.savefig(output_folder / "sz_geometry_ak.png")
-
-
-if __name__ == "__main__":
-    mesh_ak, cell_tags_ak, facet_tags_ak = geom_ak.generatemesh()
-    
-
-
-if __name__ == "__main__":
-    plotter_mesh_ak = utils.plot.plot_mesh(mesh_ak, tags=cell_tags_ak, gather=True, show_edges=True, line_width=1)
-    utils.plot.plot_geometry(geom_ak, plotter=plotter_mesh_ak, color='green', width=2)
-    utils.plot.plot_couplingdepth(slab_ak, plotter=plotter_mesh_ak, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot.plot_show(plotter_mesh_ak)
-    utils.plot.plot_save(plotter_mesh_ak, output_folder / "sz_geometry_ak_mesh.png")
-
-
-if __name__ == "__main__":
-    filename = output_folder / "sz_geometry_ak"
-    geom_ak.writegeofile(str(filename.with_suffix('.geo_unrolled')))
-
-
-if __name__ == "__main__":
-    if MPI.COMM_WORLD.rank == 0:
-        szdict_ant = allsz_params['19_N_Antilles']
-        print("{:<35} {:<10}".format('Key','Value'))
-        print("-"*100)
-        for k, v in szdict_ant.items():
-            if v is not None: print("{:<35} {}".format(k, v))
-
-
-if __name__ == "__main__":
-    resscale = 5.0
-    slab_ant = create_slab(szdict_ant['xs'], szdict_ant['ys'], resscale, szdict_ant['lc_depth'])
-    geom_ant = create_sz_geometry(slab_ant, resscale, szdict_ant['sztype'], szdict_ant['io_depth'], szdict_ant['extra_width'], 
-                                  szdict_ant['coast_distance'], szdict_ant['lc_depth'], szdict_ant['uc_depth'])
-
-
-if __name__ == "__main__":
-    if MPI.COMM_WORLD.rank == 0:
-        fig_ant = geom_ant.plot(label_sids=False, label_rids=False)
-        fig_ant.savefig(output_folder / "sz_geometry_ant.png")
-
-
-if __name__ == "__main__":
-    mesh_ant, cell_tags_ant, facet_tags_ant = geom_ant.generatemesh()
-
-
-if __name__ == "__main__":
-    plotter_mesh_ant = utils.plot.plot_mesh(mesh_ant, tags=cell_tags_ant, gather=True, show_edges=True, line_width=1)
-    utils.plot.plot_geometry(geom_ant, plotter=plotter_mesh_ant, color='green', width=2)
-    utils.plot.plot_couplingdepth(slab_ant, plotter=plotter_mesh_ant, render_points_as_spheres=True, point_size=10.0, color='green')
-    utils.plot.plot_show(plotter_mesh_ant)
-    utils.plot.plot_save(plotter_mesh_ant, output_folder / "sz_geometry_ant_mesh.png")
-
-
-if __name__ == "__main__":
-    filename = output_folder / "sz_geometry_ant"
-    geom_ant.writegeofile(str(filename.with_suffix('.geo_unrolled')))
-
-
-if __name__ == "__main__" and "__file__" not in globals():
-    from ipylab import JupyterFrontEnd
-    app = JupyterFrontEnd()
-    app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_geometry 3.2c_sz_geometry.ipynb')
 
 
 

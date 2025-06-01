@@ -7,7 +7,7 @@ if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
 
-from sz_problems.sz_base import default_params, allsz_params
+from sz_problems.sz_params import default_params, allsz_params
 
 
 import geometry as geo

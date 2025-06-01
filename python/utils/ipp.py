@@ -126,10 +126,11 @@ def profile_parallel(nprocs, labels, *args, output_filename=None, **kwargs):
 
         rc.shutdown(hub=True)
 
+    maxlen = max([len(label) for label in labels])
     print('=========================')
-    print('\t'.join(['\t']+[repr(nproc) for nproc in nprocs]))
+    print("{0:<{1}}".format(" ", maxlen+2)+"".join(["{:<12d}".format(nproc) for nproc in nprocs]))
     for l, label in enumerate(labels):
-        print('\t'.join([label]+[repr(t[l]) for t in maxtimes]))
+        print("{0:<{1}}".format(label, maxlen+2)+"".join(["{:<12g}".format(t[l]) for t in maxtimes]))
     print('=========================')
 
     if MPI.COMM_WORLD.rank == 0:

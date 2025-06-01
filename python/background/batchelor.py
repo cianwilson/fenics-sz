@@ -84,7 +84,7 @@ def functionspaces(mesh, p):
         # Define the velocity and pressure function spaces
         V_v = df.fem.functionspace(mesh, v_e)
         V_p = df.fem.functionspace(mesh, p_e)
-
+    
     return V_v, V_p
 
 
@@ -100,7 +100,7 @@ def velocity_bcs(V_v, U=1):
     with df.common.Timer("Dirichlet BCs"):
         # Declare a list of boundary conditions
         bcs = []
-
+        
         # Grab the mesh
         mesh = V_v.mesh
 
@@ -130,7 +130,7 @@ def velocity_bcs(V_v, U=1):
         # Interpolate from a UFL expression, evaluated at the velocity interpolation points
         exact_v.interpolate(df.fem.Expression(v_exact_batchelor(mesh, U=U), V_v.element.interpolation_points()))
         bcs.append(df.fem.dirichletbc(exact_v, dofs_v_rightandtop))
-
+    
     return bcs
 
 def pressure_bcs(V_p):
@@ -155,7 +155,7 @@ def pressure_bcs(V_p):
         # Specify the arbitrary pressure value and define a Dirichlet boundary condition
         zero_p = df.fem.Constant(mesh, df.default_scalar_type(0.0))
         bcs.append(df.fem.dirichletbc(zero_p, dofs_p_lowerleft, V_p))
-
+    
     return bcs
 
 
@@ -189,7 +189,7 @@ def stokes_weakforms(V_v, V_p):
         zero_p = df.fem.Constant(mesh, df.default_scalar_type(0.0))
         zero_v = df.fem.Constant(mesh, df.default_scalar_type((0.0, 0.0)))
         f = df.fem.form([ufl.inner(v_t, zero_v)*ufl.dx, zero_p*p_t*ufl.dx])
-
+    
     return S, f
 
 def dummy_pressure_weakform(V_p):
@@ -213,7 +213,7 @@ def dummy_pressure_weakform(V_p):
         # Define the dummy integrals to be assembled into a zero pressure mass matrix
         zero_p = df.fem.Constant(mesh, df.default_scalar_type(0.0))
         M = df.fem.form(p_t*p_a*zero_p*ufl.dx)
-
+    
     return M
 
 
@@ -267,7 +267,7 @@ def solve(A, b, V_v, V_p):
         # Update the ghost values
         v_i.x.scatter_forward()
         p_i.x.scatter_forward()
-
+    
     with df.common.Timer("Cleanup"):
         solver.destroy()
         x.destroy()
@@ -298,7 +298,7 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None):
     # and load them into the PETSc options system
     opts = PETSc.Options()
     for k, v in petsc_options.items(): opts[k] = v
-
+    
     # 1. Set up a mesh
     mesh = unit_square_mesh(ne)
     # 2. Declare the appropriate function spaces
@@ -314,7 +314,7 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None):
     A, b = assemble(S, f, bcs)
     # 6. Solve the matrix equation
     v_i, p_i = solve(A, b, V_v, V_p)
-
+    
     with df.common.Timer("Cleanup"):
         A.destroy()
         b.destroy()
@@ -375,7 +375,7 @@ def convergence_errors(ps, nelements, U=1, petsc_options=None):
         if MPI.COMM_WORLD.rank == 0:
             print('*************************************************')
         errors_l2.append(errors_l2_p)
-
+    
     return errors_l2
 
 
@@ -414,12 +414,12 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
                 with open(str(output_basename) + '_p{}.csv'.format(p), 'w') as f:
                     np.savetxt(f, np.c_[nelements, hs, errors_l2[i]], delimiter=',', 
                              header='nelements, hs, l2errs')
-
+            
             print("order of accuracy p={}, order={}".format(p,fit[0]))
-
+        
             # log-log plot of the L2 error 
             ax.loglog(hs,errors_l2[i],'o-',label='p={}, order={:.2f}'.format(p,fit[0]))
-
+        
     if MPI.COMM_WORLD.rank == 0:
         # Tidy up the plot
         ax.set_xlabel(r'$h$')
@@ -433,7 +433,7 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
             fig.savefig(str(output_basename) + '.pdf')
 
             print("***********  convergence figure in "+str(output_basename)+".pdf")
-
+    
     return test_passes
 
 

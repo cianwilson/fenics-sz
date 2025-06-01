@@ -46,7 +46,7 @@ def pressure_preconditioner_weakform(V_p):
 
         # Define the integrals to be assembled into a pressure mass matrix
         M = df.fem.form(p_t*p_a*ufl.dx)
-
+    
     return M
 
 
@@ -95,29 +95,29 @@ def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspac
             B00, B11 = B.getNestSubMatrix(0, 0), B.getNestSubMatrix(1, 1)
             B00.setOption(PETSc.Mat.Option.SPD, True)
             B11.setOption(PETSc.Mat.Option.SPD, True)
-
+            
             if attach_nearnullspace:
                 V_v_cpp = df.fem.extract_function_spaces(f)[0]
-
+                
                 bs = V_v_cpp.dofmap.index_map_bs
                 length0 = V_v_cpp.dofmap.index_map.size_local
                 ns_basis = [df.la.vector(V_v_cpp.dofmap.index_map, bs=bs, dtype=PETSc.ScalarType) for i in range(3)]
                 ns_arrays = [ns_b.array for ns_b in ns_basis]
-
+                
                 dofs = [V_v_cpp.sub([i]).dofmap.map().flatten() for i in range(bs)]
-
+                
                 # Set the three translational rigid body modes
                 for i in range(2):
                     ns_arrays[i][dofs[i]] = 1.0
-
+                
                 x = V_v_cpp.tabulate_dof_coordinates()
                 dofs_block = V_v_cpp.dofmap.map().flatten()
                 x0, x1 = x[dofs_block, 0], x[dofs_block, 1]
                 ns_arrays[2][dofs[0]] = -x1
                 ns_arrays[2][dofs[1]] = x0
-
+                
                 df.la.orthonormalize(ns_basis)
-
+                
                 ns_basis_petsc = [PETSc.Vec().createWithArray(ns_b[: bs * length0], bsize=bs, comm=V_v_cpp.mesh.comm) for ns_b in ns_arrays]
                 nns = PETSc.NullSpace().create(vectors=ns_basis_petsc)
                 B00.setNearNullSpace(nns)
@@ -140,7 +140,7 @@ def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspac
         if M is not None and attach_nearnullspace:
             for ns_b_p in ns_basis_petsc: ns_b_p.destroy()
             nns.destroy()
-
+        
     return A, B, b
 
 
@@ -186,7 +186,7 @@ def solve_nest(A, b, V_v, V_p, B=None):
         # Update the ghost values
         v_i.x.scatter_forward()
         p_i.x.scatter_forward()
-
+    
     with df.common.Timer("Cleanup"):
         solver.destroy()
         x.destroy()
@@ -226,7 +226,7 @@ def solve_batchelor_nest(ne, p=1, U=1, petsc_options=None, attach_nullspace=Fals
     opts = PETSc.Options()
     for k, v in petsc_options.items(): opts[k] = v
     pc_type = opts.getString('pc_type')
-
+    
     # 1. Set up a mesh
     mesh = unit_square_mesh(ne)
     # 2. Declare the appropriate function spaces
@@ -249,7 +249,7 @@ def solve_batchelor_nest(ne, p=1, U=1, petsc_options=None, attach_nullspace=Fals
     A, B, b = assemble_nest(S, f, bcs, M=M, attach_nullspace=attach_nullspace, attach_nearnullspace=attach_nearnullspace)
     # 6. Solve the matrix equation (now using _nest)
     v_i, p_i = solve_nest(A, b, V_v, V_p, B=B)
-
+    
     with df.common.Timer("Cleanup"):
         A.destroy()
         if B is not None: B.destroy()
@@ -293,7 +293,7 @@ def convergence_errors_nest(ps, nelements, U=1, petsc_options=None, attach_nulls
         if MPI.COMM_WORLD.rank == 0:
             print('*************************************************')
         errors_l2.append(errors_l2_p)
-
+    
     return errors_l2
 
 

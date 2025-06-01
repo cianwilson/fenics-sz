@@ -542,9 +542,6 @@ def solve_stokes_nest(solver, b, S, f, bcs, v, p, M=None, isoviscous=False):
 
     with df.common.Timer("Assemble Stokes"):
         if not isoviscous: # already assembled at setup if isoviscous
-            V_fs_cpp = df.fem.extract_function_spaces(f)
-            bcs_by_block = df.fem.bcs_by_block(V_fs_cpp, bcs)
-
             A, B = solver.getOperators()
 
             A00 = A.getNestSubMatrix(0, 0)

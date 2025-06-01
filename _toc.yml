@@ -52,14 +52,23 @@ parts:
             title: Slab surface
           - file: notebooks/03_sz_problems/3.2c_sz_geometry
             title: Geometry
-          - file: notebooks/03_sz_problems/3.2d_sz_problem
-            title: Numerical solution
-          - file: notebooks/03_sz_problems/3.2e_sz_tests
+          - file: notebooks/03_sz_problems/3.2d_sz_base
+            title: BCs & functions
+          - file: notebooks/03_sz_problems/3.2e_sz_problem
+            title: Solvers
+      - file: notebooks/03_sz_problems/3.3a_sz_steady_problem
+        title: Steady state
+        sections:
+          - file: notebooks/03_sz_problems/3.3b_sz_steady_isoviscous
+            title: Isoviscous
+          - file: notebooks/03_sz_problems/3.3c_sz_steady_dislcreep
+            title: Dislocation creep
+          - file: notebooks/03_sz_problems/3.3d_sz_tests
             title: Themes and variations
       - file: notebooks/03_sz_problems/3.3a_sz_benchmark_intro
         title: Benchmark
         sections:
-          - file: notebooks/03_sz_problems/3.3b_sz_benchmark
+          - file: notebooks/03_sz_problems/3.4b_sz_benchmark
             title: Convergence
   - caption: Global Suites
     chapters:

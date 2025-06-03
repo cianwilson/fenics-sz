@@ -43,20 +43,15 @@ jobs:
             git diff --exit-code || { retcode=$?; echo "Jupyter notebooks are not clear.  Please clear output."; exit $retcode; }
 
       - name: Test background
-        working-directory: python/background
+        working-directory: notebooks/02_background
         run: |
-            mpirun -n 2 python3 poisson_1d.py
-            mpirun -n 2 python3 poisson_2d_tests.py
-            mpirun -n 2 python3 batchelor.py
-            python3 blankenbach.py
+            jupyter execute 2.2b_poisson_1d.ipynb
+            jupyter execute 2.3d_poisson_2d_parallel.ipynb
+            jupyter execute 2.4e_batchelor_nest_parallel.ipynb
+            jupyter execute 2.5b_blankenbach.ipynb
 
       - name: Test sz_problems
-        working-directory: python/sz_problems
+        working-directory: notebooks/03_sz_problems
         run: |
-            python3 sz_base.py
-            python3 sz_slab.py
-            python3 sz_geometry.py
-            python3 sz_problem.py
-            python3 sz_tests.py
-            python3 sz_benchmark.py
+            jupyter execute 3.4b_sz_benchmark.ipynb
 

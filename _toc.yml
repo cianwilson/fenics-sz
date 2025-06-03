@@ -45,7 +45,7 @@ parts:
     chapters:
       - file: notebooks/03_sz_problems/3.1_sz_intro
         title: Introduction
-      - file:  notebooks/03_sz_problems/3.2a_sz_base
+      - file:  notebooks/03_sz_problems/3.2a_sz_params
         title: Setup
         sections:
           - file: notebooks/03_sz_problems/3.2b_sz_slab
@@ -63,7 +63,7 @@ parts:
             title: Isoviscous
           - file: notebooks/03_sz_problems/3.3c_sz_steady_dislcreep
             title: Dislocation creep
-          - file: notebooks/03_sz_problems/3.3d_sz_tests
+          - file: notebooks/03_sz_problems/3.3d_sz_steady_tests
             title: Themes and variations
       - file: notebooks/03_sz_problems/3.4a_sz_benchmark_intro
         title: Benchmark

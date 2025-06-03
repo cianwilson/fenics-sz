@@ -17,7 +17,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: ghcr.io/cianwilson/fenics-sz:release
+    container: ghcr.io/cianwilson/fenics-sz:test-ipyparallel-v0.9.0r1
     env:
       PYVISTA_OFF_SCREEN: true
 

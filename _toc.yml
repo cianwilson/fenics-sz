@@ -65,11 +65,20 @@ parts:
             title: Dislocation creep
           - file: notebooks/03_sz_problems/3.3d_sz_tests
             title: Themes and variations
-      - file: notebooks/03_sz_problems/3.3a_sz_benchmark_intro
+      - file: notebooks/03_sz_problems/3.4a_sz_benchmark_intro
         title: Benchmark
         sections:
           - file: notebooks/03_sz_problems/3.4b_sz_benchmark
             title: Convergence
+          - file: notebooks/03_sz_problems/3.4c_sz_benchmark_parallel
+            title: Parallel scaling
+      - file: notebooks/03_sz_problems/3.5a_sz_tdep_problem
+        title: Time dependent
+        sections:
+          - file: notebooks/03_sz_problems/3.5b_sz_tdep_isoviscous
+            title: Isoviscous
+          - file: notebooks/03_sz_problems/3.5c_sz_tdep_dislcreep
+            title: Dislocation creep
   - caption: Global Suites
     chapters:
       - file: notebooks/04_global_suites/4.1_global_suites_intro

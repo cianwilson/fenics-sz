@@ -132,7 +132,7 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
         if self.comm.rank == 0: print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
         while rrel > rtol and r > atol:
             if it > maxits: break
-            # solve for v & p and interpolate it
+            # solve for v & p and interpolate the velocity
             if self.wedge_rank: self.wedge_vw_i, self.wedge_pw_i = solver_s_w.solve()
             if self.slab_rank:  self.slab_vs_i,  self.slab_ps_i  = solver_s_s.solve()
             self.update_v_functions()
@@ -156,13 +156,6 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
 
         # only update the pressure at the end as it is not necessary earlier
         self.update_p_functions()
-
-
-if __name__ == "__main__" and "__file__" not in globals():
-    from ipylab import JupyterFrontEnd
-    app = JupyterFrontEnd()
-    app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --TagRemovePreprocessor.enabled=True --TagRemovePreprocessor.remove_cell_tags="[\'main\', \'ipy\']" --TemplateExporter.exclude_markdown=True --TemplateExporter.exclude_input_prompt=True --TemplateExporter.exclude_output_prompt=True --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_steady_dislcreep 3.3c_sz_steady_dislcreep.ipynb')
 
 
 

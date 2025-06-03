@@ -23,7 +23,7 @@ output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 
 
-class SubductionProblemBase:
+class BaseSubductionProblem:
     """
     A class describing a kinematic slab subduction zone thermal problem.
     """
@@ -58,8 +58,8 @@ class SubductionProblemBase:
         self.E      = 540.0e3   # viscosity activation energy (J/mol)
         
         # finite element degrees
-        self.p_p = 1
-        self.p_T = 2
+        self.p_p = 1  # pressure
+        self.p_T = 2  # temperature
 
         # only allow these options to be set from the update and __init__ functions
         self.allowed_input_parameters = ['A', 'Vs', 'sztype', 'Ac', 'As', 'qs', \
@@ -115,7 +115,6 @@ class SubductionProblemBase:
         self.gdim = None
         self.tdim = None
         self.fdim = None
-        self.num_cells = None
 
         # region ids
         self.wedge_rids       = None
@@ -140,14 +139,14 @@ class SubductionProblemBase:
         self.dx = None
         self.wedge_ds = None
     
-        # functionspaces
+        # function spaces
         self.Vslab_v  = None
         self.Vslab_p  = None
         self.Vwedge_v = None
         self.Vwedge_p = None
         self.V_T      = None
     
-        # Functions
+        # FE functions
         self.slab_vs_i  = None
         self.slab_ps_i  = None
         self.wedge_vw_i = None
@@ -181,14 +180,10 @@ class SubductionProblemBase:
         self.bcs_T   = None # temperature
         self.bcs_vw = None  # wedge velocity
         self.bcs_vs = None  # slab velocity
-
-        # timestepping options
-        self.theta = None
-        self.dt    = None
     
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def setup_meshes(self):
         """
         Generate the mesh from the supplied geometry then extract submeshes representing
@@ -207,10 +202,6 @@ class SubductionProblemBase(SubductionProblemBase):
             self.gdim = self.mesh.geometry.dim
             self.tdim = self.mesh.topology.dim
             self.fdim = self.tdim - 1
-
-            # get the number of cells
-            cell_imap = self.mesh.topology.index_map(self.tdim)
-            self.num_cells = cell_imap.size_local + cell_imap.num_ghosts
 
             # record the region ids for the wedge, slab and crust based on the geometry
             self.wedge_rids = tuple(set([v['rid'] for k,v in self.geom.wedge_dividers.items()]+[self.geom.wedge_rid]))
@@ -237,11 +228,12 @@ class SubductionProblemBase(SubductionProblemBase):
             # record whether this MPI rank has wedge DOFs or not
             self.slab_rank = self.slab_submesh.topology.index_map(self.tdim).size_local > 0
 
+            # set up UFL measures that know about the cell and facet tags
             self.dx = ufl.Measure("dx", domain=self.mesh, subdomain_data=self.cell_tags)
             self.wedge_ds = ufl.Measure("ds", domain=self.wedge_submesh, subdomain_data=self.wedge_facet_tags)
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def setup_functionspaces(self):
         """
         Set up the functionspaces for the problem.
@@ -330,7 +322,7 @@ class SubductionProblemBase(SubductionProblemBase):
             self.wedge_T_i.name = "wedge_T"
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def update_T_functions(self):
         """
         Update the temperature functions defined on the submeshes, given a solution on the full mesh.
@@ -356,7 +348,7 @@ class SubductionProblemBase(SubductionProblemBase):
             self.pw_i.interpolate(self.wedge_pw_i, cells0=np.arange(len(self.wedge_cell_map)), cells1=self.wedge_cell_map)
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def T_trench(self, x):
         """
         Return temperature at the trench
@@ -366,7 +358,7 @@ class SubductionProblemBase(SubductionProblemBase):
         return self.Ts + (self.Tm-self.Ts)*sp.special.erf(-(x[1,:]+deltazsurface)/zd)
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def T_backarc_o(self, x):
         """
         Return temperature at the trench
@@ -376,7 +368,7 @@ class SubductionProblemBase(SubductionProblemBase):
         return self.Ts + (self.Tm-self.Ts)*sp.special.erf(-(x[1,:]+deltazsurface)/zc)
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def T_backarc_c(self, x):
         """
         Return continental backarc temperature
@@ -408,7 +400,7 @@ class SubductionProblemBase(SubductionProblemBase):
         return T
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def vw_slabtop(self, x):
         """
         Return the wedge velocity on the slab surface
@@ -423,7 +415,7 @@ class SubductionProblemBase(SubductionProblemBase):
         return v
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def vs_slabtop(self, x):
         """
         Return the slab velocity on the slab surface
@@ -434,7 +426,7 @@ class SubductionProblemBase(SubductionProblemBase):
         return v
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def setup_boundaryconditions(self):
         """
         Set the boundary conditions and apply them to the functions
@@ -518,7 +510,7 @@ class SubductionProblemBase(SubductionProblemBase):
         self.update_T_functions()
 
 
-class SubductionProblemBase(SubductionProblemBase):
+class BaseSubductionProblem(BaseSubductionProblem):
     def update(self, geom=None, **kwargs):
         """
         Update the subduction problem with the allowed input parameters
@@ -597,7 +589,7 @@ class SubductionProblemBase(SubductionProblemBase):
     
     def __init__(self, geom, **kwargs):
         """
-        Initialize a SubductionProblemBase.
+        Initialize a BaseSubductionProblem.
 
         Arguments:
           * geom  - an instance of a subduction zone geometry

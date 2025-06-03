@@ -10,7 +10,7 @@ sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 from sz_problems.sz_params import default_params, allsz_params
 from sz_problems.sz_slab import create_slab
 from sz_problems.sz_geometry import create_sz_geometry
-from sz_problems.sz_base import SubductionProblemBase
+from sz_problems.sz_base import BaseSubductionProblem
 
 
 import geometry as geo
@@ -31,7 +31,7 @@ output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 
 
-class SubductionProblem(SubductionProblemBase):
+class SubductionProblem(BaseSubductionProblem):
     def stokes_forms(self, v_t, p_t, v_a, p_a, v, p, eta=1):
         """
         Return the forms Ss and fs for the matrix problem Ss*us = fs for the Stokes problems

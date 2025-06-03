@@ -21,7 +21,7 @@ env:
 jobs:
   build-book:
     runs-on: ubuntu-latest
-    container: ghcr.io/cianwilson/fenics-sz:release
+    container: ghcr.io/cianwilson/fenics-sz:test-ipyparallel-v0.9.0r1
 
     env:
       PYVISTA_TRAME_SERVER_PROXY_PREFIX: "/proxy/"
@@ -42,8 +42,8 @@ jobs:
         if: env.BASE_NAME != 'release' || github.event_name == 'pull_request'
         with:
           path: _build/.jupyter_cache
-          key: jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.1b_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils.py') }}
-          restore-keys: jupyter-book-cache-${{ env.BASE_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.1b_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils.py') }}
+          key: jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
+          restore-keys: jupyter-book-cache-${{ env.BASE_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
 
       # Build the book
       - name: Build the book
@@ -68,7 +68,7 @@ jobs:
         run: |
           git config --global --add safe.directory /__w/fenics-sz/fenics-sz
           gh extension install actions/gh-actions-cache
-          gh actions-cache delete jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.1b_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils.py') }} --confirm
+          gh actions-cache delete jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }} --confirm
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # this isn't publicly visible
 
@@ -79,5 +79,5 @@ jobs:
         continue-on-error: true
         with:
           path: _build/.jupyter_cache
-          key: jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.1b_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils.py') }}
+          key: jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
 

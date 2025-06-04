@@ -21,7 +21,7 @@ env:
 jobs:
   build-book:
     runs-on: ubuntu-latest
-    container: ghcr.io/cianwilson/fenics-sz:test-ipyparallel-v0.9.0r1
+    container: ghcr.io/cianwilson/fenics-sz:release
 
     env:
       PYVISTA_TRAME_SERVER_PROXY_PREFIX: "/proxy/"

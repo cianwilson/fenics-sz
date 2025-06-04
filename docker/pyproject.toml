@@ -4,22 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "FEniCS_SZ"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
-    "jupyter-book==1.0.0",
+    "jupyter-book==1.0.4.post1",
     "meshio==5.3.5",
-    "h5py==3.11.0",
+    "h5py==3.13.0",
     "seaborn==0.13.2",
-    "pandas==2.2.2",
-    "tqdm==4.66.4",
-    "pyvista[all]==0.43.5",
-    "fenics-dolfinx==0.8.0",
+    "pandas==2.2.3",
+    "tqdm==4.67.1",
+    "pyvista[all]==0.44.1",
+    "fenics-dolfinx==0.9.0",
     "ipdb==0.13.13",
     "ipylab==1.0.0",
+    "ipywidgets==7.7.1",
+    "ipyparallel==9.0.1",
+    "pygmt==0.15.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pdbpp", "ipython==8.23.0", "jupytext==1.16.1", "ruff==0.4.1"]
+dev = ["pdbpp", "ipython==8.28.0", "jupytext==1.17.1", "ruff==0.11.8"]
 
 [tool.setuptools]
 packages = []
@@ -31,7 +34,7 @@ formats = "ipynb,py:percent"
 
 [tool.ruff.lint.isort]
 known-first-party = ["basix", "dolfinx", "ffcx", "ufl"]
-known-third-party = ["gmsh==4.12.2.dev1", "numpy==1.26.4", "pytest==8.1.1"]
+known-third-party = ["gmsh==4.13.1.dev1", "numpy==2.0.2", "pytest==8.3.3"]
 section-order = [
     "future",
     "standard-library",
@@ -42,4 +45,4 @@ section-order = [
 ]
 
 [tool.ruff.lint.isort.sections]
-"mpi" = ["mpi4py==3.1.6", "petsc4py==3.21.0"]
+"mpi" = ["mpi4py==4.0.0", "petsc4py==3.22.0"]

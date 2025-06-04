@@ -1,186 +1,627 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Subduction Zone Setup
-
-# Author: Cian Wilson
-
-# ## Implementation
-
-# Our implementation will follow a similar workflow to that seen repeatedly in the background examples section.
-# 
-# 1. we will describe the subduction zone geometry and tesselate it intro non-overlapping triangles to create a **mesh**
-# 2. we will declare **function spaces** for the temperature, wedge velocity and pressure, and slab velocity and pressure
-# 3. using these function space we will declare **trial** and **test functions**
-# 4. we will define Dirichlet boundary conditions at the boundaries as described in the introduction
-# 5. we will use the crustal heat sources in the right hand side forcing function for the temperature
-# 6. we will describe **discrete weak forms** for temperature and each of the coupled velocity-pressure systems that will be used to assemble the matrices (and vectors) to be solved
-# 7. we will solve the matrix problems using a linear algebra back-end repeatedly in a Picard iteration to find the root of the residuals and return the non-linear solution
-# 
-# The only difference in a subduction zone problem is that each of these steps is more complicated than in the earlier examples.  Here we split steps 1-7 up across three notebooks.  In the first we implement a function to describe the slab surface using a spline.  The remaining details of the geometry are constructed in a function defined in the next notebook.  Finally we implement a python class to describe the remaining steps, 2-7, of the problem.
-
-# ### Geometry
-# 
-# Throughout our implementation, in the following notebooks, we will demonstrate its functionality using the simplified geometry previously laid out and repeated below in Figure 1. However our implementation will be applicable to a broader range of geometries and setups.
-# 
-# ![Figure 8a of Wilson & van Keken, 2023](images/benchmarkgeometry.png)
-# *Figure 1: Geometry and coefficients for a simplified 2D subduction zone model. All coefficients and parameters are nondimensional. The decoupling point is indicated by the circle on the slab.*
-
-# ### Parameters
-# 
-# We also recall the default parameters repeated below in Table 1.
-# 
-# 
-# | **Quantity**                                      | **Symbol**          | **Nominal value**                        | **Nondimensional value**    |
-# |---------------------------------------------------|---------------------|------------------------------------------|-----------------------------|
-# | Reference temperature scale                       | $ T_0$              | 1 K=1$^\circ$C                           | -                           |
-# | Surface temperature                               | $T^*_s$             | 273 K=0$^\circ$C                         | $T_s$=0                     |
-# | Mantle temperature                                | $T^*_m$             | 1623 K=1350$^\circ$C                     | $T_m$=1350                  |
-# | Surface heat flow$^\text{c}$                       | $q^*_s$             | $^\S$ W/m$^2$                       | $q_s$$^\S$             |
-# | Reference density                                 | $\rho_0$            | 3300 kg/m$^3$                            | -                           |
-# | Crustal density$^\text{c}$                          | $\rho^*_c$          | 2750 kg/m$^3$                            | $\rho_c$=0.833333           |
-# | Mantle density                                    | $\rho^*_m$          | 3300 kg/m$^3$                            | $\rho_m$=1                  |
-# | Reference thermal conductivity                    | $k_0$               | 3.1  W/(m K)                             | -                           |
-# | Crustal thermal conductivity$^\text{c}$             | $k^*_c$             | 2.5  W/(m K)                             | $k_c$=0.8064516             |
-# | Mantle thermal conductivity                       | $k^*_m$             | 3.1  W/(m K)                             | $k_m$=1                     |
-# | Volumetric heat production (upper crust)$^\text{c}$ | $H^*_1$             | 1.3 $\mu$W/m$^3$                       | $H_1$=0.419354              |
-# | Volumetric heat production (lower crust)$^\text{c}$ | $H_2^*$             | 0.27 $\mu$W/m$^3$                      | $H_2$=0.087097              |
-# | Age of overriding crust$^\text{o}$                  | $A_c^*$             | $^\S$ Myr                           | $A_c$$^\S$             |
-# | Age of subduction$^\text{t}$                        | $A_s^*$             | $^\S$ Myr                           | $A_s$$^\S$             |
-# | Age of subducting slab                            | $A^*$               | $^\S$ Myr                           | $A$$^\S$               |
-# | Reference length scale                            | $h_0$               | 1 km                                     | -                           |
-# | Depth of base of upper crust$^\text{c}$             | $z_1^*$             | 15 km                                    | $z_1$=15                    |
-# | Depth of base of lower crust (Moho)               | $z_2^*$             | $^\S$ km                            | $z_2$$^\S$             |
-# | Trench depth                                      | $z_\text{trench}^*$ | $^\S$ km                            | $z_\text{trench}$$^\S$ |
-# | Position of the coast line                        | $x_\text{coast}^*$  | $^\S$ km                            | $x_\text{coast}$$^\S$  |
-# | Wedge inflow/outflow transition depth             | $z_\text{io}^*$     | $^\S$ km                            | $z_\text{io}$$^\S$     |
-# | Depth of domain                                   | $D^*$               | $^\S$ km                            | $D$$^\S$               |
-# | Width of domain                                   | $L^*$               | $^\S$ km                            | $L$$^\S$               |
-# | Depth of change from decoupling to coupling       | $d_c^*$             | 80 km                                    | $d_c$=80                    |
-# | Depth range of partial to full coupling           | $\Delta d_c^*$      | 2.5 km                                   | $\Delta d_c$=2.5            |
-# | Reference heat capacity                           | ${c_p}_0$           | 1250 J/(kg K)                            | -                           |
-# | Reference thermal diffusivity                     | $\kappa_0$          | 0.7515$\times$10$^{\textrm{-6}}$ m$^2$/s | -                           |
-# | Activation energy                                 | $E$                 | 540 kJ/mol                               | -                           |
-# | Powerlaw exponent                                 | $n$                 | 3.5                                      | -                           |
-# | Pre-exponential constant                          | $A^*_\eta$          | 28968.6 Pa s$^{1/n}$                     | -                           |
-# | Reference viscosity scale                         | $\eta_0$            | 10$^{\textrm{21}}$ Pa s                  | -                           |
-# | Viscosity cap                                     | $\eta^*_\text{max}$ | 10$^{\textrm{25}}$ Pa s                  | -                           |
-# | Gas constant                                      | $R^*$               | 8.3145 J/(mol K)                         | -                           |
-# | Derived velocity scale                            | ${v}_0$             | 23.716014 mm/yr                          | -                           |
-# | Convergence velocity                              | $V_s^*$             | $^\S$ mm/yr                         | $V_s$$^\S$             |
-# 
-# |            |                                 |
-# |------------|---------------------------------|
-# |$^\text{c}$ | ocean-continent subduction only |
-# |$^\text{o}$ | ocean-ocean subduction only     |
-# |$^\text{t}$ | time-dependent simulations only |
-# |$^\S$       | varies between models           |
-# 
-# *Table 1: Nomenclature and reference values*
-# 
-# 
-# Most of these are available for us to use through a file in `../data/default_params.json`
-
-# In[ ]:
-
-
-import os
+import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
-params_filename = os.path.join(basedir, os.path.pardir, os.path.pardir, "data", "default_params.json")
+sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
 
-# Loading this file
-
-# In[ ]:
-
-
-import json
-with open(params_filename, "r") as fp:
-    default_params = json.load(fp)
+from sz_problems.sz_params import default_params, allsz_params
+from sz_problems.sz_slab import create_slab
+from sz_problems.sz_geometry import create_sz_geometry
 
 
-# This contains default parameters required to define the geometry. Keys ending in `_sid` and `_rid` are surface and region IDs respectively that we use to identify boundaries and regions of the mesh (these are unlikely to need to be changed). *_res_fact are resolution factors scaled by a factor to set the resolution at various points in the mesh. Finally, those ending in _depth are depths (in km) of various important points along the slab surface or boundaries (as defined in Table 1).
-
-# In[ ]:
-
-
-from mpi4py import MPI
-if __name__ == "__main__":
-    if MPI.COMM_WORLD.rank == 0:
-        print("{:<35} {:<10}".format('Key','Value'))
-        print("-"*45)
-        for k, v in default_params.items():
-            print("{:<35} {:<10}".format(k, v))
+import utils
+import dolfinx as df
+import numpy as np
+import scipy as sp
+import ufl
+import basix.ufl as bu
+import pathlib
+output_folder = pathlib.Path(os.path.join(basedir, "output"))
+output_folder.mkdir(exist_ok=True, parents=True)
 
 
-# We will additionally use parameters from the benchmark proposed in [Wilson & van Keken, PEPS, 2023](http://dx.doi.org/10.1186/s40645-023-00588-6) as defined in Table 2 below.
-# 
-# 
-# | case | type | $\eta$ | $q_s^*$   | $A^*$ | $z_2$ | $z_\text{io}$ | $z_\text{trench}$ | $x_\text{coast}$ | $D$ | $L$ | $V_s^*$ |
-# | ---- | ---- | ------ | --------- | ----- | ----- | ------------- | ----------------- | ---------------- | --- | --- | ------- |
-# |      |      |        | (W/m$^2$) | (Myr) |       |               |                   |                  |     |     | (mm/yr) |
-# | 1    | continental    | 1      | 0.065     | 100   | 40    | 139           | 0                 | 0                | 200 | 400 | 100     |
-# | 2    | continental    | $\eta_\text{disl}$ | 0.065 | 100 | 40 | 154        | 0                 | 0                | 200 | 400 | 100     |
-# 
-# 
-# *Table 2: Benchmark parameter values*
+class BaseSubductionProblem:
+    """
+    A class describing a kinematic slab subduction zone thermal problem.
+    """
 
-# Since these benchmark parameters are so few we will simply enter them as needed.  For the global suite all parameters marked as varying between models in Table 1 will change between cases.  An additional database of these parameters is provided in `../data/all_sz.json`, which we also load here
+    def members(self):
+        # geometry object
+        self.geom = None
+    
+        # case specific
+        self.A      = None      # age of subducting slab (Myr)
+        self.Vs     = None      # slab speed (mm/yr)
+        self.sztype = None      # type of sz ('continental' or 'oceanic')
+        self.Ac     = None      # age of over-riding plate (Myr) - oceanic only
+        self.As     = None      # age of subduction (Myr) - oceanic only
+        self.qs     = None      # surface heat flux (W/m^2) - continental only
+        
+        # non-dim parameters
+        self.Ts      = 0.0       # surface temperature (non-dim, also deg C)
+        self.Tm      = 1350.0    # mantle temperature (non-dim, also deg C)
+        self.kc      = 0.8064516 # crustal thermal conductivity (non-dim) - continental only
+        self.km      = 1.0       # mantle thermal conductivity (non-dim)
+        self.rhoc    = 0.8333333 # crustal density (non-dim) - continental only
+        self.rhom    = 1.0       # mantle density (non-dim)
+        self.cp      = 1.0       # heat capacity (non-dim)
+        self.H1      = 0.419354  # upper crustal volumetric heat production (non-dim) - continental only
+        self.H2      = 0.087097  # lower crustal volumetric heat production (non-dim) - continental only
+    
+        # dislocation creep parameters
+        self.etamax = 1.0e25    # maximum viscosity (Pa s)
+        self.nsigma = 3.5       # stress viscosity power law exponent (non-dim)
+        self.Aeta   = 28968.6   # pre-exponential viscosity constant (Pa s^(1/nsigma))
+        self.E      = 540.0e3   # viscosity activation energy (J/mol)
+        
+        # finite element degrees
+        self.p_p = 1  # pressure
+        self.p_T = 2  # temperature
 
-# In[ ]:
+        # only allow these options to be set from the update and __init__ functions
+        self.allowed_input_parameters = ['A', 'Vs', 'sztype', 'Ac', 'As', 'qs', \
+                                         'Ts', 'Tm', 'km', 'rhom', 'cp', \
+                                         'etamax', 'nsigma', 'Aeta', 'E', \
+                                         'p_p', 'p_T']
+        self.allowed_if_continental   = ['kc', 'rhoc', 'H1', 'H2']
+    
+        self.required_parameters     = ['A', 'Vs', 'sztype']
+        self.required_if_continental = ['qs']
+        self.required_if_oceanic     = ['Ac', 'As']
+    
+        # reference values
+        self.k0     = 3.1       # reference thermal conductivity (W/m/K)
+        self.rho0   = 3300.0    # reference density (kg/m^3)
+        self.cp0    = 1250.0    # reference heat capacity (J/kg/K)
+        self.h0     = 1000.0    # reference length scale (m)
+        self.eta0   = 1.0e21    # reference viscosity (Pa s)
+        self.T0     = 1.0       # reference temperature (K)
+        self.R      = 8.3145    # gas constant (J/mol/K)
+    
+        # derived reference values
+        self.kappa0 = None  # reference thermal diffusivity (m^2/s)
+        self.v0     = None  # reference velocity (m/s)
+        self.t0     = None  # reference time-scale (s)
+        self.e0     = None  # reference strain rate (/s)
+        self.p0     = None  # reference pressure (Pa)
+        self.H0     = None  # reference heat source (W/m^3)
+        self.q0     = None  # reference heat flux (W/m^2)
+        
+        # derived parameters
+        self.A_si   = None  # age of subducting slab (s)
+        self.Vs_nd  = None  # slab speed (non-dim)
+        self.Ac_si  = None  # age of over-riding plate (s) - oceanic only
+        self.As_si  = None  # age of subduction (s) - oceanic only
+        self.qs_nd  = None  # surface heat flux (non-dim) - continental only
+    
+        # derived from the geometry object
+        self.deltaztrench = None
+        self.deltaxcoast  = None
+        self.deltazuc     = None
+        self.deltazc      = None
+    
+        # mesh related
+        self.mesh       = None
+        self.cell_tags  = None
+        self.facet_tags = None
+    
+        # MPI communicator
+        self.comm       = None
+    
+        # dimensions and mesh statistics
+        self.gdim = None
+        self.tdim = None
+        self.fdim = None
+
+        # region ids
+        self.wedge_rids       = None
+        self.slab_rids        = None
+        self.crust_rids       = None
+    
+        # wedge submesh
+        self.wedge_submesh    = None
+        self.wedge_cell_tags  = None
+        self.wedge_facet_tags = None 
+        self.wedge_cell_map   = None
+        self.wedge_rank       = True
+    
+        # slab submesh
+        self.slab_submesh    = None
+        self.slab_cell_tags  = None
+        self.slab_facet_tags = None
+        self.slab_cell_map   = None
+        self.slab_rank       = True
+    
+        # integral measures
+        self.dx = None
+        self.wedge_ds = None
+    
+        # function spaces
+        self.Vslab_v  = None
+        self.Vslab_p  = None
+        self.Vwedge_v = None
+        self.Vwedge_p = None
+        self.V_T      = None
+    
+        # FE functions
+        self.slab_vs_i  = None
+        self.slab_ps_i  = None
+        self.wedge_vw_i = None
+        self.wedge_pw_i = None
+        self.T_i         = None
+        self.T_n         = None
+    
+        # Functions that need interpolation
+        self.vs_i      = None
+        self.ps_i      = None
+        self.vw_i      = None
+        self.pw_i      = None
+        self.slab_T_i  = None
+        self.wedge_T_i = None
+    
+        # test functions
+        self.slab_vs_t  = None
+        self.slab_ps_t  = None
+        self.wedge_vw_t = None
+        self.wedge_pw_t = None
+        self.T_t        = None
+    
+        # trial functions
+        self.slab_vs_a  = None
+        self.slab_ps_a  = None
+        self.wedge_vw_a = None
+        self.wedge_pw_a = None
+        self.T_a        = None
+        
+        # boundary conditions
+        self.bcs_T   = None # temperature
+        self.bcs_vw = None  # wedge velocity
+        self.bcs_vs = None  # slab velocity
+    
 
 
-allsz_filename = os.path.join(basedir, os.path.pardir, os.path.pardir, "data", "all_sz.json")
-with open(allsz_filename, "r") as fp:
-    allsz_params = json.load(fp)
+class BaseSubductionProblem(BaseSubductionProblem):
+    def setup_meshes(self):
+        """
+        Generate the mesh from the supplied geometry then extract submeshes representing
+        the wedge and slab for the Stokes problems in these regions.
+        """
+        # check we have a geometry object attached
+        assert(self.geom is not None)
+
+        with df.common.Timer("Mesh"):
+            # generate the mesh using gmsh
+            # this command also returns cell and facets tags identifying regions and boundaries in the mesh
+            self.mesh, self.cell_tags, self.facet_tags = self.geom.generatemesh()
+            self.comm = self.mesh.comm
+
+            # record the dimensions
+            self.gdim = self.mesh.geometry.dim
+            self.tdim = self.mesh.topology.dim
+            self.fdim = self.tdim - 1
+
+            # record the region ids for the wedge, slab and crust based on the geometry
+            self.wedge_rids = tuple(set([v['rid'] for k,v in self.geom.wedge_dividers.items()]+[self.geom.wedge_rid]))
+            self.slab_rids  = tuple([self.geom.slab_rid])
+            self.crust_rids = tuple(set([v['rid'] for k,v in self.geom.crustal_layers.items()]))
+
+            # generate the wedge submesh
+            # this command also returns cell and facet tags mapped from the parent mesh to the submesh
+            # additionally a cell map maps cells in the submesh to the parent mesh
+            self.wedge_submesh, self.wedge_cell_tags, self.wedge_facet_tags, self.wedge_cell_map = \
+                                utils.mesh.create_submesh(self.mesh, 
+                                                    np.concatenate([self.cell_tags.find(rid) for rid in self.wedge_rids]), \
+                                                    self.cell_tags, self.facet_tags)
+            # record whether this MPI rank has slab DOFs or not
+            self.wedge_rank = self.wedge_submesh.topology.index_map(self.tdim).size_local > 0
+            
+            # generate the slab submesh
+            # this command also returns cell and facet tags mapped from the parent mesh to the submesh
+            # additionally a cell map maps cells in the submesh to the parent mesh
+            self.slab_submesh, self.slab_cell_tags, self.slab_facet_tags, self.slab_cell_map  = \
+                                utils.mesh.create_submesh(self.mesh, 
+                                                    np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids]), \
+                                                    self.cell_tags, self.facet_tags)
+            # record whether this MPI rank has wedge DOFs or not
+            self.slab_rank = self.slab_submesh.topology.index_map(self.tdim).size_local > 0
+
+            # set up UFL measures that know about the cell and facet tags
+            self.dx = ufl.Measure("dx", domain=self.mesh, subdomain_data=self.cell_tags)
+            self.wedge_ds = ufl.Measure("ds", domain=self.wedge_submesh, subdomain_data=self.wedge_facet_tags)
 
 
-# The `allsz_params` dictionary contains parameters for all 56 subduction zones organized by name.
+class BaseSubductionProblem(BaseSubductionProblem):
+    def setup_functionspaces(self):
+        """
+        Set up the functionspaces for the problem.
+        """
 
-# In[ ]:
+        with df.common.Timer("Functions Stokes"):
+            # create finite elements for velocity and pressure
+            # use a P2P1 (Taylor-Hood) element pair where the velocity
+            # degree is one higher than the pressure (so only the pressure
+            # degree can be set)
+            v_e = bu.element("Lagrange", self.mesh.basix_cell(), self.p_p+1, shape=(self.gdim,), dtype=df.default_real_type)
+            p_e = bu.element("Lagrange", self.mesh.basix_cell(), self.p_p, dtype=df.default_real_type)
+            
+            def create_vp_functions(mesh, name_prefix):
+                """
+                Create velocity and pressure functions
+                """
+                # set up the velocity and pressure function spaces
+                V_v, V_p = df.fem.functionspace(mesh, v_e), df.fem.functionspace(mesh, p_e)
+
+                # Set up the velocity and pressure functions
+                v_i, p_i = df.fem.Function(V_v), df.fem.Function(V_p)
+                v_i.name = name_prefix+"v"
+                p_i.name = name_prefix+"p"
+                # set up the mixed velocity, pressure test function
+                v_t, p_t = ufl.TestFunction(V_v), ufl.TestFunction(V_p)
+                # set up the mixed velocity, pressure trial function
+                v_a, p_a = ufl.TrialFunction(V_v), ufl.TrialFunction(V_p)
+
+                # return everything
+                return V_v, V_p, v_i, p_i, v_t, p_t, v_a, p_a
+            
+            # set up slab functionspace, collapsed velocity sub-functionspace, 
+            # combined velocity-pressure Function, split velocity and pressure Functions,
+            # and trial and test functions for
+            # 1. the slab submesh
+            self.Vslab_v, self.Vslab_p, \
+                        self.slab_vs_i, self.slab_ps_i, \
+                        self.slab_vs_t, self.slab_ps_t, \
+                        self.slab_vs_a, self.slab_ps_a = create_vp_functions(self.slab_submesh, "slab_")
+
+            # 2. the wedge submesh
+            self.Vwedge_v, self.Vwedge_p, \
+                        self.wedge_vw_i, self.wedge_pw_i, \
+                        self.wedge_vw_t, self.wedge_pw_t, \
+                        self.wedge_vw_a, self.wedge_pw_a = create_vp_functions(self.wedge_submesh, "wedge_")
+
+            # set up the velocity and pressure functionspace (not stored)
+            V_v, V_p = df.fem.functionspace(self.mesh, v_e), df.fem.functionspace(self.mesh, p_e)
+
+            # set up functions defined on the whole mesh
+            # to interpolate the wedge and slab velocities
+            # and pressures to
+            self.vs_i = df.fem.Function(V_v)
+            self.vs_i.name = "vs"
+            self.ps_i = df.fem.Function(V_p)
+            self.ps_i.name = "ps"
+            self.vw_i = df.fem.Function(V_v)
+            self.vw_i.name = "vw"
+            self.pw_i = df.fem.Function(V_p)
+            self.pw_i.name = "pw"
+
+        with df.common.Timer("Functions Temperature"):
+            # temperature element
+            # the degree of the element can be set independently through p_T
+            T_e = bu.element("Lagrange", self.mesh.basix_cell(), self.p_T, dtype=df.default_real_type)
+            # and functionspace on the overall mesh
+            self.V_T  = df.fem.functionspace(self.mesh, T_e)
+
+            # create a dolfinx Function for the temperature
+            self.T_i = df.fem.Function(self.V_T)
+            self.T_i.name = "T"
+            self.T_n = df.fem.Function(self.V_T)
+            self.T_n.name = "T_n"
+            self.T_t = ufl.TestFunction(self.V_T)
+            self.T_a = ufl.TrialFunction(self.V_T)
+            
+            # on the slab submesh
+            Vslab_T = df.fem.functionspace(self.slab_submesh, T_e)
+            # and on the wedge submesh
+            Vwedge_T = df.fem.functionspace(self.wedge_submesh, T_e)
+            # set up Functions so the solution can be interpolated to these subdomains
+            self.slab_T_i  = df.fem.Function(Vslab_T)
+            self.slab_T_i.name = "slab_T"
+            self.wedge_T_i = df.fem.Function(Vwedge_T)
+            self.wedge_T_i.name = "wedge_T"
 
 
-if __name__ == "__main__":
-    if MPI.COMM_WORLD.rank == 0:
-        print("{}".format('Name'))
-        print("-"*30)
-        for k in allsz_params.keys():
-            print("{}".format(k,))
+class BaseSubductionProblem(BaseSubductionProblem):
+    def update_T_functions(self):
+        """
+        Update the temperature functions defined on the submeshes, given a solution on the full mesh.
+        """
+        with df.common.Timer("Interpolate Temperature"):
+            self.slab_T_i.interpolate(self.T_i, cells0=self.slab_cell_map, cells1=np.arange(len(self.slab_cell_map)))
+            self.wedge_T_i.interpolate(self.T_i, cells0=self.wedge_cell_map, cells1=np.arange(len(self.wedge_cell_map)))
+    
+    def update_v_functions(self):
+        """
+        Update the velocity functions defined on the full mesh, given solutions on the sub meshes.
+        """
+        with df.common.Timer("Interpolate Stokes"):
+            self.vs_i.interpolate(self.slab_vs_i, cells0=np.arange(len(self.slab_cell_map)), cells1=self.slab_cell_map)
+            self.vw_i.interpolate(self.wedge_vw_i, cells0=np.arange(len(self.wedge_cell_map)), cells1=self.wedge_cell_map)
+
+    def update_p_functions(self):
+        """
+        Update the pressure functions defined on the full mesh, given solutions on the sub meshes.
+        """
+        with df.common.Timer("Interpolate Stokes"):
+            self.ps_i.interpolate(self.slab_ps_i, cells0=np.arange(len(self.slab_cell_map)), cells1=self.slab_cell_map)
+            self.pw_i.interpolate(self.wedge_pw_i, cells0=np.arange(len(self.wedge_cell_map)), cells1=self.wedge_cell_map)
 
 
-# Taking two examples (one continental-oceanic, "01_Alaska_Peninsula", and one oceanic-oceanic, "19_N_Antilles") we can examine the contents of `allsz_params`.
-
-# In[ ]:
-
-
-if __name__ == "__main__":
-    names = ['01_Alaska_Peninsula', '19_N_Antilles']
-    if MPI.COMM_WORLD.rank == 0:
-        for name in names:
-            print("{}:".format(name))
-            print("{:<35} {:<10}".format('Key','Value'))
-            print("-"*100)
-            for k, v in allsz_params[name].items():
-                if v is not None: print("{:<35} {}".format(k, v))
-            print("="*100)
+class BaseSubductionProblem(BaseSubductionProblem):
+    def T_trench(self, x):
+        """
+        Return temperature at the trench
+        """
+        zd = 2*np.sqrt(self.kappa0*self.A_si)/self.h0  # incoming slab scale depth (non-dim)
+        deltazsurface = np.minimum(np.maximum(self.deltaztrench*(1.0 - x[0,:]/max(self.deltaxcoast, np.finfo(float).eps)), 0.0), self.deltaztrench)
+        return self.Ts + (self.Tm-self.Ts)*sp.special.erf(-(x[1,:]+deltazsurface)/zd)
 
 
-# ## Finish up
-
-# Convert this notebook to a python script (making sure to save first) so that we can access it in subsequent notebooks.
-
-# In[ ]:
-
-
-if __name__ == "__main__" and "__file__" not in globals():
-    from ipylab import JupyterFrontEnd
-    app = JupyterFrontEnd()
-    app.commands.execute('docmanager:save')
-    get_ipython().system('jupyter nbconvert --NbConvertApp.export_format=script --ClearOutputPreprocessor.enabled=True --FilesWriter.build_directory=../../python/sz_problems --NbConvertApp.output_base=sz_base 3.1b_sz_base.ipynb')
+class BaseSubductionProblem(BaseSubductionProblem):
+    def T_backarc_o(self, x):
+        """
+        Return temperature at the trench
+        """
+        zc = 2*np.sqrt(self.kappa0*(self.Ac_si-self.As_si))/self.h0 # overriding plate scale depth (non-dim)
+        deltazsurface = np.minimum(np.maximum(self.deltaztrench*(1.0 - x[0,:]/max(self.deltaxcoast, np.finfo(float).eps)), 0.0), self.deltaztrench)
+        return self.Ts + (self.Tm-self.Ts)*sp.special.erf(-(x[1,:]+deltazsurface)/zc)
 
 
-# In[ ]:
+class BaseSubductionProblem(BaseSubductionProblem):
+    def T_backarc_c(self, x):
+        """
+        Return continental backarc temperature
+        """
+        T = np.empty(x.shape[1])
+        deltazsurface = np.minimum(np.maximum(self.deltaztrench*(1.0 - x[0,:]/max(self.deltaxcoast, np.finfo(float).eps)), 0.0), self.deltaztrench)
+        for i in range(x.shape[1]):
+            if -(x[1,i]+deltazsurface[i]) < self.deltazuc:
+                # if in the upper crust
+                deltaz = -(x[1,i]+deltazsurface[i])
+                T[i] = self.Ts - self.H1*(deltaz**2)/(2*self.kc) + (self.qs_nd/self.kc)*deltaz
+            elif -(x[1,i]+deltazsurface[i]) < self.deltazc:
+                # if in the lower crust
+                deltaz1 = self.deltazuc #- deltazsurface[i]
+                T1 = self.Ts - self.H1*(deltaz1**2)/(2*self.kc) + (self.qs_nd/self.kc)*deltaz1
+                q1 = - self.H1*deltaz1 + self.qs_nd
+                deltaz = -(x[1,i] + deltazsurface[i] + self.deltazuc)
+                T[i] = T1 - self.H2*(deltaz**2)/(2*self.kc) + (q1/self.kc)*deltaz
+            else:
+                # otherwise, we're in the mantle
+                deltaz1 = self.deltazuc # - deltazsurface[i]
+                T1 = self.Ts - self.H1*(deltaz1**2)/(2*self.kc) + (self.qs_nd/self.kc)*deltaz1
+                q1 = - self.H1*deltaz1 + self.qs_nd
+                deltaz2 = self.deltazc - self.deltazuc #- deltazsurface[i]
+                T2 = T1 - self.H2*(deltaz2**2)/(2*self.kc) + (q1/self.kc)*deltaz2
+                q2 = - self.H2*deltaz2 + q1
+                deltaz = -(x[1,i] + deltazsurface[i] + self.deltazc)
+                T[i] = min(self.Tm, T2 + (q2/self.km)*deltaz)
+        return T
+
+
+class BaseSubductionProblem(BaseSubductionProblem):
+    def vw_slabtop(self, x):
+        """
+        Return the wedge velocity on the slab surface
+        """
+        # grab the partial and full coupling depths so we can set up a linear ramp in velocity between them
+        pcd = -self.geom.slab_spline.findpoint("Slab::PartialCouplingDepth").y
+        fcd = -self.geom.slab_spline.findpoint("Slab::FullCouplingDepth").y
+        dcd = fcd-pcd
+        v = np.empty((self.gdim, x.shape[1]))
+        for i in range(x.shape[1]):
+            v[:,i] = min(max(-(x[1,i]+pcd)/dcd, 0.0), 1.0)*self.Vs_nd*self.geom.slab_spline.unittangentx(x[0,i])
+        return v
+
+
+class BaseSubductionProblem(BaseSubductionProblem):
+    def vs_slabtop(self, x):
+        """
+        Return the slab velocity on the slab surface
+        """
+        v = np.empty((self.gdim, x.shape[1]))
+        for i in range(x.shape[1]):
+            v[:,i] = self.Vs_nd*self.geom.slab_spline.unittangentx(x[0,i])
+        return v
+
+
+class BaseSubductionProblem(BaseSubductionProblem):
+    def setup_boundaryconditions(self):
+        """
+        Set the boundary conditions and apply them to the functions
+        """
+        with df.common.Timer("Dirichlet BCs Stokes"):
+            # locate the degrees of freedom (dofs) where various boundary conditions will be applied
+            # on the top of the wedge for the wedge velocity
+            wedgetop_dofs_Vwedge_v = df.fem.locate_dofs_topological(self.Vwedge_v, self.fdim,
+                                                                    np.concatenate([self.wedge_facet_tags.find(sid) for sid in set([line.pid for line in self.geom.crustal_lines[0]])]))
+            # on the slab surface for the slab velocity
+            slab_dofs_Vslab_v = df.fem.locate_dofs_topological(self.Vslab_v, self.fdim, 
+                                                            np.concatenate([self.slab_facet_tags.find(sid) for sid in set(self.geom.slab_spline.pids)]))
+            # on the slab surface for the wedge velocity
+            slab_dofs_Vwedge_v = df.fem.locate_dofs_topological(self.Vwedge_v, self.fdim, 
+                                                                np.concatenate([self.wedge_facet_tags.find(sid) for sid in set(self.geom.slab_spline.pids)]))
+                
+            # wedge velocity boundary conditions
+            self.bcs_vw = []
+            # zero velocity on the top of the wedge
+            zero_vw_c = df.fem.Constant(self.wedge_submesh, df.default_scalar_type((0.0, 0.0)))
+            self.bcs_vw.append(df.fem.dirichletbc(zero_vw_c, wedgetop_dofs_Vwedge_v, self.Vwedge_v))
+            # kinematic slab on the slab surface of the wedge
+            vw_slabtop_f = df.fem.Function(self.Vwedge_v)
+            vw_slabtop_f.interpolate(self.vw_slabtop)
+            self.bcs_vw.append(df.fem.dirichletbc(vw_slabtop_f, slab_dofs_Vwedge_v))
+
+            # slab velocity boundary conditions
+            self.bcs_vs = []
+            # kinematic slab on the slab surface of the slab
+            vs_slabtop_f = df.fem.Function(self.Vslab_v)
+            vs_slabtop_f.interpolate(self.vs_slabtop)
+            self.bcs_vs.append(df.fem.dirichletbc(vs_slabtop_f, slab_dofs_Vslab_v))
+
+            # set the boundary conditions on the boundaries for the velocities
+            self.wedge_vw_i.x.array[:] = 0.0
+            self.slab_vs_i.x.array[:] = 0.0
+            df.fem.set_bc(self.wedge_vw_i.x.array, self.bcs_vw)
+            df.fem.set_bc(self.slab_vs_i.x.array, self.bcs_vs)
+        # and update the interpolated v functions for consistency (timed internally)
+        self.update_v_functions()
+        
+        with df.common.Timer("Dirichlet BCs Temperature"):
+            # on the top of the domain for the temperature
+            top_dofs_V_T = df.fem.locate_dofs_topological(self.V_T, self.fdim, 
+                                                        np.concatenate([self.facet_tags.find(self.geom.coast_sid), self.facet_tags.find(self.geom.top_sid)]))
+            # on the side of the slab side of the domain for the temperature
+            slabside_dofs_V_T = df.fem.locate_dofs_topological(self.V_T, self.fdim, 
+                                                            np.concatenate([self.facet_tags.find(sid) for sid in set([line.pid for line in self.geom.slab_side_lines])]))
+            # on the side of the wedge side of the domain for the temperature
+            wedgeside_dofs_V_T = df.fem.locate_dofs_topological(self.V_T, self.fdim, 
+                                                                np.concatenate([self.facet_tags.find(sid) for sid in set([line.pid for line in self.geom.wedge_side_lines[1:]])]))
+        
+            # temperature boundary conditions        
+            self.bcs_T = []
+            # zero on the top of the domain
+            zero_c = df.fem.Constant(self.mesh, df.default_scalar_type(0.0))
+            self.bcs_T.append(df.fem.dirichletbc(zero_c, top_dofs_V_T, self.V_T))
+            # an incoming slab thermal profile on the lhs of the domain
+            T_trench_f = df.fem.Function(self.V_T)
+            T_trench_f.interpolate(self.T_trench)
+            self.bcs_T.append(df.fem.dirichletbc(T_trench_f, slabside_dofs_V_T))
+            # on the top (above iodepth) of the incoming wedge side of the domain
+            if self.sztype=='continental':
+                T_backarc_f = df.fem.Function(self.V_T)
+                T_backarc_f.interpolate(self.T_backarc_c)
+                self.bcs_T.append(df.fem.dirichletbc(T_backarc_f, wedgeside_dofs_V_T))
+            else:
+                T_backarc_f = df.fem.Function(self.V_T)
+                T_backarc_f.interpolate(self.T_backarc_o)
+                self.bcs_T.append(df.fem.dirichletbc(T_backarc_f, wedgeside_dofs_V_T))
+
+            # interpolate the temperature boundary conditions as initial conditions/guesses
+            # to the whole domain (not just the boundaries)
+            # on the wedge and crust side of the domain apply the wedge condition
+            nonslab_cells = np.concatenate([self.cell_tags.find(rid) for domain in [self.crust_rids, self.wedge_rids] for rid in domain])
+            self.T_i.interpolate(T_backarc_f, cells0=nonslab_cells)
+            # on the slab side of the domain apply the slab condition
+            slab_cells = np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids])
+            self.T_i.interpolate(T_trench_f, cells0=slab_cells)
+        # update the interpolated T functions for consistency (timed internally)
+        self.update_T_functions()
+
+
+class BaseSubductionProblem(BaseSubductionProblem):
+    def update(self, geom=None, **kwargs):
+        """
+        Update the subduction problem with the allowed input parameters
+        """
+
+        # loop over the keyword arguments and apply any that are allowed as input parameters
+        # this loop happens before conditional loops to make sure sztype gets set
+        for k,v in kwargs.items():
+            if k in self.allowed_input_parameters and hasattr(self, k):
+                setattr(self, k, v)
+
+        # loop over additional input parameters, giving a warning if they will do nothing
+        for k,v in kwargs.items():
+            if k in self.allowed_if_continental and hasattr(self, k):
+                setattr(self, k, v)
+                if self.sztype == "oceanic":
+                    raise Warning("sztype is '{}' so setting '{}' will have no effect.".format(self.sztype, k))
+        
+        # check required parameters are set
+        for param in self.required_parameters:
+            value = getattr(self, param)
+            if value is None:
+                raise Exception("'{}' must be set but isn't.  Please supply a value.".format(param,))
+
+        # check sztype dependent required parameters are set
+        if self.sztype == "continental":
+            for param in self.required_if_continental:
+                value = getattr(self, param)
+                if value is None:
+                    raise Exception("'{}' must be set if the sztype is continental.  Please supply a value.".format(param,))
+        elif self.sztype == "oceanic":
+            for param in self.required_if_oceanic:
+                value = getattr(self, param)
+                if value is None:
+                    raise Exception("'{}' must be set if the sztype is oceanic.  Please supply a value.".format(param,))
+        else:
+            raise Exception("Unknown sztype ({}).  Please set a valid sztype (continental or oceanic).".format(self.sztype))
+            
+        # set the geometry and generate the meshes and functionspaces
+        if geom is not None:
+            self.geom = geom
+            self.setup_meshes()
+            self.setup_functionspaces()
+
+        # derived reference values
+        self.kappa0 = self.k0/self.rho0/self.cp0   # reference thermal diffusivity (m^2/s)
+        self.v0     = self.kappa0/self.h0          # reference velocity (m/s)
+        self.t0     = self.h0/self.v0              # reference time (s)
+        self.t0_Myr = utils.s_to_Myr(self.t0)      # reference time (Myr)
+        self.e0     = self.v0/self.h0              # reference strain rate (/s)
+        self.p0     = self.e0*self.eta0            # reference pressure (Pa)
+        self.H0     = self.k0*self.T0/(self.h0**2) # reference heat source (W/m^3)
+        self.q0     = self.H0*self.h0              # reference heat flux (W/m^2)
+
+        # derived parameters
+        self.A_si      = utils.Myr_to_s(self.A)   # age of subducting slab (s)
+        self.Vs_nd     = utils.mmpyr_to_mps(self.Vs)/self.v0 # slab speed (non-dim)
+        if self.sztype == 'oceanic':
+            self.Ac_si = utils.Myr_to_s(self.Ac)  # age of over-riding plate (s)
+            self.As_si = utils.Myr_to_s(self.As)  # age of subduction (s)
+        else:
+            self.qs_nd = self.qs/self.q0          # surface heat flux (non-dim)
+        
+        # parameters derived from from the geometry
+        # depth of the trench
+        self.deltaztrench = -self.geom.slab_spline.findpoint('Slab::Trench').y
+        # coastline distance
+        self.deltaxcoast  = self.geom.coast_distance
+        # crust depth
+        self.deltazc      = -self.geom.crustal_lines[0][0].y.min()
+        if self.sztype == "continental":
+            # upper crust depth
+            self.deltazuc     = -self.geom.crustal_lines[-1][0].y.min()
+
+        self.setup_boundaryconditions()
+    
+    def __init__(self, geom, **kwargs):
+        """
+        Initialize a BaseSubductionProblem.
+
+        Arguments:
+          * geom  - an instance of a subduction zone geometry
+
+        Keyword Arguments:
+         required:
+          * A      - age of subducting slab (in Myr) [required]
+          * Vs     - incoming slab speed (in mm/yr) [required]
+          * sztype - type of subduction zone (either 'continental' or 'oceanic') [required]
+          * Ac     - age of the over-riding plate (in Myr) [required if sztype is 'oceanic']
+          * As     - age of subduction (in Myr) [required if sztype is 'oceanic']
+          * qs     - surface heat flux (in W/m^2) [required if sztype is 'continental']
+
+         optional:
+          * Ts   - surface temperature (deg C, corresponds to non-dim)
+          * Tm   - mantle temperature (deg C, corresponds to non-dim)
+          * kc   - crustal thermal conductivity (non-dim) [only has an effect if sztype is 'continental']
+          * km   - mantle thermal conductivity (non-dim)
+          * rhoc - crustal density (non-dim) [only has an effect if sztype is 'continental']
+          * rhom - mantle density (non-dim)
+          * cp   - isobaric heat capacity (non-dim)
+          * H1   - upper crustal volumetric heat production (non-dim) [only has an effect if sztype is 'continental']
+          * H2   - lower crustal volumetric heat production (non-dim) [only has an effect if sztype is 'continental']
+
+         optional (dislocation creep rheology):
+          * etamax - maximum viscosity (Pas) [only relevant for dislocation creep rheologies]
+          * nsigma - stress viscosity power law exponents (non-dim) [only relevant for dislocation creep rheologies]
+          * Aeta   - pre-exponential viscosity constant (Pa s^(1/n)) [only relevant for dislocation creep rheologies]
+          * E      - viscosity activation energy (J/mol) [only relevant for dislocation creep rheologies]
+        """
+        self.members() # declare all the members
+        self.update(geom=geom, **kwargs)
 
 
 

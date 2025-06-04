@@ -37,6 +37,11 @@ do
   npath=$repo_path/python/$npath # make a full path again
   nbase=${nname%.*}   # remove the extension for output (added automatically)
   jupyter nbconvert --NbConvertApp.use_output_suffix=False \
+                    --TagRemovePreprocessor.enabled=True \
+                    --TagRemovePreprocessor.remove_cell_tags="['main', 'ipy']" \
+                    --TemplateExporter.exclude_markdown=True \
+                    --TemplateExporter.exclude_input_prompt=True \
+                    --TemplateExporter.exclude_output_prompt=True \
                     --NbConvertApp.export_format=script \
                     --FilesWriter.build_directory=$npath \
                     --ClearOutputPreprocessor.enabled=True \

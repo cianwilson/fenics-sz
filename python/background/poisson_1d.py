@@ -68,6 +68,13 @@ def solve_poisson_1d(ne, p=1):
 
 
 def plot_1d(T, x, filename=None):
+    """
+    A python function to evaluate and plot the solution to the 1D Poisson example, T, at the specified points, x.
+    Parameters:
+      * T - function to evaluate
+      * x - x-coordinates of evaluation points
+      * filename - filename to save the plot to (optional, by default does not save the plot)
+    """
     nx = len(x)
     # convert 1d points to 3d points (necessary for eval call)
     xyz = np.stack((x, np.zeros_like(x), np.zeros_like(x)), axis=1)
@@ -76,7 +83,7 @@ def plot_1d(T, x, filename=None):
     cinds, cells = utils.mesh.get_cell_collisions(xyz, mesh)
     # evaluate the numerical solution
     T_x = T.eval(xyz[cinds], cells)[:,0]
-    # if running in parallel gather the solution to the rank-0 process
+    # if running in parallel (unlikely in 1D) gather the solution to the rank-0 process
     cinds_g = mesh.comm.gather(cinds, root=0)
     T_x_g = mesh.comm.gather(T_x, root=0)
     # only plot on the rank-0 process
@@ -104,6 +111,10 @@ def evaluate_error(T_i):
     A python function to evaluate the l2 norm of the error in 
     the one dimensional Poisson problem given a known analytical
     solution.
+    Parameters:
+      * T_i - numerical solution
+    Returns:
+      * l2err - l2 norm of the error
     """
     # Define the exact solution
     x  = ufl.SpatialCoordinate(T_i.function_space.mesh)

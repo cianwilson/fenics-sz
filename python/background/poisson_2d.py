@@ -88,33 +88,33 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
     # We split them up here so we can time and profile each step separately.
     with df.common.Timer("Assemble"):
         # Assemble the matrix from the S form
-        A = df.fem.petsc.assemble_matrix(S, bcs=[bc])
-        A.assemble()
+        Sm = df.fem.petsc.assemble_matrix(S, bcs=[bc])
+        Sm.assemble()
         # Assemble the R.H.S. vector from the f form
-        b = df.fem.petsc.assemble_vector(f)
+        fm = df.fem.petsc.assemble_vector(f)
 
         # Set the boundary conditions
-        df.fem.petsc.apply_lifting(b, [S], bcs=[[bc]])
-        b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-        df.fem.petsc.set_bc(b, [bc])
+        df.fem.petsc.apply_lifting(fm, [S], bcs=[[bc]])
+        fm.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        df.fem.petsc.set_bc(fm, [bc])
 
     with df.common.Timer("Solve"):
         # Setup the solver (a PETSc KSP object)
         solver = PETSc.KSP().create(MPI.COMM_WORLD)
-        solver.setOperators(A)
+        solver.setOperators(Sm)
         solver.setFromOptions()
         
         # Set up the solution function
         T_i = df.fem.Function(V)
         # Call the solver
-        solver.solve(b, T_i.x.petsc_vec)
+        solver.solve(fm, T_i.x.petsc_vec)
         # Communicate the solution across processes
         T_i.x.scatter_forward()
 
     with df.common.Timer("Cleanup"):
         solver.destroy()
-        A.destroy()
-        b.destroy()
+        Sm.destroy()
+        fm.destroy()
 
     return T_i
 

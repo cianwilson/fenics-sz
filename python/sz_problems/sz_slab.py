@@ -40,8 +40,6 @@ def create_slab(xs, ys, resscale, lc_depth,
       * slab_det_depth       - detector depth on slab
 
      resolutions factors (that get multiplied by the resscale to get the resolutions):
-      * slab_diag1_res_fact             - start of slab diagnostic region
-      * slab_diag2_res_fact             - end of slab diagnostic region
       * partial_coupling_depth_res_fact - partial coupling depth on slab
       * full_coupling_depth_res_fact    - full coupling depth on slab
 
@@ -63,8 +61,6 @@ def create_slab(xs, ys, resscale, lc_depth,
     slab_det_depth         = kwargs.get('slab_det_depth', default_params['slab_det_depth'])
     
     # resolutions
-    slab_diag1_res             = kwargs.get('slab_diag1_res_fact', default_params['slab_diag1_res_fact'])*resscale
-    slab_diag2_res             = kwargs.get('slab_diag2_res_fact', default_params['slab_diag2_res_fact'])*resscale
     partial_coupling_depth_res = kwargs.get('partial_coupling_depth_res_fact', default_params['partial_coupling_depth_res_fact'])*resscale
     full_coupling_depth_res    = kwargs.get('full_coupling_depth_res_fact', default_params['full_coupling_depth_res_fact'])*resscale
 

@@ -33,7 +33,7 @@ def pressure_preconditioner_weakform(V_p):
     Parameters:
     * V_p - pressure function space
     Returns:
-    * M   - a bilinear form
+    * M   - a bilinear form for the pressure preconditioner
     """  
     with df.common.Timer("Forms"):
         # Grab the mesh
@@ -52,51 +52,54 @@ def pressure_preconditioner_weakform(V_p):
 
 def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspace=True):
     """
-    A python function to assemble the forms into a nested matrix and a vector.
+    A python function to assemble the forms into a nested matrix and vector.
     Parameters:
     * S   - Stokes form
     * f   - RHS form
     * bcs - list of boundary conditions
-    * M   - pressure mass matrix form (defaults to None)
-    * attach_nullspace - attach the pressure nullspace to the matrix (defaults to False)
-    * attach_nearnullspace - attach the possible (near) velocity nullspaces to the preconditioning matrix (defaults to True)
+    * M   - pressure mass matrix form (optional, defaults to None)
+    * attach_nullspace - attach the pressure nullspace to the matrix (optional, defaults to False)
+    * attach_nearnullspace - attach the possible (near) velocity nullspaces to the preconditioning matrix 
+                             (optional, defaults to True)
     Returns:
-    * A   - a matrix
-    * B   - preconditioner matrix (None if P is None)
-    * b   - a vector
+    * Sm  - a matrix
+    * Pm  - preconditioner matrix (None if M is None)
+    * fm  - a vector
     """  
     with df.common.Timer("Assemble"):
         # assemble the matrix
-        A = df.fem.petsc.assemble_matrix_nest(S, bcs=bcs)
-        A.assemble()
+        Sm = df.fem.petsc.assemble_matrix_nest(S, bcs=bcs)
+        Sm.assemble()
         # set a flag to indicate that the velocity block is
         # symmetric positive definite (SPD)
-        A00 = A.getNestSubMatrix(0, 0)
-        A00.setOption(PETSc.Mat.Option.SPD, True)
+        Sm00 = Sm.getNestSubMatrix(0, 0)
+        Sm00.setOption(PETSc.Mat.Option.SPD, True)
 
         # assemble the RHS vector
-        b = df.fem.petsc.assemble_vector_nest(f)
+        fm = df.fem.petsc.assemble_vector_nest(f)
         # apply the boundary conditions
-        df.fem.petsc.apply_lifting_nest(b, S, bcs=bcs)
+        df.fem.petsc.apply_lifting_nest(fm, S, bcs=bcs)
         # update the ghost values
-        for b_sub in b.getNestSubVecs():
-            b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        for fm_sub in fm.getNestSubVecs():
+            fm_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         bcs_by_block = df.fem.bcs_by_block(df.fem.extract_function_spaces(f), bcs)
-        df.fem.petsc.set_bc_nest(b, bcs_by_block)
+        df.fem.petsc.set_bc_nest(fm, bcs_by_block)
 
         # assemble the pre-conditioner (if M was supplied)
-        B = None
+        Pm = None
         if M is not None:
-            BM = df.fem.petsc.assemble_matrix(M, bcs=bcs_by_block[1])
-            BM.assemble()
-            B = PETSc.Mat().createNest([[A.getNestSubMatrix(0, 0), None], [None, BM]])
+            Mm = df.fem.petsc.assemble_matrix(M, bcs=bcs_by_block[1])
+            Mm.assemble()
+            Pm = PETSc.Mat().createNest([[Sm.getNestSubMatrix(0, 0), None], [None, Mm]])
 
             # set the SPD flag on the diagonal blocks of the preconditioner
-            B00, B11 = B.getNestSubMatrix(0, 0), B.getNestSubMatrix(1, 1)
-            B00.setOption(PETSc.Mat.Option.SPD, True)
-            B11.setOption(PETSc.Mat.Option.SPD, True)
+            Pm00, Pm11 = Pm.getNestSubMatrix(0, 0), Pm.getNestSubMatrix(1, 1)
+            Pm00.setOption(PETSc.Mat.Option.SPD, True)
+            Pm11.setOption(PETSc.Mat.Option.SPD, True)
             
             if attach_nearnullspace:
+                # attach near null spaces to the velocity block 
+                # of the preconditioner matrix
                 V_v_cpp = df.fem.extract_function_spaces(f)[0]
                 
                 bs = V_v_cpp.dofmap.index_map_bs
@@ -120,7 +123,7 @@ def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspac
                 
                 ns_basis_petsc = [PETSc.Vec().createWithArray(ns_b[: bs * length0], bsize=bs, comm=V_v_cpp.mesh.comm) for ns_b in ns_arrays]
                 nns = PETSc.NullSpace().create(vectors=ns_basis_petsc)
-                B00.setNearNullSpace(nns)
+                Pm00.setNearNullSpace(nns)
 
         if attach_nullspace:
             # set up a null space vector indicating the null space 
@@ -132,8 +135,8 @@ def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspac
             null_vec.normalize()
             nsp = PETSc.NullSpace().create(vectors=[null_vec])
             # test the null space is actually a null space
-            assert(nsp.test(A))
-            A.setNullSpace(nsp)
+            assert(nsp.test(Sm))
+            Sm.setNullSpace(nsp)
 
     with df.common.Timer("Cleanup"):
         if attach_nullspace: null_vec.destroy()
@@ -141,18 +144,18 @@ def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspac
             for ns_b_p in ns_basis_petsc: ns_b_p.destroy()
             nns.destroy()
         
-    return A, B, b
+    return Sm, Pm, fm
 
 
-def solve_nest(A, b, V_v, V_p, B=None):
+def solve_nest(Sm, fm, V_v, V_p, Pm=None):
     """
     A python function to solve a nested matrix vector system.
     Parameters:
-    * A   - matrix
-    * b   - vector
+    * Sm  - matrix
+    * fm  - vector
     * V_v - velocity function space
     * V_p - pressure function space
-    * B   - preconditioner matrix (defaults to None)
+    * Pm  - preconditioner matrix (optional, defaults to None)
     Returns:
     * v_i - velocity solution function
     * p_i - pressure solution function
@@ -164,7 +167,7 @@ def solve_nest(A, b, V_v, V_p, B=None):
 
     with df.common.Timer("Solve"):
         solver = PETSc.KSP().create(MPI.COMM_WORLD)
-        solver.setOperators(A, B)
+        solver.setOperators(Sm, Pm)
         solver.setFromOptions()
 
         # a fieldsplit preconditioner allows us to precondition
@@ -172,7 +175,7 @@ def solve_nest(A, b, V_v, V_p, B=None):
         # have to set the index sets (ISs) of the DOFs on which 
         # each block is defined
         if pc_type == "fieldsplit":
-            iss = B.getNestISs()
+            iss = Pm.getNestISs()
             solver.getPC().setFieldSplitIS(("v", iss[0][0]), ("p", iss[0][1]))
 
         # Set up the solution functions
@@ -181,7 +184,7 @@ def solve_nest(A, b, V_v, V_p, B=None):
 
         # Create a solution vector and solve the system
         x = PETSc.Vec().createNest([v_i.x.petsc_vec, p_i.x.petsc_vec])
-        solver.solve(b, x)
+        solver.solve(fm, x)
 
         # Update the ghost values
         v_i.x.scatter_forward()
@@ -202,16 +205,16 @@ def solve_batchelor_nest(ne, p=1, U=1, petsc_options=None, attach_nullspace=Fals
     problem on a unit square domain.
     Parameters:
     * ne - number of elements in each dimension
-    * p  - polynomial order of the pressure solution (defaults to 1)
-    * U  - convergence speed of lower boundary (defaults to 1)
+    * p  - polynomial order of the pressure solution (optional, defaults to 1)
+    * U  - convergence speed of lower boundary (optional, defaults to 1)
     * petsc_options - a dictionary of petsc options to pass to the solver 
-                      (defaults to an LU direct solver using the MUMPS library)
+                      (optional, defaults to an LU direct solver using the MUMPS library)
     * attach_nullspace - flag indicating if the null space should be removed 
                          iteratively rather than using a pressure reference point
-                         (defaults to False)
+                         (optional, defaults to False)
     * attach_nearnullspace - flag indicating if the preconditioner should be made
                              aware of the possible (near) nullspaces in the velocity
-                             (defaults to True)
+                             (optional, defaults to True)
     Returns:
     * v_i - velocity solution function
     * p_i - pressure solution function
@@ -246,14 +249,14 @@ def solve_batchelor_nest(ne, p=1, U=1, petsc_options=None, attach_nullspace=Fals
     M = None
     if pc_type != "lu": M = pressure_preconditioner_weakform(V_p)
     # 5. Assemble the matrix equation (now using _nest)
-    A, B, b = assemble_nest(S, f, bcs, M=M, attach_nullspace=attach_nullspace, attach_nearnullspace=attach_nearnullspace)
+    Sm, Pm, fm = assemble_nest(S, f, bcs, M=M, attach_nullspace=attach_nullspace, attach_nearnullspace=attach_nearnullspace)
     # 6. Solve the matrix equation (now using _nest)
-    v_i, p_i = solve_nest(A, b, V_v, V_p, B=B)
+    v_i, p_i = solve_nest(Sm, fm, V_v, V_p, Pm=Pm)
     
     with df.common.Timer("Cleanup"):
-        A.destroy()
-        if B is not None: B.destroy()
-        b.destroy()
+        Sm.destroy()
+        if Pm is not None: Pm.destroy()
+        fm.destroy()
 
     return v_i, p_i
 
@@ -265,10 +268,13 @@ def convergence_errors_nest(ps, nelements, U=1, petsc_options=None, attach_nulls
     Parameters:
     * ps        - a list of pressure polynomial orders to test
     * nelements - a list of the number of elements to test
-    * U         - convergence speed of lower boundary (defaults to 1)
+    * U         - convergence speed of lower boundary (optional, defaults to 1)
     * petsc_options - a dictionary of petsc options to pass to the solver 
-                      (defaults to an LU direct solver using the MUMPS library)
-    * attach_nullspace - whether to remove the null space iteratively (defaults to False)
+                      (optional, defaults to an LU direct solver using the MUMPS library)
+    * attach_nullspace - whether to remove the null space iteratively (optional, defaults to False)
+    * attach_nearnullspace - flag indicating if the preconditioner should be made
+                             aware of the possible (near) nullspaces in the velocity
+                             (optional, defaults to True)
     Returns:
     * errors_l2 - a list of l2 errors
     """

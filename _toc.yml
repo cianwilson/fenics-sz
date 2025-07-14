@@ -63,8 +63,12 @@ parts:
             title: Isoviscous
           - file: notebooks/03_sz_problems/3.3c_sz_steady_dislcreep
             title: Dislocation creep
-          - file: notebooks/03_sz_problems/3.3d_sz_steady_tests
-            title: Themes and variations
+          - file: notebooks/03_sz_problems/3.3d_sz_steady_tests1
+            title: Themes and variations 1
+          - file: notebooks/03_sz_problems/3.3e_sz_steady_tests2
+            title: Themes and variations 2
+          - file: notebooks/03_sz_problems/3.3f_sz_steady_tests3
+            title: Themes and variations 3
       - file: notebooks/03_sz_problems/3.4a_sz_benchmark_intro
         title: Benchmark
         sections:

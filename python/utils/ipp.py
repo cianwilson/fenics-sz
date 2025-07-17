@@ -82,6 +82,7 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, **
     """
     # import necessary modules
     import dolfinx as df
+    import numpy as np
     from mpi4py import MPI
     import sys
     sys.path.append(path)
@@ -94,8 +95,11 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, **
         _ = func(*func_args, **func_kwargs)
 
     # extract and return the computation times from dolfinx
-    times = [df.common.timing(l)[1]/number for l in labels]
-    maxtimes = MPI.COMM_WORLD.reduce(times, op=MPI.MAX)
+    times = np.array([df.common.timing(l)[1]/number for l in labels])
+    maxtimes = None
+    if MPI.COMM_WORLD.rank==0: maxtimes = np.zeros_like(times)
+    MPI.COMM_WORLD.Reduce(times, maxtimes, op=MPI.MAX)
+    if MPI.COMM_WORLD.rank==0: maxtimes = maxtimes.tolist()
     return maxtimes
 
 def profile_parallel(nprocs, labels, *args, output_filename=None, **kwargs):

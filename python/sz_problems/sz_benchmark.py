@@ -18,7 +18,7 @@ output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 
 
-def solve_benchmark_case1(resscale):
+def solve_benchmark_case1(resscale, petsc_options_s=None, petsc_options_T=None):
     xs = [0.0, 140.0, 240.0, 400.0]
     ys = [0.0, -70.0, -120.0, -200.0]
     lc_depth = 40
@@ -40,7 +40,7 @@ def solve_benchmark_case1(resscale):
     sz = SteadyIsoSubductionProblem(geom, A=A, Vs=Vs, sztype=sztype, qs=qs)
 
     # solve it using a steady state assumption and an isoviscous rheology
-    sz.solve()
+    sz.solve(petsc_options_s=petsc_options_s, petsc_options_T=petsc_options_T)
 
     # evaluate the diagnostics
     diag = sz.get_diagnostics()
@@ -48,7 +48,14 @@ def solve_benchmark_case1(resscale):
     return diag
 
 
-def solve_benchmark_case2(resscale):
+values_wvk_case1 = [
+    {'resscale': 2, 'T_ndof': 21403, 'T_{200,-100}': 517.17, 'Tbar_s': 451.83, 'Tbar_w': 926.62, 'Vrmsw': 34.64},
+    {'resscale': 1, 'T_ndof': 83935, 'T_{200,-100}': 516.95, 'Tbar_s': 451.71, 'Tbar_w': 926.33, 'Vrmsw': 34.64},
+    {'resscale': 0.5, 'T_ndof': 332307, 'T_{200,-100}': 516.86, 'Tbar_s': 451.63, 'Tbar_w': 926.15, 'Vrmsw': 34.64},
+]
+
+
+def solve_benchmark_case2(resscale, petsc_options_s=None, petsc_options_T=None):
     xs = [0.0, 140.0, 240.0, 400.0]
     ys = [0.0, -70.0, -120.0, -200.0]
     lc_depth = 40
@@ -70,12 +77,19 @@ def solve_benchmark_case2(resscale):
     sz = SteadyDislSubductionProblem(geom, A=A, Vs=Vs, sztype=sztype, qs=qs)
 
     # solve it using a steady state assumption and a dislocation creep rheology
-    sz.solve()
+    sz.solve(petsc_options_s=petsc_options_s, petsc_options_T=petsc_options_T)
 
     # evaluate the diagnostics
     diag = sz.get_diagnostics()
 
     return diag
+
+
+values_wvk_case2 = [
+    {'resscale': 2, 'T_ndof': 21403, 'T_{200,-100}': 683.05, 'Tbar_s': 571.58, 'Tbar_w': 936.65, 'Vrmsw': 40.89},
+    {'resscale': 1, 'T_ndof': 83935, 'T_{200,-100}': 682.87, 'Tbar_s': 572.23, 'Tbar_w': 936.11, 'Vrmsw': 40.78},
+    {'resscale': 0.5, 'T_ndof': 332307, 'T_{200,-100}': 682.80, 'Tbar_s': 572.05, 'Tbar_w': 937.37, 'Vrmsw': 40.77},
+]
 
 
 

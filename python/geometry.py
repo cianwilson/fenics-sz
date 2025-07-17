@@ -1069,16 +1069,16 @@ class SubductionGeometry:
         # trivial case
         procs = numpy.zeros(ncells, dtype=numpy.int32)
         dest = dolfinx.graph.adjacencylist(procs)
-      elif commsize == 2:
-        groups = [slab_rids, wedge_rids + crust_rids]
-        procs = numpy.asarray([g for t in range(len(topos)) for val in cell_values[t] for g, group in enumerate(groups) if val in group], dtype=numpy.int32)
-        dest = dolfinx.graph.adjacencylist(procs)
+      # elif commsize == 2:
+      #   groups = [slab_rids, wedge_rids + crust_rids]
+      #   procs = numpy.asarray([g for t in range(len(topos)) for val in cell_values[t] for g, group in enumerate(groups) if val in group], dtype=numpy.int32)
+      #   dest = dolfinx.graph.adjacencylist(procs)
       # elif commsize == 3:
       #   groups = [slab_rids, wedge_rids, crust_rids]
       #   procs = numpy.asarray([g for t in range(len(topos)) for val in cell_values[t] for g, group in enumerate(groups) if val in group], dtype=numpy.int32)
       #   dest = dolfinx.graph.adjacencylist(procs)
       else:
-        groups = [slab_rids, wedge_rids, crust_rids]
+        groups = [slab_rids, wedge_rids + crust_rids]
         if comm.rank == 0:
             cellorder = [None]*ncells
             lgrouptopos = [[[] for t in range(len(topos))] for g in range(len(groups))]
@@ -1093,11 +1093,11 @@ class SubductionGeometry:
             grouptopos = [[numpy.array(grouptopo[t], dtype=numpy.int64) for t in range(len(topos))] for grouptopo in lgrouptopos]
             groupsizes = [max(1, int(sum([len(grouptopo[t])/nverts[t] for t in range(len(topos))])*commsize/ncells)) for grouptopo in grouptopos]
             while sum(groupsizes) < commsize:
-                for g in [1, 0, 2]:
+                for g in [1, 0]:
                     groupsizes[g] = groupsizes[g] + 1
                     if sum(groupsizes) == commsize: break
             while sum(groupsizes) > commsize:
-                for g in [2, 0, 1]:
+                for g in [0, 1]:
                     if groupsizes[g] > 1: groupsizes[g] = groupsizes[g] - 1
                     if sum(groupsizes) == commsize: break
             groupsizes = comm.bcast(groupsizes, root=0)

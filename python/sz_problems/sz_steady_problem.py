@@ -70,7 +70,7 @@ class SteadySubductionProblem(SubductionProblem):
                 fT = self.T_t*zero_c*self.dx
             # residual form
             # (created as a list of forms so we can assemble into a nest vector)
-            rT = df.fem.form([ufl.action(ST, self.T_i) - fT])
+            rT = [ufl.action(ST, self.T_i) - fT]
         # return the forms
         return df.fem.form(ST), df.fem.form(fT), df.fem.form(rT)
 

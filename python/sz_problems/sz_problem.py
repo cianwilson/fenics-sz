@@ -166,6 +166,11 @@ class SubductionProblem(SubductionProblem):
             eta_i.interpolate(leta_i, cells0=np.arange(len(self.slab_cell_map)), 
                               cells1=self.slab_cell_map)
 
+        # wait for all ranks to catch up 
+        # (some may not have done anything above and 
+        # letting them carry on messes with profiling)
+        self.comm.barrier()
+        
         # return the viscosity
         return eta_i
 
@@ -212,6 +217,8 @@ class StokesSolverNest:
 
         self.setup_matrices()
         self.setup_solver()
+        
+        self.assembled = False
 
     def __del__(self):
         self.solver.destroy()
@@ -235,54 +242,30 @@ class StokesSolverNest:
             # symmetric positive definite (SPD)
             Sm00 = self.Sm.getNestSubMatrix(0, 0)
             Sm00.setOption(PETSc.Mat.Option.SPD, True)
-
-            def assemble_block(i, j):
-                if self.S[i][j] is not None:
-                    Smij = self.Sm.getNestSubMatrix(i, j)
-                    Smij.zeroEntries()
-                    Smij = df.fem.petsc.assemble_matrix(Smij, 
-                                                        self.S[i][j], 
-                                                        bcs=self.bcs)
-            
-            # these blocks don't change so only assemble them here
-            assemble_block(0, 1)
-            assemble_block(1, 0)
-            # only assemble velocity block if we're isoviscous and we
-            # won't be assembling it in the Picard iterations
-            if self.isoviscous:
-                assemble_block(0, 0)
-                self.Sm.assemble()
             
             # assemble the pre-conditioner (if M was supplied)
             self.Pm = None
+            self.Mm = None
             if pc_type != "lu":
-                Mm = df.fem.petsc.create_matrix(self.M)
+                self.Mm = df.fem.petsc.create_matrix(self.M)
                 
-                self.Pm = PETSc.Mat().createNest([[Sm00,  None], 
-                                                  [None,  Mm]])
-                
-                # set the SPD flag on the diagonal blocks of the preconditioner
+                self.Pm = PETSc.Mat().createNest([[Sm00, None], 
+                                                  [None, self.Mm]],
+                                                 comm=self.p.function_space.mesh.comm)
                 Pm00, Pm11 = self.Pm.getNestSubMatrix(0, 0), self.Pm.getNestSubMatrix(1, 1)
                 Pm00.setOption(PETSc.Mat.Option.SPD, True)
                 Pm11.setOption(PETSc.Mat.Option.SPD, True)
 
-                # only assemble the mass matrix block if we're isoviscous
-                # and we won't be assembling it in the Picard iterations
-                if self.isoviscous:
-                    Mm = df.fem.petsc.assemble_matrix(Mm, self.M, 
-                                                      bcs=self.bcs)
-                    Mm.assemble()
-                    self.Pm.assemble()
-                
                 nns = self.create_nearnullspace()
                 Pm00.setNearNullSpace(nns)
 
             # create the RHS vector
             self.fm = df.fem.petsc.create_vector_nest(self.f)
-
+            
             # create solution vector
-            self.x = PETSc.Vec().createNest([self.v.x.petsc_vec, self.p.x.petsc_vec])
-
+            self.x = PETSc.Vec().createNest([self.v.x.petsc_vec, self.p.x.petsc_vec], 
+                                            comm=self.p.function_space.mesh.comm)
+        
         with df.common.Timer("Cleanup"):
             if self.Pm is not None:
                 nns.destroy()
@@ -339,11 +322,11 @@ class StokesSolverNest:
         ns_arrays[2][dofs[0]] = -x1
         ns_arrays[2][dofs[1]] = x0
         
-        df.la.orthonormalize(ns_basis)
+        if length0 > 0: df.la.orthonormalize(ns_basis)
         
         ns_basis_petsc = [PETSc.Vec().createWithArray(ns_b[: bs * length0], bsize=bs, comm=V_v_cpp.mesh.comm) for ns_b in ns_arrays]
 
-        nns = PETSc.NullSpace().create(vectors=ns_basis_petsc)
+        nns = PETSc.NullSpace().create(vectors=ns_basis_petsc, comm=V_v_cpp.mesh.comm)
 
         for ns_b_p in ns_basis_petsc: ns_b_p.destroy()
 
@@ -356,21 +339,22 @@ class StokesSolverNest:
           * v   - velocity solution function
           * p   - pressure solution function
         """
-
         with df.common.Timer("Assemble Stokes"):
-            if not self.isoviscous: # already assembled at setup if isoviscous
+            if self.assembled and not self.isoviscous:
                 Sm00 = self.Sm.getNestSubMatrix(0, 0)
                 Sm00.zeroEntries()
                 Sm00 = df.fem.petsc.assemble_matrix(Sm00, self.S[0][0], bcs=self.bcs)
-
                 self.Sm.assemble()
-                
-                if self.Pm is not None:
-                    Mm = self.Pm.getNestSubMatrix(1, 1)
-                    Mm.zeroEntries()
-                    Mm = df.fem.petsc.assemble_matrix(Mm, self.M, bcs=self.bcs)
-                    Mm.assemble()
-                    self.Pm.assemble()
+            elif not self.assembled:
+                self.Sm = df.fem.petsc.assemble_matrix_nest(self.Sm, self.S, bcs=self.bcs)
+                self.Sm.assemble()
+
+            if self.Mm is not None and (not self.assembled or not self.isoviscous):
+                self.Mm.zeroEntries()
+                self.Mm = df.fem.petsc.assemble_matrix(self.Mm, self.M, bcs=self.bcs)
+                self.Mm.assemble()
+            
+            self.assembled = True
 
             # zero RHS vector
             for fm_sub in self.fm.getNestSubVecs():
@@ -385,14 +369,14 @@ class StokesSolverNest:
                                    mode=PETSc.ScatterMode.REVERSE)
             bcs_by_block = df.fem.bcs_by_block(df.fem.extract_function_spaces(self.f), self.bcs)
             df.fem.petsc.set_bc_nest(self.fm, bcs_by_block)
-
+        
         with df.common.Timer("Solve Stokes"):
             self.solver.solve(self.fm, self.x)
-
+        
             # Update the ghost values
             self.v.x.scatter_forward()
             self.p.x.scatter_forward()
-
+        
         return self.v, self.p
 
 
@@ -521,6 +505,10 @@ class SubductionProblem(SubductionProblem):
         
         # interpolate the solutions to the whole mesh
         self.update_v_functions()
+        # wait for all ranks to catch up 
+        # (some may not have done anything above and 
+        # letting them carry on messes with profiling)
+        self.comm.barrier()
 
 
 class SubductionProblem(SubductionProblem):

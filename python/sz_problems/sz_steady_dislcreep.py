@@ -67,6 +67,7 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
         with df.common.Timer("Assemble Stokes"):
             r_norm_sq  = calc_r_norm_sq(rw, self.bcs_vw, self.wedge_rank)
             r_norm_sq += calc_r_norm_sq(rs, self.bcs_vs, self.slab_rank)
+        self.comm.barrier()
         with df.common.Timer("Assemble Temperature"):
             r_norm_sq += calc_r_norm_sq(rT, self.bcs_T)
         r = self.comm.allreduce(r_norm_sq, op=MPI.SUM)**0.5
@@ -136,6 +137,10 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
             if self.wedge_rank: self.wedge_vw_i, self.wedge_pw_i = solver_s_w.solve()
             if self.slab_rank:  self.slab_vs_i,  self.slab_ps_i  = solver_s_s.solve()
             self.update_v_functions()
+            # wait for all ranks to catch up 
+            # (some may not have done anything above and 
+            # letting them carry on messes with profiling)
+            self.comm.barrier()
             # solve for T and interpolate it
             self.T_i = solver_T.solve()
             self.update_T_functions()

@@ -353,6 +353,7 @@ class StokesSolverNest:
                 self.Mm.zeroEntries()
                 self.Mm = df.fem.petsc.assemble_matrix(self.Mm, self.M, bcs=self.bcs)
                 self.Mm.assemble()
+                self.Pm.assemble()
             
             self.assembled = True
 

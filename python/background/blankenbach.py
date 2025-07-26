@@ -415,6 +415,7 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
         rm = df.fem.petsc.create_vector_nest(r)
         
         if attach_nullspace:
+            V_p_cpp = df.fem.extract_function_spaces(f)[1]
             # set up a null space vector indicating the null space 
             # in the pressure DOFs
             null_vec = df.fem.petsc.create_vector_nest(f)
@@ -422,7 +423,7 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
             null_vecs[0].set(0.0)
             null_vecs[1].set(1.0)
             null_vec.normalize()
-            ns = PETSc.NullSpace().create(vectors=[null_vec])
+            ns = PETSc.NullSpace().create(vectors=[null_vec], comm=V_p_cpp.mesh.comm)
             Sm.setNullSpace(ns)
         
         # assemble the pre-conditioner (if M was supplied)
@@ -467,7 +468,7 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
                 df.la.orthonormalize(ns_basis)
                 
                 ns_basis_petsc = [PETSc.Vec().createWithArray(ns_b[: bs * length0], bsize=bs, comm=V_v_cpp.mesh.comm) for ns_b in ns_arrays]
-                nns = PETSc.NullSpace().create(vectors=ns_basis_petsc)
+                nns = PETSc.NullSpace().create(vectors=ns_basis_petsc, comm=V_v_cpp.mesh.comm)
                 Pm00.setNearNullSpace(nns)
 
     with df.common.Timer("Solve Stokes"):

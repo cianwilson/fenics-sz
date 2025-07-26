@@ -110,7 +110,7 @@ class TDDislSubductionProblem(TDSubductionProblem):
         solver_T = TemperatureSolver(ST, fT, self.bcs_T, self.T_i, 
                                      petsc_options=petsc_options_T)
 
-        # retrive the non-linear Stokes forms for the wedge
+        # retrieve the non-linear Stokes forms for the wedge
         Ssw, fsw, rsw, Msw = self.stokes_forms(self.wedge_vw_t, self.wedge_pw_t, 
                                                 self.wedge_vw_a, self.wedge_pw_a, 
                                                 self.wedge_vw_i, self.wedge_pw_i, 
@@ -121,7 +121,7 @@ class TDDislSubductionProblem(TDSubductionProblem):
                                       M=Msw, isoviscous=False,  
                                       petsc_options=petsc_options_s)
 
-        # retrive the non-linear Stokes forms for the slab
+        # retrieve the non-linear Stokes forms for the slab
         Sss, fss, rss, Mss = self.stokes_forms(self.slab_vs_t, self.slab_ps_t, 
                                                 self.slab_vs_a, self.slab_ps_a, 
                                                 self.slab_vs_i, self.slab_ps_i, 

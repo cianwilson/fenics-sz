@@ -122,10 +122,11 @@ def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspac
                 df.la.orthonormalize(ns_basis)
                 
                 ns_basis_petsc = [PETSc.Vec().createWithArray(ns_b[: bs * length0], bsize=bs, comm=V_v_cpp.mesh.comm) for ns_b in ns_arrays]
-                nns = PETSc.NullSpace().create(vectors=ns_basis_petsc)
+                nns = PETSc.NullSpace().create(vectors=ns_basis_petsc, comm=V_v_cpp.mesh.comm)
                 Pm00.setNearNullSpace(nns)
 
         if attach_nullspace:
+            V_p_cpp = df.fem.extract_function_spaces(f)[1]
             # set up a null space vector indicating the null space 
             # in the pressure DOFs
             null_vec = df.fem.petsc.create_vector_nest(f)
@@ -133,7 +134,7 @@ def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspac
             null_vecs[0].set(0.0)
             null_vecs[1].set(1.0)
             null_vec.normalize()
-            nsp = PETSc.NullSpace().create(vectors=[null_vec])
+            nsp = PETSc.NullSpace().create(vectors=[null_vec], comm=V_p_cpp.mesh.comm)
             # test the null space is actually a null space
             assert(nsp.test(Sm))
             Sm.setNullSpace(nsp)

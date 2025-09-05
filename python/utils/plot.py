@@ -406,68 +406,20 @@ def plot_vector_glyphs(vector, factor=1.0, scale=1.0, plotter=None, gather=False
 
     return plotter
 
-def plot_slab(slab, plotter=None, **pv_kwargs):
+def plot_points(points, plotter=None, **pv_kwargs):
     """
-    Plot a slab spline using pyvista.
+    Plot points using pyvista.
 
     Arguments:
-      * slab        - the slab spline object to plot
+      * points      - array of [[x, y, z]] points
 
     Keyword Arguments:
       * plotter     - a pyvista plotter, one will be created if none supplied (default=None)
       * **pv_kwargs - kwargs for adding the mesh to the plotter
     """
-    slabpoints = np.empty((2*len(slab.interpcurves), 3))
-    for i, curve in enumerate(slab.interpcurves):
-        slabpoints[2*i] = [curve.points[0].x, curve.points[0].y, 0.0]
-        slabpoints[2*i+1] = [curve.points[-1].x, curve.points[-1].y, 0.0]
     if plotter is None: plotter = pv.Plotter()
     if plotter is not None:
-        plotter.add_lines(slabpoints, **pv_kwargs)
-    return plotter
-
-def plot_geometry(geom, plotter=None, **pv_kwargs):
-    """
-    Plot the subduction zone geometry using pyvista.
-
-    Arguments:
-      * geom        - the geometry object to plot
-
-    Keyword Arguments:
-      * plotter     - a pyvista plotter, one will be created if none supplied (default=None)
-      * **pv_kwargs - kwargs for adding the mesh to the plotter
-    """
-    lines = [line for lineset in geom.crustal_lines for line in lineset] + \
-             geom.slab_base_lines + \
-             geom.wedge_base_lines + \
-             geom.slab_side_lines + \
-             geom.wedge_side_lines + \
-             geom.wedge_top_lines + \
-             geom.slab_spline.interpcurves
-    points = np.empty((len(lines)*2, 3))
-    for i, line in enumerate(lines):
-        points[2*i] = [line.points[0].x, line.points[0].y, 0.0]
-        points[2*i+1] = [line.points[-1].x, line.points[-1].y, 0.0]
-    if plotter is None: plotter = pv.Plotter()
-    if plotter is not None:
-        plotter.add_lines(points,**pv_kwargs)
-    return plotter
-
-def plot_couplingdepth(slab, plotter=None, **pv_kwargs):
-    """
-    Plot a point representing the coupling depth using pyvista.
-
-    Arguments:
-      * slab        - the slab spline object containing the 'Slab::FullCouplingDepth' point
-
-    Keyword Arguments:
-      * plotter     - a pyvista plotter, one will be created if none supplied (default=None)
-      * **pv_kwargs - kwargs for adding the mesh to the plotter
-    """
-    point = slab.findpoint('Slab::FullCouplingDepth')
-    if plotter is None: plotter = pv.Plotter()
-    if plotter is not None:
-        plotter.add_points(np.asarray([point.x, point.y, 0.0]), **pv_kwargs)
+        plotter.add_points(np.asarray(points), **pv_kwargs)
     return plotter
 
 def plot_show(plotter, **pv_kwargs):

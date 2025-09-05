@@ -1010,6 +1010,30 @@ class SubductionGeometry:
       for surface in surfaces:
         geom.addsurface(surface)
     return geom.pylabplot(curvelabels=label_sids, surfacelabels=label_rids)
+  
+  def pyvistaplot(self, plotter=None, **pv_kwargs):
+    """
+    Plot the subduction zone geometry using pyvista.
+    Keyword Arguments:
+      * plotter     - a pyvista plotter, one will be created if none supplied (default=None)
+      * **pv_kwargs - kwargs for adding the mesh to the plotter
+    """
+    import pyvista as pv
+    lines = [line for lineset in self.crustal_lines for line in lineset] + \
+            self.slab_base_lines + \
+            self.wedge_base_lines + \
+            self.slab_side_lines + \
+            self.wedge_side_lines + \
+            self.wedge_top_lines + \
+            self.slab_spline.interpcurves
+    points = numpy.empty((len(lines)*2, 3))
+    for i, line in enumerate(lines):
+        points[2*i] = [line.points[0].x, line.points[0].y, 0.0]
+        points[2*i+1] = [line.points[-1].x, line.points[-1].y, 0.0]
+    if plotter is None: plotter = pv.Plotter()
+    if plotter is not None:
+        plotter.add_lines(points,**pv_kwargs)
+    return plotter
 
   def gmshfile(self):
     geom = Geometry()

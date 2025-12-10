@@ -10,7 +10,7 @@ sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 from sz_problems.sz_params import default_params, allsz_params
 from sz_problems.sz_slab import create_slab
 from sz_problems.sz_geometry import create_sz_geometry
-from sz_problems.sz_problem import StokesSolverNest, TemperatureSolver
+from sz_problems.sz_problem import TemperatureSolver
 from sz_problems.sz_steady_problem import SteadySubductionProblem
 
 

@@ -23,6 +23,10 @@ def evaluate_error(T_i):
     A python function to evaluate the l2 norm of the error in 
     the two dimensional Poisson problem given a known analytical
     solution.
+    Parameters:
+      * T_i - numerical solution
+    Returns:
+      * l2err - l2 norm of the error
     """
     # Define the exact solution
     x  = ufl.SpatialCoordinate(T_i.function_space.mesh)

@@ -1010,6 +1010,30 @@ class SubductionGeometry:
       for surface in surfaces:
         geom.addsurface(surface)
     return geom.pylabplot(curvelabels=label_sids, surfacelabels=label_rids)
+  
+  def pyvistaplot(self, plotter=None, **pv_kwargs):
+    """
+    Plot the subduction zone geometry using pyvista.
+    Keyword Arguments:
+      * plotter     - a pyvista plotter, one will be created if none supplied (default=None)
+      * **pv_kwargs - kwargs for adding the mesh to the plotter
+    """
+    import pyvista as pv
+    lines = [line for lineset in self.crustal_lines for line in lineset] + \
+            self.slab_base_lines + \
+            self.wedge_base_lines + \
+            self.slab_side_lines + \
+            self.wedge_side_lines + \
+            self.wedge_top_lines + \
+            self.slab_spline.interpcurves
+    points = numpy.empty((len(lines)*2, 3))
+    for i, line in enumerate(lines):
+        points[2*i] = [line.points[0].x, line.points[0].y, 0.0]
+        points[2*i+1] = [line.points[-1].x, line.points[-1].y, 0.0]
+    if plotter is None: plotter = pv.Plotter()
+    if plotter is not None:
+        plotter.add_lines(points,**pv_kwargs)
+    return plotter
 
   def gmshfile(self):
     geom = Geometry()
@@ -1069,16 +1093,16 @@ class SubductionGeometry:
         # trivial case
         procs = numpy.zeros(ncells, dtype=numpy.int32)
         dest = dolfinx.graph.adjacencylist(procs)
-      elif commsize == 2:
-        groups = [slab_rids, wedge_rids + crust_rids]
-        procs = numpy.asarray([g for t in range(len(topos)) for val in cell_values[t] for g, group in enumerate(groups) if val in group], dtype=numpy.int32)
-        dest = dolfinx.graph.adjacencylist(procs)
+      # elif commsize == 2:
+      #   groups = [slab_rids, wedge_rids + crust_rids]
+      #   procs = numpy.asarray([g for t in range(len(topos)) for val in cell_values[t] for g, group in enumerate(groups) if val in group], dtype=numpy.int32)
+      #   dest = dolfinx.graph.adjacencylist(procs)
       # elif commsize == 3:
       #   groups = [slab_rids, wedge_rids, crust_rids]
       #   procs = numpy.asarray([g for t in range(len(topos)) for val in cell_values[t] for g, group in enumerate(groups) if val in group], dtype=numpy.int32)
       #   dest = dolfinx.graph.adjacencylist(procs)
       else:
-        groups = [slab_rids, wedge_rids, crust_rids]
+        groups = [slab_rids, wedge_rids + crust_rids]
         if comm.rank == 0:
             cellorder = [None]*ncells
             lgrouptopos = [[[] for t in range(len(topos))] for g in range(len(groups))]
@@ -1093,11 +1117,11 @@ class SubductionGeometry:
             grouptopos = [[numpy.array(grouptopo[t], dtype=numpy.int64) for t in range(len(topos))] for grouptopo in lgrouptopos]
             groupsizes = [max(1, int(sum([len(grouptopo[t])/nverts[t] for t in range(len(topos))])*commsize/ncells)) for grouptopo in grouptopos]
             while sum(groupsizes) < commsize:
-                for g in [1, 0, 2]:
+                for g in [1, 0]:
                     groupsizes[g] = groupsizes[g] + 1
                     if sum(groupsizes) == commsize: break
             while sum(groupsizes) > commsize:
-                for g in [2, 0, 1]:
+                for g in [0, 1]:
                     if groupsizes[g] > 1: groupsizes[g] = groupsizes[g] - 1
                     if sum(groupsizes) == commsize: break
             groupsizes = comm.bcast(groupsizes, root=0)

@@ -66,12 +66,12 @@ def unit_square_mesh(ne):
     return mesh
 
 
-def functionspaces(mesh, p):
+def functionspaces(mesh, p=1):
     """
     A python function to set up velocity and pressure function spaces.
     Parameters:
     * mesh - the mesh to set up the functions on
-    * p    - polynomial order of the pressure solution (defaults to 1)
+    * p    - polynomial order of the pressure solution (optional, defaults to 1)
     Returns:
     * V_v  - velocity function space of polynomial order p+1
     * V_p  - pressure function space of polynomial order p
@@ -93,7 +93,7 @@ def velocity_bcs(V_v, U=1):
     A python function to set up the velocity boundary conditions.
     Parameters:
     * V_v - velocity function space
-    * U   - convergence speed of lower boundary (defaults to 1)
+    * U   - convergence speed of lower boundary (optional, defaults to 1)
     Returns:
     * bcs - a list of boundary conditions
     """
@@ -225,22 +225,22 @@ def assemble(S, f, bcs):
     * f   - RHS form
     * bcs - list of boundary conditions
     Returns:
-    * A   - a matrix
-    * b   - a vector
+    * Sm  - a matrix
+    * fm  - a vector
     """  
     with df.common.Timer("Assemble"):
-        A = df.fem.petsc.assemble_matrix_block(S, bcs=bcs)
-        A.assemble()
-        b = df.fem.petsc.assemble_vector_block(f, S, bcs=bcs)
-    return A, b
+        Sm = df.fem.petsc.assemble_matrix_block(S, bcs=bcs)
+        Sm.assemble()
+        fm = df.fem.petsc.assemble_vector_block(f, S, bcs=bcs)
+    return Sm, fm
 
 
-def solve(A, b, V_v, V_p):
+def solve(Sm, fm, V_v, V_p):
     """
     A python function to solve a matrix vector system.
     Parameters:
-    * A   - matrix
-    * b   - vector
+    * Sm  - matrix
+    * fm  - vector
     * V_v - velocity function space
     * V_p - pressure function space
     Returns:
@@ -250,12 +250,12 @@ def solve(A, b, V_v, V_p):
 
     with df.common.Timer("Solve"):
         solver = PETSc.KSP().create(MPI.COMM_WORLD)
-        solver.setOperators(A)
+        solver.setOperators(Sm)
         solver.setFromOptions()
 
         # Create a solution vector and solve the system
-        x = A.createVecRight()
-        solver.solve(b, x)
+        x = Sm.createVecRight()
+        solver.solve(fm, x)
 
         # Set up the solution functions
         v_i = df.fem.Function(V_v)
@@ -281,10 +281,10 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None):
     problem on a unit square domain.
     Parameters:
     * ne - number of elements in each dimension
-    * p  - polynomial order of the pressure solution (defaults to 1)
-    * U  - convergence speed of lower boundary (defaults to 1)
+    * p  - polynomial order of the pressure solution (optional, defaults to 1)
+    * U  - convergence speed of lower boundary (optional, defaults to 1)
     * petsc_options - a dictionary of petsc options to pass to the solver 
-                      (defaults to an LU direct solver using the MUMPS library)
+                      (optional, defaults to an LU direct solver using the MUMPS library)
     Returns:
     * v_i - velocity solution function
     * p_i - pressure solution function
@@ -311,13 +311,13 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None):
     #    Include a dummy zero pressure mass matrix to allow us to set a pressure constraint
     S[1][1] = dummy_pressure_weakform(V_p)
     # 5. Assemble the matrix equation
-    A, b = assemble(S, f, bcs)
+    Sm, fm = assemble(S, f, bcs)
     # 6. Solve the matrix equation
-    v_i, p_i = solve(A, b, V_v, V_p)
+    v_i, p_i = solve(Sm, fm, V_v, V_p)
     
     with df.common.Timer("Cleanup"):
-        A.destroy()
-        b.destroy()
+        Sm.destroy()
+        fm.destroy()
 
     return v_i, p_i
 
@@ -328,7 +328,7 @@ def evaluate_error(v_i, U=1):
     the two dimensional Batchelor corner flow problem.
     Parameters:
     * v_i - numerical solution for velocity
-    * U   - convergence speed of lower boundary (defaults to 1)
+    * U   - convergence speed of lower boundary (optional, defaults to 1)
     Returns:
     * l2err - l2 error of solution
     """
@@ -350,9 +350,9 @@ def convergence_errors(ps, nelements, U=1, petsc_options=None):
     Parameters:
     * ps        - a list of pressure polynomial orders to test
     * nelements - a list of the number of elements to test
-    * U         - convergence speed of lower boundary (defaults to 1)
+    * U         - convergence speed of lower boundary (optional, defaults to 1)
     * petsc_options - a dictionary of petsc options to pass to the solver 
-                      (defaults to an LU direct solver using the MUMPS library)
+                      (optional, defaults to an LU direct solver using the MUMPS library)
     Returns:
     * errors_l2 - a list of l2 errors
     """
@@ -386,7 +386,7 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
     * ps              - a list of pressure polynomial orders to test
     * nelements       - a list of the number of elements to test
     * errors_l2       - errors_l2 from convergence_errors
-    * output_basename - basename for output (defaults to no output)
+    * output_basename - basename for output (optional, defaults to no output)
     Returns:
     * test_passes     - a boolean indicating if the convergence test has passed
     """

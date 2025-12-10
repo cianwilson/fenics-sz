@@ -28,7 +28,7 @@ def transfinite_unit_square_mesh(nx, ny, beta=1):
     * nx    - number of cells in the horizontal x direction
     * ny    - number of cells in the vertical y direction
     * beta  - beta mesh refinement coefficient, < 1 refines the mesh at 
-              the top and bottom boundaries (defaults to  1, no refinement]
+              the top and bottom boundaries (optional, defaults to  1, no refinement]
     Returns:
     * mesh  - the resulting mesh
     """
@@ -86,12 +86,12 @@ def transfinite_unit_square_mesh(nx, ny, beta=1):
     return mesh
 
 
-def stokes_functionspaces(mesh, pp):
+def stokes_functionspaces(mesh, pp=1):
     """
     A python function to set up velocity and pressure function spaces.
     Parameters:
     * mesh - the mesh to set up the functions on
-    * pp   - polynomial order of the pressure solution (defaults to 1)
+    * pp   - polynomial order of the pressure solution (optional, defaults to 1)
     Returns:
     * V_v  - velocity function space of polynomial order p+1
     * V_p  - pressure function space of polynomial order p
@@ -112,7 +112,7 @@ def temperature_functionspace(mesh, pT=1):
     A python function to set up the temperature function space.
     Parameters:
     * mesh - the mesh to set up the functions on
-    * pT   - polynomial order of T (defaults to 1)
+    * pT   - polynomial order of T (optional, defaults to 1)
     Returns:
     * V_T  - temperature function space of polynomial order pT
     """
@@ -228,7 +228,7 @@ def stokes_weakforms(v, p, T, Ra, b=None):
     * p   - pressure function
     * T   - the temperature finite element function
     * Ra  - Rayleigh number
-    * b   - temperature dependence of viscosity (defaults to isoviscous)
+    * b   - temperature dependence of viscosity (optional, defaults to isoviscous)
     Returns:
     * S   - a bilinear form
     * f   - a linear form
@@ -300,7 +300,7 @@ def pressure_preconditioner_weakform(p, T, b=None):
     Parameters:
     * p   - pressure function
     * T   - the temperature finite element function
-    * b   - temperature dependence of viscosity (defaults to isoviscous)
+    * b   - temperature dependence of viscosity (optional, defaults to isoviscous)
     Returns:
     * M   - a bilinear form
     """  
@@ -369,13 +369,15 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
     * f   - Stokes RHS linear form
     * r   - Stokes residual form
     * bcs - list of Stokes boundary conditions
-    * M   - viscosity weighted pressure mass matrix bilinear form (defaults to None)
-    * isoviscous - if isoviscous assemble the velocity/pressure mass block at setup (defaults to False)
-    * attach_nullspace - attach the pressure nullspace to the matrix (defaults to False)
+    * M   - viscosity weighted pressure mass matrix bilinear form (optional, defaults to None)
+    * isoviscous - if isoviscous assemble the velocity/pressure mass block at setup (optional, defaults to False)
+    * attach_nullspace - attach the pressure nullspace to the matrix (optional, defaults to False)
     * attach_nearnullspace - attach the possible (near) velocity nullspaces to the preconditioning matrix 
-                             (defaults to True)
+                             (optional, defaults to True)
     Returns:
     * solver - a PETSc KSP solver object
+    * fm     - rhs vector
+    * rm     - residual vector
     """
 
     # retrieve the petsc options
@@ -384,17 +386,17 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
     
     with df.common.Timer("Assemble Stokes"):
         # create the matrix
-        A = df.fem.petsc.create_matrix_nest(S)
+        Sm = df.fem.petsc.create_matrix_nest(S)
         # set a flag to indicate that the velocity block is
         # symmetric positive definite (SPD)
-        A00 = A.getNestSubMatrix(0, 0)
-        A00.setOption(PETSc.Mat.Option.SPD, True)
+        Sm00 = Sm.getNestSubMatrix(0, 0)
+        Sm00.setOption(PETSc.Mat.Option.SPD, True)
 
         def assemble_block(i, j):
             if S[i][j] is not None:
-                Aij = A.getNestSubMatrix(i, j)
-                Aij.zeroEntries()
-                Aij = df.fem.petsc.assemble_matrix(Aij, S[i][j], bcs=bcs)
+                Smij = Sm.getNestSubMatrix(i, j)
+                Smij.zeroEntries()
+                Smij = df.fem.petsc.assemble_matrix(Smij, S[i][j], bcs=bcs)
         
         # these blocks don't change so only assemble them here
         assemble_block(0, 1)
@@ -404,15 +406,16 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
         # won't be assembling it in the Picard iterations
         if isoviscous: 
             assemble_block(0, 0)
-            A.assemble()
+            Sm.assemble()
 
         # create the RHS vector
-        b = df.fem.petsc.create_vector_nest(f)
+        fm = df.fem.petsc.create_vector_nest(f)
 
         # create the residual vector
-        r_vec = df.fem.petsc.create_vector_nest(r)
+        rm = df.fem.petsc.create_vector_nest(r)
         
         if attach_nullspace:
+            V_p_cpp = df.fem.extract_function_spaces(f)[1]
             # set up a null space vector indicating the null space 
             # in the pressure DOFs
             null_vec = df.fem.petsc.create_vector_nest(f)
@@ -420,26 +423,30 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
             null_vecs[0].set(0.0)
             null_vecs[1].set(1.0)
             null_vec.normalize()
-            ns = PETSc.NullSpace().create(vectors=[null_vec])
-            A.setNullSpace(ns)
+            ns = PETSc.NullSpace().create(vectors=[null_vec], comm=V_p_cpp.mesh.comm)
+            Sm.setNullSpace(ns)
         
         # assemble the pre-conditioner (if M was supplied)
-        B = None
+        Pm = None
         if M is not None:
-            BM = df.fem.petsc.create_matrix(M)
+            Mm = df.fem.petsc.create_matrix(M)
             
-            B = PETSc.Mat().createNest([[A.getNestSubMatrix(0, 0), None], [None, BM]])
-            
+            Pm = PETSc.Mat().createNest([[Sm.getNestSubMatrix(0, 0), None], [None, Mm]])
+
+            # set the SPD flag on the diagonal blocks of the preconditioner
+            Pm00, Pm11 = Pm.getNestSubMatrix(0, 0), Pm.getNestSubMatrix(1, 1)
+            Pm00.setOption(PETSc.Mat.Option.SPD, True)
+            Pm11.setOption(PETSc.Mat.Option.SPD, True)
+
             # only assemble the mass matrix block if we're isoviscous
             # and we won't be assembling it in the Picard iterations
             if isoviscous:
-                BM = df.fem.petsc.assemble_matrix(BM, M, bcs=bcs)
-                BM.assemble()
-                B.assemble()
+                Mm = df.fem.petsc.assemble_matrix(Mm, M, bcs=bcs)
+                Mm.assemble()
+                Pm.assemble()
 
             if attach_nearnullspace:
-                V_fs_cpp = df.fem.extract_function_spaces(f)
-                V_v_cpp = V_fs_cpp[0]
+                V_v_cpp = df.fem.extract_function_spaces(f)[0]
                 
                 bs = V_v_cpp.dofmap.index_map_bs
                 length0 = V_v_cpp.dofmap.index_map.size_local
@@ -461,12 +468,12 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
                 df.la.orthonormalize(ns_basis)
                 
                 ns_basis_petsc = [PETSc.Vec().createWithArray(ns_b[: bs * length0], bsize=bs, comm=V_v_cpp.mesh.comm) for ns_b in ns_arrays]
-                nns = PETSc.NullSpace().create(vectors=ns_basis_petsc)
-                BM.setNearNullSpace(nns)
+                nns = PETSc.NullSpace().create(vectors=ns_basis_petsc, comm=V_v_cpp.mesh.comm)
+                Pm00.setNearNullSpace(nns)
 
     with df.common.Timer("Solve Stokes"):
         solver = PETSc.KSP().create(MPI.COMM_WORLD)
-        solver.setOperators(A, B)
+        solver.setOperators(Sm, Pm)
         solver.setOptionsPrefix("stokes_")
         solver.setFromOptions()
 
@@ -475,7 +482,7 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
         # have to set the index sets (ISs) of the DOFs on which 
         # each block is defined
         if pc_type == "fieldsplit":
-            iss = B.getNestISs()
+            iss = Pm.getNestISs()
             solver.getPC().setFieldSplitIS(("v", iss[0][0]), ("p", iss[0][1]))
 
     with df.common.Timer("Cleanup"):
@@ -488,10 +495,10 @@ def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False,
         if pc_type == "fieldsplit":
             for islr in iss: 
                 for isl in islr: isl.destroy()
-        A.destroy()
-        if M is not None: B.destroy()
+        Sm.destroy()
+        if M is not None: Pm.destroy()
         
-    return solver, b, r_vec
+    return solver, fm, rm
 
 def setup_temperature_solver(S, f, r):
     """
@@ -502,39 +509,41 @@ def setup_temperature_solver(S, f, r):
     * r   - temperature residual form
     Returns:
     * solver - a PETSc KSP solver object
+    * fm     - rhs vector
+    * rm     - residual vector
     """  
     with df.common.Timer("Assemble Temperature"):
         # create the matrix from the S form
-        A = df.fem.petsc.create_matrix(S)
+        Sm = df.fem.petsc.create_matrix(S)
         # create the R.H.S. vector from the f form
-        b = df.fem.petsc.create_vector(f)
+        fm = df.fem.petsc.create_vector(f)
         # create the residual vector from the r form
-        r_vec = df.fem.petsc.create_vector(r)
+        rm = df.fem.petsc.create_vector(r)
 
     with df.common.Timer("Solve Temperature"):
         solver = PETSc.KSP().create(MPI.COMM_WORLD)
-        solver.setOperators(A)
+        solver.setOperators(Sm)
         solver.setOptionsPrefix("temperature_")
         solver.setFromOptions()
     
-    return solver, b, r_vec
+    return solver, fm, rm
 
 
-def solve_stokes_nest(solver, b, S, f, bcs, v, p, M=None, isoviscous=False):
+def solve_stokes_nest(solver, fm, S, f, bcs, v, p, M=None, isoviscous=False):
     """
     A python function to solve a nested matrix vector system.
     Parameters:
     * solver - a PETSc KSP solver object
-    * b   - RHS vector
+    * fm  - RHS vector
     * S   - Stokes bilinear form
     * f   - Stokes RHS linear form
     * bcs - list of Stokes boundary conditions
     * v   - velocity function
     * p   - pressure function
-    * M   - pressure mass matrix bilinear form (defaults to None)
+    * M   - pressure mass matrix bilinear form (optional, defaults to None)
     * isoviscous - if isoviscous don't re-assemble the 
                    velocity/pressure preconditioner block at solve 
-                   (defaults to False)
+                   (optional, defaults to False)
     Returns:
     * v   - velocity solution function
     * p   - pressure solution function
@@ -542,38 +551,38 @@ def solve_stokes_nest(solver, b, S, f, bcs, v, p, M=None, isoviscous=False):
 
     with df.common.Timer("Assemble Stokes"):
         if not isoviscous: # already assembled at setup if isoviscous
-            A, B = solver.getOperators()
+            Sm, Pm = solver.getOperators()
 
-            A00 = A.getNestSubMatrix(0, 0)
-            A00.zeroEntries()
-            A00 = df.fem.petsc.assemble_matrix(A00, S[0][0], bcs=bcs)
+            Sm00 = Sm.getNestSubMatrix(0, 0)
+            Sm00.zeroEntries()
+            Sm00 = df.fem.petsc.assemble_matrix(Sm00, S[0][0], bcs=bcs)
 
-            A.assemble()
+            Sm.assemble()
             
             if M is not None:
-                BM = B.getNestSubMatrix(1, 1)
-                BM.zeroEntries()
-                BM = df.fem.petsc.assemble_matrix(BM, M, bcs=bcs)
+                Mm = Pm.getNestSubMatrix(1, 1)
+                Mm.zeroEntries()
+                Mm = df.fem.petsc.assemble_matrix(Mm, M, bcs=bcs)
                 
-                B.assemble()
+                Pm.assemble()
 
         # zero RHS vector
-        for b_sub in b.getNestSubVecs():
-            with b_sub.localForm() as b_sub_loc: b_sub_loc.set(0.0)
+        for fm_sub in fm.getNestSubVecs():
+            with fm_sub.localForm() as fm_sub_loc: fm_sub_loc.set(0.0)
         # assemble
-        b = df.fem.petsc.assemble_vector_nest(b, f)
+        fm = df.fem.petsc.assemble_vector_nest(fm, f)
         # apply the boundary conditions
-        df.fem.petsc.apply_lifting_nest(b, S, bcs=bcs)
+        df.fem.petsc.apply_lifting_nest(fm, S, bcs=bcs)
         # update the ghost values
-        for b_sub in b.getNestSubVecs():
-            b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        for fm_sub in fm.getNestSubVecs():
+            fm_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         bcs_by_block = df.fem.bcs_by_block(df.fem.extract_function_spaces(f), bcs)
-        df.fem.petsc.set_bc_nest(b, bcs_by_block)
+        df.fem.petsc.set_bc_nest(fm, bcs_by_block)
 
     with df.common.Timer("Solve Stokes"):
         # Create a solution vector and solve the system
         x = PETSc.Vec().createNest([v.x.petsc_vec, p.x.petsc_vec])
-        solver.solve(b, x)
+        solver.solve(fm, x)
 
         # Update the ghost values
         v.x.scatter_forward()
@@ -584,12 +593,12 @@ def solve_stokes_nest(solver, b, S, f, bcs, v, p, M=None, isoviscous=False):
 
     return v, p
 
-def solve_temperature(solver, b, S, f, bcs, T):
+def solve_temperature(solver, fm, S, f, bcs, T):
     """
     A python function to solve a matrix vector system.
     Parameters:
     * solver - a PETSc KSP solver object
-    * b   - RHS vector
+    * fm   - RHS vector
     * S   - temperature bilinear form
     * f   - temperature RHS linear form
     * bcs - list of temperature boundary conditions
@@ -599,25 +608,25 @@ def solve_temperature(solver, b, S, f, bcs, T):
     """
 
     with df.common.Timer("Assemble Temperature"):
-        A, _ = solver.getOperators()
+        Sm, _ = solver.getOperators()
 
-        A.zeroEntries()
+        Sm.zeroEntries()
         # Assemble the matrix from the S form
-        A = df.fem.petsc.assemble_matrix(A, S, bcs=bcs)
-        A.assemble()
+        Sm = df.fem.petsc.assemble_matrix(Sm, S, bcs=bcs)
+        Sm.assemble()
 
         # zero RHS vector
-        with b.localForm() as b_loc: b_loc.set(0.0)
+        with fm.localForm() as fm_loc: fm_loc.set(0.0)
         # assemble the R.H.S. vector from the f form
-        b = df.fem.petsc.assemble_vector(b, f)
+        fm = df.fem.petsc.assemble_vector(fm, f)
         # set the boundary conditions
-        df.fem.petsc.apply_lifting(b, [S], bcs=[bcs])
-        b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-        df.fem.petsc.set_bc(b, bcs)
+        df.fem.petsc.apply_lifting(fm, [S], bcs=[bcs])
+        fm.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        df.fem.petsc.set_bc(fm, bcs)
     
     with df.common.Timer("Solve Temperature"):
         # Create a solution vector and solve the system
-        solver.solve(b, T.x.petsc_vec)
+        solver.solve(fm, T.x.petsc_vec)
 
         # Update the ghost values
         T.x.scatter_forward()
@@ -637,26 +646,30 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, beta=1,
     Parameters:
     * Ra      - the Rayleigh number
     * ne      - number of elements in each dimension
-    * pp      - polynomial order of the pressure solution (defaults to 1)
-    * pT      - polynomial order of the temperature solutions (defaults to 1)
-    * b       - temperature dependence of viscosity (defaults to isoviscous)
+    * pp      - polynomial order of the pressure solution (optional, defaults to 1)
+    * pT      - polynomial order of the temperature solutions (optional, defaults to 1)
+    * b       - temperature dependence of viscosity (optional, defaults to isoviscous)
     * beta    - beta distribution parameter for mesh refinement, 
-                <1 refines the mesh at the top and bottom (defaults to 1, no refinement)
-    * alpha   - nonlinear iteration relaxation parameter (defaults to 0.8)
-    * rtol    - nonlinear iteration relative tolerance (defaults to 5.e-6)
-    * atol    - nonlinear iteration absolute tolerance (defaults to 5.e-9)
-    * maxits  - maximum number of nonlinear iterations (defaults to 50)
+                <1 refines the mesh at the top and bottom (optional, defaults to 1, no refinement)
+    * alpha   - nonlinear iteration relaxation parameter (optional, defaults to 0.8)
+    * rtol    - nonlinear iteration relative tolerance (optional, defaults to 5.e-6)
+    * atol    - nonlinear iteration absolute tolerance (optional, defaults to 5.e-9)
+    * maxits  - maximum number of nonlinear iterations (optional, defaults to 50)
     * petsc_options_s - a dictionary of petsc options to pass to the Stokes solver 
-                        (defaults to an LU direct solver using the MUMPS library)
+                        (optional, defaults to an LU direct solver using the MUMPS library)
     * petsc_options_T - a dictionary of petsc options to pass to the temperature solver 
-                        (defaults to an LU direct solver using the MUMPS library)
+                        (optional, defaults to an LU direct solver using the MUMPS library)
     * attach_nullspace - flag indicating if the null space should be removed 
-                         iteratively rather than using a pressure reference point
-                         (defaults to False)
+                        iteratively rather than using a pressure reference point
+                        (optional, defaults to False)
     * attach_nearnullspace - flag indicating if the preconditioner should be made
-                             aware of the possible (near) nullspaces in the velocity
-                             (defaults to True)
-    * verbose - print convergence information (defaults to True)
+                            aware of the possible (near) nullspaces in the velocity
+                            (optional, defaults to True)
+    * verbose - print convergence information (optional, defaults to True)
+    Returns:
+    * v - velocity solution
+    * p - pressure solution
+    * T - temperature solution
     """
 
     # Set the default PETSc solver options if none have been supplied
@@ -715,49 +728,49 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, beta=1,
     ST, fT, rT = temperature_weakforms(T, v)
 
     # 5 .set up the Stokes problem
-    solver_s, bs, rs_vec = setup_stokes_solver_nest(Ss, fs, rs, bcs_s, M=Ms, isoviscous=b is None,
-                                                    attach_nullspace=attach_nullspace, 
-                                                    attach_nearnullspace=attach_nearnullspace)
+    solver_s, fms, rms = setup_stokes_solver_nest(Ss, fs, rs, bcs_s, M=Ms, isoviscous=b is None,
+                                                  attach_nullspace=attach_nullspace, 
+                                                  attach_nearnullspace=attach_nearnullspace)
 
     #    and set up the Temeprature problem
-    solver_T, bT, rT_vec = setup_temperature_solver(ST, fT, rT)
+    solver_T, fmT, rmT = setup_temperature_solver(ST, fT, rT)
 
     # declare a function to evaluate the 2-norm of the non-linear residual
-    def calculate_residual(rs_vec, rT_vec):
+    def calculate_residual(rms, rmT):
         """
         Return the total residual of the problem
         """
         with df.common.Timer("Assemble Stokes"):
             # zero vector
-            for rs_vec_sub in rs_vec.getNestSubVecs():
-                with rs_vec_sub.localForm() as rs_vec_sub_loc: rs_vec_sub_loc.set(0.0)
+            for rms_sub in rms.getNestSubVecs():
+                with rms_sub.localForm() as rms_sub_loc: rms_sub_loc.set(0.0)
             # assemble
-            rs_vec = df.fem.petsc.assemble_vector_nest(rs_vec, rs)
+            rms = df.fem.petsc.assemble_vector_nest(rms, rs)
             # update the ghost values
-            for rs_vec_sub in rs_vec.getNestSubVecs():
-                rs_vec_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+            for rms_sub in rms.getNestSubVecs():
+                rms_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             # set bcs
             bcs_s_by_block = df.fem.bcs_by_block(df.fem.extract_function_spaces(fs), bcs_s)
-            df.fem.petsc.set_bc_nest(rs_vec, bcs_s_by_block, alpha=0.0)
+            df.fem.petsc.set_bc_nest(rms, bcs_s_by_block, alpha=0.0)
         with df.common.Timer("Assemble Temperature"):
             # zero vector
-            with rT_vec.localForm() as rT_vec_loc: rT_vec_loc.set(0.0)
+            with rmT.localForm() as rmT_loc: rmT_loc.set(0.0)
             # assemble
-            rT_vec = df.fem.petsc.assemble_vector(rT_vec, rT)
+            rmT = df.fem.petsc.assemble_vector(rmT, rT)
             # update the ghost values
-            rT_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+            rmT.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             # set bcs
-            df.fem.petsc.set_bc(rT_vec, bcs_T, alpha=0.0)
-        r = np.sqrt(rs_vec.norm()**2 + \
-                    rT_vec.norm()**2)
+            df.fem.petsc.set_bc(rmT, bcs_T, alpha=0.0)
+        r = np.sqrt(rms.norm()**2 + \
+                    rmT.norm()**2)
         return r
 
     # calculate the initial residual
-    r = calculate_residual(rs_vec, rT_vec)
+    r = calculate_residual(rms, rmT)
     r0 = r
     rrel = r/r0 # = 1
     
-    if MPI.COMM_WORLD.rank and verbose == 0:
+    if MPI.COMM_WORLD.rank == 0 and verbose:
         print("{:<11} {:<12} {:<17}".format('Iteration','Residual','Relative Residual'))
         print("-"*42)
 
@@ -768,19 +781,19 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, beta=1,
         if it > maxits: break
 
         # 6 .solve Stokes
-        v_i, p_i = solve_stokes_nest(solver_s, bs, Ss, fs, bcs_s, v_i, p_i, 
+        v_i, p_i = solve_stokes_nest(solver_s, fms, Ss, fs, bcs_s, v_i, p_i, 
                                      M=Ms, isoviscous=b is None)
         #    and relax velocity (and pressure for residual)
         v.x.array[:] = (1-alpha)*v.x.array + alpha*v_i.x.array
         p.x.array[:] = (1-alpha)*p.x.array + alpha*p_i.x.array
 
         #    then solve temperature
-        T_i = solve_temperature(solver_T, bT, ST, fT, bcs_T, T_i)
+        T_i = solve_temperature(solver_T, fmT, ST, fT, bcs_T, T_i)
         #    and relax temperature
         T.x.array[:] = (1-alpha)*T.x.array + alpha*T_i.x.array
 
         # calculate a new residual
-        r = calculate_residual(rs_vec, rT_vec)
+        r = calculate_residual(rms, rmT)
         rrel = r/r0
         it += 1
         if MPI.COMM_WORLD.rank == 0 and verbose: print("{:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
@@ -799,6 +812,15 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, beta=1,
 
 
 def blankenbach_diagnostics(v, T):
+    """
+    A python function to evaluate Nu and vrms of the solution.
+    Parameters:
+    * v - velocity solution
+    * T - temperature solution
+    Returns:
+    * Nu   - Nusselt number
+    * vrms - RMS velocity
+    """
     mesh = T.function_space.mesh
     
     fdim = mesh.topology.dim - 1
@@ -841,19 +863,19 @@ def convergence_errors(pTs, nelements, cases, beta=1,
     * nelements - a list of the number of elements to test
     * cases     - a list of benchmark cases to test (must be in ['1a', '1b', '1c', '2a'])
     * beta      - beta mesh refinement coefficient, < 1 refines the mesh at 
-                  the top and bottom boundaries (defaults to  1, no refinement]
+                  the top and bottom boundaries (optional, defaults to  1, no refinement]
     * petsc_options_s - a dictionary of petsc options to pass to the Stokes solver 
-                      (defaults to an LU direct solver using the MUMPS library)
+                      (optional, defaults to an LU direct solver using the MUMPS library)
     * petsc_options_T - a dictionary of petsc options to pass to the temperature solver 
-                      (defaults to an LU direct solver using the MUMPS library)
+                      (optional, defaults to an LU direct solver using the MUMPS library)
     * attach_nullspace - flag indicating if the null space should be removed 
                          iteratively rather than using a pressure reference point
-                         (defaults to False)
+                         (optional, defaults to False)
     * attach_nearnullspace - flag indicating if the preconditioner should be made
                              aware of the possible (near) nullspaces in the velocity
-                             (defaults to True)
-    * verbose - print convergence information (defaults to True)
-    * output_basename - basename of file to write errors to (defaults to no output)
+                             (optional, defaults to True)
+    * verbose - print convergence information (optional, defaults to True)
+    * output_basename - basename of file to write errors to (optional, defaults to no output)
     Returns:
     * errors - a dictionary of estimated errors with keys corresponding to the cases
     """
@@ -926,7 +948,7 @@ def plot_convergence(pTs, nelements, errors, output_filename=None):
     * pTs             - a list of temperature polynomial orders to test
     * nelements       - a list of the number of elements to test
     * errors          - errors dictionary (keys per case) from convergence_errors
-    * output_filename - filename for output plott (defaults to no output)
+    * output_filename - filename for output plot (optional, defaults to no output)
     Returns:
     * fits            - a dictionary (keys per case) of convergence order fits
     """

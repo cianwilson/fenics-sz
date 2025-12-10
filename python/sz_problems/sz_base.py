@@ -361,7 +361,7 @@ class BaseSubductionProblem(BaseSubductionProblem):
 class BaseSubductionProblem(BaseSubductionProblem):
     def T_backarc_o(self, x):
         """
-        Return temperature at the trench
+        Return temperature at the backarc in an oceanic-oceanic subduction case
         """
         zc = 2*np.sqrt(self.kappa0*(self.Ac_si-self.As_si))/self.h0 # overriding plate scale depth (non-dim)
         deltazsurface = np.minimum(np.maximum(self.deltaztrench*(1.0 - x[0,:]/max(self.deltaxcoast, np.finfo(float).eps)), 0.0), self.deltaztrench)

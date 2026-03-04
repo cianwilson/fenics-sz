@@ -5,6 +5,8 @@ parts:
     chapters:
       - file: notebooks/01_introduction/1.1_overview
       - file: notebooks/01_introduction/1.2_usage
+      - file: notebooks/01_introduction/1.3_structure
+      - file: notebooks/01_introduction/1.4_parallel_testing
   - caption: Background
     chapters:
       - file: notebooks/02_background/2.1_background_intro

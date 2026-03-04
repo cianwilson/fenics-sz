@@ -36,7 +36,7 @@ class BaseSubductionProblem:
         self.A      = None      # age of subducting slab (Myr)
         self.Vs     = None      # slab speed (mm/yr)
         self.sztype = None      # type of sz ('continental' or 'oceanic')
-        self.Ac     = None      # age of over-riding plate (Myr) - oceanic only
+        self.Ac     = None      # age of overriding plate (Myr) - oceanic only
         self.As     = None      # age of subduction (Myr) - oceanic only
         self.qs     = None      # surface heat flux (W/m^2) - continental only
         
@@ -93,7 +93,7 @@ class BaseSubductionProblem:
         # derived parameters
         self.A_si   = None  # age of subducting slab (s)
         self.Vs_nd  = None  # slab speed (non-dim)
-        self.Ac_si  = None  # age of over-riding plate (s) - oceanic only
+        self.Ac_si  = None  # age of overriding plate (s) - oceanic only
         self.As_si  = None  # age of subduction (s) - oceanic only
         self.qs_nd  = None  # surface heat flux (non-dim) - continental only
     
@@ -569,7 +569,7 @@ class BaseSubductionProblem(BaseSubductionProblem):
         self.A_si      = utils.Myr_to_s(self.A)   # age of subducting slab (s)
         self.Vs_nd     = utils.mmpyr_to_mps(self.Vs)/self.v0 # slab speed (non-dim)
         if self.sztype == 'oceanic':
-            self.Ac_si = utils.Myr_to_s(self.Ac)  # age of over-riding plate (s)
+            self.Ac_si = utils.Myr_to_s(self.Ac)  # age of overriding plate (s)
             self.As_si = utils.Myr_to_s(self.As)  # age of subduction (s)
         else:
             self.qs_nd = self.qs/self.q0          # surface heat flux (non-dim)
@@ -599,7 +599,7 @@ class BaseSubductionProblem(BaseSubductionProblem):
           * A      - age of subducting slab (in Myr) [required]
           * Vs     - incoming slab speed (in mm/yr) [required]
           * sztype - type of subduction zone (either 'continental' or 'oceanic') [required]
-          * Ac     - age of the over-riding plate (in Myr) [required if sztype is 'oceanic']
+          * Ac     - age of the overriding plate (in Myr) [required if sztype is 'oceanic']
           * As     - age of subduction (in Myr) [required if sztype is 'oceanic']
           * qs     - surface heat flux (in W/m^2) [required if sztype is 'continental']
 

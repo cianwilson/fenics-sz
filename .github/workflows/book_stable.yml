@@ -24,8 +24,6 @@ jobs:
     container: ghcr.io/cianwilson/fenics-sz:release
 
     env:
-      PYVISTA_TRAME_SERVER_PROXY_PREFIX: "/proxy/"
-      PYVISTA_TRAME_SERVER_PROXY_ENABLED: "True"
       PYVISTA_OFF_SCREEN: false
       PYVISTA_JUPYTER_BACKEND: "html"
       BASE_NAME: ${{ github.base_ref || github.ref_name }}

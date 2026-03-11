@@ -19,6 +19,7 @@ dependencies = [
     "ipywidgets==7.7.1",
     "ipyparallel==9.0.1",
     "pygmt==0.15.0",
+    "wurlitzer==3.1.1",
 ]
 
 [project.optional-dependencies]

@@ -1,6 +1,7 @@
 from mpi4py import MPI
 import numpy as np
 import matplotlib.pyplot as pl
+import matplotlib.ticker as ticker
 import ipyparallel as ipp
 import logging
 
@@ -84,6 +85,8 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, **
     import dolfinx as df
     import numpy as np
     from mpi4py import MPI
+    from wurlitzer import pipes, STDOUT
+    from io import StringIO
     import sys
     sys.path.append(path)
     import importlib
@@ -91,11 +94,47 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, **
     # get the function
     func = getattr(module, func_name)
 
+    # we deal with mumps timings by forcing increased logging and accumulating the timings in a dictionary as we go
+    test_mumps = any([label.startswith('MUMPS') for label in labels])
+    mumps_timings = {'MUMPS analysis':0.0, 
+                     'MUMPS factorization':0.0, 
+                     'MUMPS solve':0.0}
+    if test_mumps:
+        # turn on mumps logging to get the timings we need
+        if 'petsc_options' in func_kwargs:
+            func_kwargs['petsc_options']['mat_mumps_icntl_4'] = \
+                max(func_kwargs['petsc_options'].get('mat_mumps_icntl_4', -1), 2)
+        else:
+            func_kwargs['petsc_options'] = {'ksp_type' : 'preonly', 'pc_type' : 'lu', 'pc_factor_mat_solver_type' : 'mumps', 'mat_mumps_icntl_4' : 2}
+
+    # run the function the specified number of times
     for n in range(number):
-        _ = func(*func_args, **func_kwargs)
+        out = StringIO()
+        with pipes(stdout=out, stderr=STDOUT):
+            _ = func(*func_args, **func_kwargs)
+        if test_mumps:
+            # collect the numps timings
+            for step in ['analysis', 'factorization', 'solve']:
+                i0 = out.getvalue().find(f'Elapsed time in {step} driver')
+                if i0 > -1:
+                    ie = out.getvalue()[i0:].find('\n')
+                    mumps_timings[f'MUMPS {step}'] += float(out.getvalue()[i0:i0+ie].split()[-1])
+        out.close()
+
 
     # extract and return the computation times from dolfinx
-    times = np.array([df.common.timing(l)[1]/number for l in labels])
+    times = []
+    for label in labels:
+        try:
+            times.append(df.common.timing(label)[1]/number)
+        except RuntimeError:
+            if label.startswith('MUMPS'):
+                # get the timing from our dictionary
+                times.append(mumps_timings[label]/number)
+            else:
+                # unknown label
+                times.append(0.0)
+    times = np.array(times)
     maxtimes = None
     if MPI.COMM_WORLD.rank==0: maxtimes = np.zeros_like(times)
     MPI.COMM_WORLD.Reduce(times, maxtimes, op=MPI.MAX)
@@ -141,6 +180,7 @@ def profile_parallel(nprocs, labels, *args, output_filename=None, **kwargs):
         fig, (ax, ax_r) = pl.subplots(nrows=2, figsize=[6.4,9.6], sharex=True)
         for l, label in enumerate(labels):
             ax.plot(nprocs, [t[l] for t in maxtimes], 'o-', label=label)
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
         ax.set_ylabel('wall time (s)')
         ax.grid()
         ax.legend()
@@ -148,6 +188,7 @@ def profile_parallel(nprocs, labels, *args, output_filename=None, **kwargs):
         ax_r.plot(nprocs, [nproc/nprocs[0] for nproc in nprocs], 'k--', label='Ideal')
         for l, label in enumerate(labels):
             ax_r.plot(nprocs, maxtimes[0][l]/np.asarray([t[l] for t in maxtimes]), 'o-', label=label)
+        ax_r.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
         ax_r.set_xlabel('number processors')
         ax_r.set_ylabel('speed up')
         ax_r.grid()

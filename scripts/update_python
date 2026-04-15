@@ -34,7 +34,7 @@ do
     npath=global_suites/${npath#global_suites/*_} # strip intermediate index_
     nname=$fname   # leave the index in the filename
   fi
-  npath=$repo_path/python/$npath # make a full path again
+  npath=$repo_path/python/fenics_sz/$npath # make a full path again
   nbase=${nname%.*}   # remove the extension for output (added automatically)
   jupyter nbconvert --NbConvertApp.use_output_suffix=False \
                     --TagRemovePreprocessor.enabled=True \

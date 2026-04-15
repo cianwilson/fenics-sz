@@ -11,9 +11,9 @@ basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 path = os.path.join(basedir, os.path.pardir, os.path.pardir, 'python')
 sys.path.append(path)
-import utils.ipp
-import utils.plot
-from background.batchelor import (unit_square_mesh, 
+import fenics_sz.utils.ipp
+import fenics_sz.utils.plot
+from fenics_sz.background.batchelor import (unit_square_mesh, 
                                   functionspaces, 
                                   velocity_bcs, 
                                   pressure_bcs,

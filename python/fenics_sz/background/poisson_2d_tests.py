@@ -5,13 +5,13 @@ import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
-from background.poisson_2d import solve_poisson_2d
+from fenics_sz.background.poisson_2d import solve_poisson_2d
 from mpi4py import MPI
 import dolfinx as df
 import dolfinx.fem.petsc
 import numpy as np
 import ufl
-import utils.plot
+import fenics_sz.utils.plot
 import matplotlib.pyplot as pl
 import pathlib
 output_folder = pathlib.Path(os.path.join(basedir, "output"))

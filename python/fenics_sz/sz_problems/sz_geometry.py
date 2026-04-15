@@ -7,12 +7,12 @@ if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
 
-from sz_problems.sz_params import default_params, allsz_params
-from sz_problems.sz_slab import create_slab
+from fenics_sz.sz_problems.sz_params import default_params, allsz_params
+from fenics_sz.sz_problems.sz_slab import create_slab
 
 
-import geometry as geo
-import utils.plot
+import fenics_sz.geometry as geo
+import fenics_sz.utils.plot
 from mpi4py import MPI
 import pathlib
 output_folder = pathlib.Path(os.path.join(basedir, "output"))

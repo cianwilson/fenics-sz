@@ -7,12 +7,12 @@ if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
 
-from sz_problems.sz_params import default_params, allsz_params
-from sz_problems.sz_slab import create_slab
-from sz_problems.sz_geometry import create_sz_geometry
+from fenics_sz.sz_problems.sz_params import default_params, allsz_params
+from fenics_sz.sz_problems.sz_slab import create_slab
+from fenics_sz.sz_problems.sz_geometry import create_sz_geometry
 
 
-import utils
+import fenics_sz.utils
 import dolfinx as df
 import numpy as np
 import scipy as sp
@@ -212,7 +212,7 @@ class BaseSubductionProblem(BaseSubductionProblem):
             # this command also returns cell and facet tags mapped from the parent mesh to the submesh
             # additionally a cell map maps cells in the submesh to the parent mesh
             self.wedge_submesh, self.wedge_cell_tags, self.wedge_facet_tags, self.wedge_cell_map = \
-                                utils.mesh.create_submesh(self.mesh, 
+                                fenics_sz.utils.mesh.create_submesh(self.mesh, 
                                                     np.concatenate([self.cell_tags.find(rid) for rid in self.wedge_rids]), \
                                                     self.cell_tags, self.facet_tags)
             # record whether this MPI rank has slab DOFs or not
@@ -222,7 +222,7 @@ class BaseSubductionProblem(BaseSubductionProblem):
             # this command also returns cell and facet tags mapped from the parent mesh to the submesh
             # additionally a cell map maps cells in the submesh to the parent mesh
             self.slab_submesh, self.slab_cell_tags, self.slab_facet_tags, self.slab_cell_map  = \
-                                utils.mesh.create_submesh(self.mesh, 
+                                fenics_sz.utils.mesh.create_submesh(self.mesh, 
                                                     np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids]), \
                                                     self.cell_tags, self.facet_tags)
             # record whether this MPI rank has wedge DOFs or not
@@ -559,18 +559,18 @@ class BaseSubductionProblem(BaseSubductionProblem):
         self.kappa0 = self.k0/self.rho0/self.cp0   # reference thermal diffusivity (m^2/s)
         self.v0     = self.kappa0/self.h0          # reference velocity (m/s)
         self.t0     = self.h0/self.v0              # reference time (s)
-        self.t0_Myr = utils.s_to_Myr(self.t0)      # reference time (Myr)
+        self.t0_Myr = fenics_sz.utils.s_to_Myr(self.t0)      # reference time (Myr)
         self.e0     = self.v0/self.h0              # reference strain rate (/s)
         self.p0     = self.e0*self.eta0            # reference pressure (Pa)
         self.H0     = self.k0*self.T0/(self.h0**2) # reference heat source (W/m^3)
         self.q0     = self.H0*self.h0              # reference heat flux (W/m^2)
 
         # derived parameters
-        self.A_si      = utils.Myr_to_s(self.A)   # age of subducting slab (s)
-        self.Vs_nd     = utils.mmpyr_to_mps(self.Vs)/self.v0 # slab speed (non-dim)
+        self.A_si      = fenics_sz.utils.Myr_to_s(self.A)   # age of subducting slab (s)
+        self.Vs_nd     = fenics_sz.utils.mmpyr_to_mps(self.Vs)/self.v0 # slab speed (non-dim)
         if self.sztype == 'oceanic':
-            self.Ac_si = utils.Myr_to_s(self.Ac)  # age of overriding plate (s)
-            self.As_si = utils.Myr_to_s(self.As)  # age of subduction (s)
+            self.Ac_si = fenics_sz.utils.Myr_to_s(self.Ac)  # age of overriding plate (s)
+            self.As_si = fenics_sz.utils.Myr_to_s(self.As)  # age of subduction (s)
         else:
             self.qs_nd = self.qs/self.q0          # surface heat flux (non-dim)
         

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=64.4.0", "wheel", "pip>=22.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fenics_sz"
+version = "0.9.0"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+"*" = ["all_sz.json", "default_params.json"]

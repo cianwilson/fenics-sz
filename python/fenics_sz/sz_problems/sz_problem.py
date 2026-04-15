@@ -7,14 +7,14 @@ if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
 
-from sz_problems.sz_params import default_params, allsz_params
-from sz_problems.sz_slab import create_slab
-from sz_problems.sz_geometry import create_sz_geometry
-from sz_problems.sz_base import BaseSubductionProblem
+from fenics_sz.sz_problems.sz_params import default_params, allsz_params
+from fenics_sz.sz_problems.sz_slab import create_slab
+from fenics_sz.sz_problems.sz_geometry import create_sz_geometry
+from fenics_sz.sz_problems.sz_base import BaseSubductionProblem
 
 
-import geometry as geo
-import utils
+import fenics_sz.geometry as geo
+import fenics_sz.utils
 from mpi4py import MPI
 import dolfinx as df
 import dolfinx.fem.petsc
@@ -99,7 +99,7 @@ class SubductionProblem(SubductionProblem):
         z = -(x[1]+deltazsurface)
         
         # dimensional temperature in Kelvin with an adiabat added
-        Tdim = utils.nondim_to_K(T_i) + 0.3*z
+        Tdim = fenics_sz.utils.nondim_to_K(T_i) + 0.3*z
 
         # we declare some of the coefficients as dolfinx Constants to prevent the form compiler from
         # optimizing them out of the code due to their small (dimensional) values
@@ -535,7 +535,7 @@ class SubductionProblem(SubductionProblem):
         
         # work out location of spot tempeterature on slab and evaluate T
         xpt = np.asarray(self.geom.slab_spline.intersecty(-100.0)+[0.0])
-        cinds, cells = utils.mesh.get_cell_collisions(xpt, self.mesh)
+        cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(xpt, self.mesh)
         Tpt = np.nan
         if len(cells) > 0: Tpt = self.T0*self.T_i.eval(xpt, cells[0])[0]
         # FIXME: does this really have to be an allgather?
@@ -570,7 +570,7 @@ class SubductionProblem(SubductionProblem):
 
         # evaluate average vrms in wedge diagnostic region
         vrmswedge = df.fem.assemble_scalar(df.fem.form(ufl.inner(self.vw_i, self.vw_i)*self.dx(wedge_diag_rids)))
-        vrmswedge = ((self.comm.allreduce(vrmswedge, op=MPI.SUM)/wedge_diag_area)**0.5)*utils.mps_to_mmpyr(self.v0)
+        vrmswedge = ((self.comm.allreduce(vrmswedge, op=MPI.SUM)/wedge_diag_area)**0.5)*fenics_sz.utils.mps_to_mmpyr(self.v0)
         if self.comm.rank == 0: print("V_rms,w = {:.2f} mm/yr".format(vrmswedge,))
 
         # return results

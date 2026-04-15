@@ -11,7 +11,7 @@ import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
-import utils.mesh
+import fenics_sz.utils.mesh
 import pathlib
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
@@ -80,7 +80,7 @@ def plot_1d(T, x, filename=None):
     xyz = np.stack((x, np.zeros_like(x), np.zeros_like(x)), axis=1)
     # work out which cells those points are in using a utility function we provide
     mesh = T.function_space.mesh
-    cinds, cells = utils.mesh.get_cell_collisions(xyz, mesh)
+    cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(xyz, mesh)
     # evaluate the numerical solution
     T_x = T.eval(xyz[cinds], cells)[:,0]
     # if running in parallel (unlikely in 1D) gather the solution to the rank-0 process

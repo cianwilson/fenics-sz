@@ -7,15 +7,15 @@ if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
 
-from sz_problems.sz_params import default_params, allsz_params
-from sz_problems.sz_slab import create_slab
-from sz_problems.sz_geometry import create_sz_geometry
-from sz_problems.sz_problem import TemperatureSolver
-from sz_problems.sz_steady_problem import SteadySubductionProblem
+from fenics_sz.sz_problems.sz_params import default_params, allsz_params
+from fenics_sz.sz_problems.sz_slab import create_slab
+from fenics_sz.sz_problems.sz_geometry import create_sz_geometry
+from fenics_sz.sz_problems.sz_problem import TemperatureSolver
+from fenics_sz.sz_problems.sz_steady_problem import SteadySubductionProblem
 
 
-import geometry as geo
-import utils
+import fenics_sz.geometry as geo
+import fenics_sz.utils
 from mpi4py import MPI
 import dolfinx as df
 import dolfinx.fem.petsc
@@ -75,10 +75,10 @@ def plot_slab_temperatures(sz):
     fig = pl.figure()
     ax = fig.gca()
     # plot the slab temperatures
-    cinds, cells = utils.mesh.get_cell_collisions(slabpoints, sz.mesh)
+    cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(slabpoints, sz.mesh)
     ax.plot(sz.T_i.eval(slabpoints, cells)[:,0], -slabpoints[:,1], label='slab surface')
     # plot the moho temperatures
-    mcinds, mcells = utils.mesh.get_cell_collisions(slabmohopoints, sz.mesh)
+    mcinds, mcells = fenics_sz.utils.mesh.get_cell_collisions(slabmohopoints, sz.mesh)
     ax.plot(sz.T_i.eval(slabmohopoints, mcells)[:,0], -slabmohopoints[:,1], label='slab moho')
     # labels, title etc.
     ax.set_xlabel('T ($^\circ$C)')

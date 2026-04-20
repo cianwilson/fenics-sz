@@ -32,7 +32,7 @@ RUN python3 -m pip install -U setuptools pip pkgconfig
 
 RUN echo ${TARGETPLATFORM}
 RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then python3 -m pip install "https://github.com/finsberg/vtk-aarch64/releases/download/vtk-9.3.0-cp312/vtk-9.3.0.dev0-cp312-cp312-linux_aarch64.whl"; fi
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install vtk; fi
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install vtk==9.3.0; fi
 
 ADD requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation -v -r requirements.txt && \

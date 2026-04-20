@@ -5,10 +5,6 @@ import matplotlib.ticker as ticker
 import ipyparallel as ipp
 import logging
 
-# this needs to be decorated as interactive to pass this module's namespace 
-# in rather than the system globals (which doesn't include this module on 
-# the remote process)
-@ipp.interactive
 def run_local(path, module_name, func_name, *func_args, **func_kwargs):
     """
     A python function that runs a function using local imports to allow it to run 
@@ -34,6 +30,11 @@ def run_local(path, module_name, func_name, *func_args, **func_kwargs):
 
     return output
 
+# this needs to be decorated as interactive to pass this module's namespace 
+# in rather than the system globals (which doesn't include this module on 
+# the remote process)
+ipp_run_local = ipp.interactive(run_local)
+
 def run_parallel(nprocs, *args, **kwargs):
     """
     A python function that runs a function in parallel on a number of proceses.
@@ -55,28 +56,29 @@ def run_parallel(nprocs, *args, **kwargs):
         rc = cluster.start_and_connect_sync()
         view = rc[:]
 
-        outputs.append(view.remote(block=True)(run_local)(*args, **kwargs)[0])
+        outputs.append(view.remote(block=True)(ipp_run_local)(*args, **kwargs)[0])
 
         rc.shutdown(hub=True)
 
     return outputs
 
-# this needs to be decorated as interactive to pass this module's namespace 
-# in rather than the system globals (which doesn't include this module on 
-# the remote process)
-@ipp.interactive
-def profile_local(labels, path, module_name, func_name, *func_args, number=1, **func_kwargs):
+def profile_local(labels, path, module_name, func_name, *func_args, number=1, include_mumps_times=False, extra_diagnostics_func=None, **func_kwargs):
     """
     A python function that profiles a function using local imports to allow it to run 
     on multiple processes.  Essentially acts like a decorator that imports the function to
     be profiled internally.
     Parameters:
-    * labels      - labels to extract from dolfinx timing
+    * labels      - labels to extract from dolfinx timing 
     * path        - system path where the module can be found
     * module_name - name of module where function can be found
     * func_name   - name of function to profile
     * func_args   - arguments to pass to the function
     * number      - number of runs of function to time
+    * include_mumps_times - extract the analysis, factorization 
+                    and solve times from the petsc log (requires 
+                    mat_mumps_icntl_4 >= 2
+                    otherwise these steps will return 0 times)
+    * extra_diagnostics_func - function to return extra diagnostics in a dictionary
     * func_kwargs - keyword arguments to pass to the function
     Returns:
     * maxtimes    - computation walltimes corresponding to each label
@@ -87,6 +89,7 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, **
     from mpi4py import MPI
     from wurlitzer import pipes, STDOUT
     from io import StringIO
+    import re
     import sys
     sys.path.append(path)
     import importlib
@@ -95,53 +98,95 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, **
     func = getattr(module, func_name)
 
     # we deal with mumps timings by forcing increased logging and accumulating the timings in a dictionary as we go
-    test_mumps = any([label.startswith('MUMPS') for label in labels])
-    mumps_timings = {'MUMPS analysis':0.0, 
-                     'MUMPS factorization':0.0, 
-                     'MUMPS solve':0.0}
-    if test_mumps:
-        # turn on mumps logging to get the timings we need
-        if 'petsc_options' in func_kwargs:
-            func_kwargs['petsc_options']['mat_mumps_icntl_4'] = \
-                max(func_kwargs['petsc_options'].get('mat_mumps_icntl_4', -1), 2)
-        else:
-            func_kwargs['petsc_options'] = {'ksp_type' : 'preonly', 'pc_type' : 'lu', 'pc_factor_mat_solver_type' : 'mumps', 'mat_mumps_icntl_4' : 2}
+    mumpstimes = {'MUMPS analysis':0.0, 
+                  'MUMPS factorization':0.0, 
+                  'MUMPS solve':0.0}
+
+    extra_diagnostics = dict()
 
     # run the function the specified number of times
     for n in range(number):
-        out = StringIO()
-        with pipes(stdout=out, stderr=STDOUT):
-            _ = func(*func_args, **func_kwargs)
-        if test_mumps:
+        stdout = StringIO()
+        with pipes(stdout=stdout, stderr=STDOUT):
+            output = func(*func_args, **func_kwargs)
+        if include_mumps_times:
             # collect the numps timings
             for step in ['analysis', 'factorization', 'solve']:
-                i0 = out.getvalue().find(f'Elapsed time in {step} driver')
-                if i0 > -1:
-                    ie = out.getvalue()[i0:].find('\n')
-                    mumps_timings[f'MUMPS {step}'] += float(out.getvalue()[i0:i0+ie].split()[-1])
-        out.close()
+                for match in re.finditer(f'Elapsed time in {step} driver', stdout.getvalue()):
+                    i0 = match.start()
+                    if i0 > -1:
+                        ie = stdout.getvalue()[i0:].find('\n')
+                        mumpstimes[f'MUMPS {step}'] += float(stdout.getvalue()[i0:i0+ie].split()[-1])
+        if extra_diagnostics_func is not None:
+            tmp_extra_diagnostics = extra_diagnostics_func(output)
+            for k, v in tmp_extra_diagnostics.items():
+                extra_diagnostics[k] = extra_diagnostics.get(k, 0.0) + v
+        stdout.close()
 
 
+    vals_to_max = []
+    vals_to_min = []
+    vals_to_sum = []
+    
     # extract and return the computation times from dolfinx
-    times = []
     for label in labels:
         try:
-            times.append(df.common.timing(label)[1]/number)
+            vals_to_max.append(df.common.timing(label)[1]/number)
         except RuntimeError:
-            if label.startswith('MUMPS'):
-                # get the timing from our dictionary
-                times.append(mumps_timings[label]/number)
-            else:
-                # unknown label
-                times.append(0.0)
-    times = np.array(times)
-    maxtimes = None
-    if MPI.COMM_WORLD.rank==0: maxtimes = np.zeros_like(times)
-    MPI.COMM_WORLD.Reduce(times, maxtimes, op=MPI.MAX)
-    if MPI.COMM_WORLD.rank==0: maxtimes = maxtimes.tolist()
-    return maxtimes
+            vals_to_max.append(0.0)
+    # extract mumps times
+    if include_mumps_times:
+        for label, time in mumpstimes.items():
+            vals_to_max.append(time/number)
+    # extract extract diagnostics
+    if extra_diagnostics_func is not None:
+        for k, v in extra_diagnostics.items():
+            vals_to_max.append(v/number)
+            vals_to_min.append(v/number)
+            vals_to_sum.append(v/number)
+            
+    vals_to_max = np.array(vals_to_max)
+    vals_to_min = np.array(vals_to_min)
+    vals_to_sum = np.array(vals_to_sum)
 
-def profile_parallel(nprocs, labels, *args, output_filename=None, **kwargs):
+    def reduce_vals(vals_to_, mpi_op):
+        vals = None
+        if MPI.COMM_WORLD.rank==0: vals = np.zeros_like(vals_to_)
+        MPI.COMM_WORLD.Reduce(vals_to_, vals, op=mpi_op)
+        return vals
+
+    maxvals = reduce_vals(vals_to_max, MPI.MAX)
+    minvals = reduce_vals(vals_to_min, MPI.MIN)
+    sumvals = reduce_vals(vals_to_sum, MPI.SUM)
+
+    maxtimes = None
+    maxmumpstimes = None
+    extradiagout = None
+    if MPI.COMM_WORLD.rank==0: 
+        maxtimes = maxvals.tolist()[:len(labels)]
+        o = len(labels)
+        if include_mumps_times:
+            maxmumpstimes = dict()
+            for i, k in enumerate(mumpstimes.keys()):
+                maxmumpstimes[k] = maxvals[o+i].tolist()
+            o += len(mumpstimes)
+        if extra_diagnostics_func is not None:
+            extradiagout = dict()
+            for i, k in enumerate(extra_diagnostics.keys()):
+                extradiagout[k+'_max'] = maxvals[o+i].tolist()
+                extradiagout[k+'_min'] = minvals[i].tolist()
+                sumval = sumvals[i].tolist()
+                extradiagout[k+'_sum'] = sumval
+                extradiagout[k+'_avg'] = sumval/MPI.COMM_WORLD.size
+
+    return maxtimes, maxmumpstimes, extradiagout
+
+# this needs to be decorated as interactive to pass this module's namespace 
+# in rather than the system globals (which doesn't include this module on 
+# the remote process)
+ipp_profile_local = ipp.interactive(profile_local)
+
+def profile_parallel(nprocs, labels, *args, output_filename=None, number=1, include_mumps_times=False, extra_diagnostics_func=None, **kwargs):
     """
     A python function that runs a function over a series of number of proceses and prints and returns the timings.
     Parameters:
@@ -153,28 +198,54 @@ def profile_parallel(nprocs, labels, *args, output_filename=None, **kwargs):
         * func_name   - name of function to profile
         * func_args   - arguments to pass to the function
     * output_filename - filename for plot (defaults to no output)
+    * include_mumps_times - extract the analysis, factorization 
+                        and solve times from the petsc log (requires 
+                        mat_mumps_icntl_4 >= 2
+                        otherwise these steps will return 0 times, 
+                        defaults to False)
+    * extra_diagnostics_func - function to return extra diagnostics in a dictionary (default to None)
+    * number          - number of runs of function to time (defaults to 1)
     * kwargs          - additional keyword arguments to pass to profile_local function
-        * number      - number of runs of function to time
         * func_kwargs - keyword arguments to pass to the function
     Returns:
     * maxtimes        - computation walltimes corresponding to each label and number of processes
+    * maxmumpstimes   - computation walltimes corresponding to each stage of mumps
+    * 
     """
     maxtimes = []
+    maxmumpstimes = []
+    extradiagout = []
     for nproc in nprocs:
         cluster = ipp.Cluster(engine_launcher_class="mpi", n=nproc, log_level=logging.FATAL)
         rc = cluster.start_and_connect_sync()
         view = rc[:]
 
-        maxtimes.append(view.remote(block=True)(profile_local)(labels, *args, **kwargs)[0])
+        nmaxtimes, nmaxmumpstimes, nextradiagout = view.remote(block=True)(ipp_profile_local)(labels, *args, number=number, include_mumps_times=include_mumps_times, extra_diagnostics_func=extra_diagnostics_func, **kwargs)[0]
+        maxtimes.append(nmaxtimes)
+        maxmumpstimes.append(nmaxmumpstimes)
+        extradiagout.append(nextradiagout)
 
         rc.shutdown(hub=True)
 
     maxlen = max([len(label) for label in labels])
+    if include_mumps_times: 
+        maxlen = max([maxlen]+[len(k) for k in maxmumpstimes[0].keys()])
+    if extra_diagnostics_func is not None:
+        maxlen = max([maxlen]+[len(k) for k in extradiagout[0].keys()])
     print('=========================')
     print("{0:<{1}}".format(" ", maxlen+2)+"".join(["{:<12d}".format(nproc) for nproc in nprocs]))
     for l, label in enumerate(labels):
         print("{0:<{1}}".format(label, maxlen+2)+"".join(["{:<12g}".format(t[l]) for t in maxtimes]))
     print('=========================')
+    if include_mumps_times:
+        for k in maxmumpstimes[0].keys():
+            print("{0:<{1}}".format(k, maxlen+2)+"".join(["{:<12g}".format(m[k]) for m in maxmumpstimes]))
+        print('=========================')
+    if extra_diagnostics_func is not None:
+        for k in extradiagout[0].keys():
+            print("{0:<{1}}".format(k, maxlen+2)+"".join(["{:<12g}".format(e[k]) for e in extradiagout]))
+        print('=========================')
+
 
     if MPI.COMM_WORLD.rank == 0:
         fig, (ax, ax_r) = pl.subplots(nrows=2, figsize=[6.4,9.6], sharex=True)
@@ -200,4 +271,4 @@ def profile_parallel(nprocs, labels, *args, output_filename=None, **kwargs):
 
             print("***********  profiling figure in "+str(output_filename))
 
-    return maxtimes
+    return maxtimes, maxmumpstimes, extradiagout

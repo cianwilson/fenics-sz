@@ -4,7 +4,7 @@
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
-sys.path.append(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
+sys.path.insert(0, os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 from fenics_sz.background.poisson_2d import solve_poisson_2d
 from mpi4py import MPI
 import dolfinx as df

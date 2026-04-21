@@ -91,7 +91,6 @@ steps = [
 # declare a dictionary to store the times each step takes
 maxtimes = {}
 
-
 # %% [markdown]
 # #### Direct
 #

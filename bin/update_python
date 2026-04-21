@@ -24,7 +24,7 @@ repo_path=$(dirname $script_path)
 
 for f in `find $repo_path/notebooks -not -path "*/.ipynb_checkpoints/*" -type f -name '*.ipynb'`;
 do
-  jupytext --sync $f
+  jupytext --to python//py:percent $f
 done
 
 

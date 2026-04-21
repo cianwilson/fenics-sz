@@ -111,7 +111,6 @@ for coupling_depth in coupling_depths:
     del geom_dc
     del slab_dc
 
-
 # %% [markdown]
 # As well as visualizing the solutions we can see what effect varying the coupling depth has on the global diagnostics from the benchmark.
 

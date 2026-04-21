@@ -113,7 +113,6 @@ steps = [
           'Solve Temperature', 'Solve Stokes'
          ]
 
-
 # %% [markdown]
 # #### Case 1a - Direct
 #

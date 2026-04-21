@@ -1,6 +1,6 @@
 services:
   fenics-sz:
-    image: ghcr.io/cianwilson/fenics-sz:test-packaging-arm64
+    image: ghcr.io/cianwilson/fenics-sz:test-packaging
     volumes:
       - ../..:/workspaces:cached
     command: sleep infinity

@@ -54,7 +54,7 @@ jobs:
         working-directory: notebooks/03_sz_problems
         run: |
             jupyter execute 3.4b_sz_benchmark.ipynb
-      
+
       - name: Install package
         working-directory: python
         run: pip install -e .
@@ -70,8 +70,8 @@ jobs:
             mpiexec -n 2 python3 batchelor_nest.py 128 -o batchelor_nest_mpi.bp
             python3 batchelor_nest.py 128 -t
             mpiexec -n 2 python3 batchelor_nest.py 128 -t 
-      
-      -name: Test sz_problems scripts
+
+      - name: Test sz_problems scripts
         working-directory: scripts/sz_problems
         run: |
             python3 sz_benchmark.py 1 2 -o sz_benchmark_1.bp
@@ -82,8 +82,8 @@ jobs:
             mpiexec -n 2 python3 sz_benchmark.py 2 2 -o sz_benchmark_2_mpi.bp
             python3 sz_benchmark.py 2 2 -t
             mpiexec -n 2 python3 sz_benchmark.py 2 2 -t
-      
-      -name: Test global_suites scripts
+
+      - name: Test global_suites scripts
         working-directory: scripts/global_suites
         run: |
             python3 sz_suite_ss.py 02_Alaska 3 -o 02_Alaska_ss.bp

@@ -111,7 +111,7 @@ diagnostics = []
 for resscalel in resscales_conv:
     diagnostics.append(fenics_sz.utils.ipp.run_parallel(nprocs_conv, path, 
                                            'fenics_sz.sz_problems.sz_benchmark', 
-                                           'solve_benchmark_case1', 
+                                           'benchmark_case1_diagnostics', 
                                            resscalel))
 
 print('')
@@ -166,7 +166,7 @@ diagnostics = []
 for resscalel in resscales_conv:
     diagnostics.append(fenics_sz.utils.ipp.run_parallel(nprocs_conv, path, 
                                            'fenics_sz.sz_problems.sz_benchmark', 
-                                           'solve_benchmark_case1', 
+                                           'benchmark_case1_diagnostics', 
                                            resscalel, petsc_options_s=petsc_options_s))
 
 print('')
@@ -258,7 +258,7 @@ resscales_conv_2 = [0.5,]
 # for resscalel in resscales_conv_2:
 #     diagnostics.append(utils.ipp.run_parallel(nprocs_conv, path, 
 #                                            'fenics_sz.sz_problems.sz_benchmark', 
-#                                            'solve_benchmark_case2', 
+#                                            'benchmark_case2_diagnostics', 
 #                                            resscalel))
 
 # print('')
@@ -314,7 +314,7 @@ resscales_conv_2 = [0.5,]
 # for resscalel in resscales_conv_2:
 #     diagnostics.append(utils.ipp.run_parallel(nprocs_conv, path, 
 #                                            'fenics_sz.sz_problems.sz_benchmark', 
-#                                            'solve_benchmark_case2', 
+#                                            'benchmark_case2_diagnostics', 
 #                                            resscalel, petsc_options_s=petsc_options_s))
 
 # print('')

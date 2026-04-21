@@ -2,13 +2,13 @@ def run(ne, p, petsc_options=None, output=None):
     """
     Run the simulation.
     """
-    from fenics_sz.background.poisson_2d import solve_poisson_2d
+    from fenics_sz.background.batchelor_nest import solve_batchelor_nest
 
-    T = solve_poisson_2d(ne, p=p, petsc_options=petsc_options)
+    v, p = solve_batchelor_nest(ne, p=p, petsc_options=petsc_options)
 
     if output is not None:
         import dolfinx as df
-        with df.io.VTXWriter(T.function_space.mesh.comm, output, [T]) as vtx:
+        with df.io.VTXWriter(v.function_space.mesh.comm, output, [v]) as vtx:
             vtx.write(0.0)
 
 
@@ -22,15 +22,20 @@ def profile(ne, p, number, petsc_options=None):
     include_mumps_times = petsc_options is not None and \
                           petsc_options.get('pc_factor_mat_solver_type', 'unknown') == 'mumps'
 
-    def extra_parallel_diagnostics(T):
+    def extra_parallel_diagnostics(out):
+        v = out[0]
+        p = out[1]
         diag = dict()
-        diag['ndofs']   = T.function_space.dofmap.index_map.size_local
-        diag['nghosts'] = T.function_space.dofmap.index_map.num_ghosts
+        bs = v.function_space.dofmap.index_map_bs
+        diag['v_ndofs']   = v.function_space.dofmap.index_map.size_local*bs
+        diag['v_nghosts'] = v.function_space.dofmap.index_map.num_ghosts*bs
+        diag['p_ndofs']   = p.function_space.dofmap.index_map.size_local
+        diag['p_nghosts'] = p.function_space.dofmap.index_map.num_ghosts
         return diag
 
     labels = ['Mesh', 'Function spaces', 'Assemble', 'Solve']
     maxts, maxmumpsts, ediag  = profile_local(labels, '', 
-                                        'fenics_sz.background.poisson_2d', 'solve_poisson_2d',
+                                        'fenics_sz.background.batchelor_nest', 'solve_batchelor_nest',
                                             ne, p, number=number, include_mumps_times=include_mumps_times, 
                                             extra_diagnostics_func=extra_parallel_diagnostics,
                                             petsc_options=petsc_options)
@@ -57,13 +62,13 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser( \
                             description="""
-                            Example script using  solve_poisson_2d.  Additional arguments not described below are interpretted as petsc options.
+                            Example script using solve_batchelor_nest.  Additional arguments not described below are interpretted as petsc options.
 
                             For example:
                             
-                            `mpiexec -np 4 python3 poisson_2d.py 256 -p 2 -t 5 -- -ksp_type preonly -pc_type lu -pc_factor_mat_solver_type mumps -mat_mumps_icntl_4 2`
+                            `mpiexec -np 4 python3 batchelor_nest.py 256 -p 1 -t 5 -- -ksp_type preonly -pc_type lu -pc_factor_mat_solver_type mumps -mat_mumps_icntl_4 2`
                             
-                            will time the execution of solve_poisson_2d 5 times on 4 processes with 256*256*2 elements and P2 polynomials with the petsc options (MUMPS LU solver) specified after the -- flag.
+                            will time the execution of solve_batchelor_nest 5 times on 4 processes with 256*256*2 elements and a P2P1 discretization with the petsc options (MUMPS LU solver) specified after the -- flag.
                             """)
     parser.add_argument('ne', metavar='ne', type=int, 
                         help='specifiy the number of elements in each dimension of the mesh')

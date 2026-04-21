@@ -49,6 +49,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 
 # %%
 def solve_benchmark_case1(resscale, petsc_options_s=None, petsc_options_T=None):
+    """Solve benchmark case 1 with resolution scale resscale and petsc options petsc_options_s for the Stokes solver and petsc_options_T for the temperature solver."""
     xs = [0.0, 140.0, 240.0, 400.0]
     ys = [0.0, -70.0, -120.0, -200.0]
     lc_depth = 40
@@ -72,17 +73,18 @@ def solve_benchmark_case1(resscale, petsc_options_s=None, petsc_options_T=None):
     # solve it using a steady state assumption and an isoviscous rheology
     sz.solve(petsc_options_s=petsc_options_s, petsc_options_T=petsc_options_T)
 
-    # evaluate the diagnostics
-    diag = sz.get_diagnostics()
+    return sz
 
-    return diag
+def benchmark_case1_diagnostics(*args, **kwargs):
+    """Return the diagnostics from benchmark case 1 with resolution scale resscale and petsc options petsc_options_s for the Stokes solver and petsc_options_T for the temperature solver."""
+    return solve_benchmark_case1(*args, **kwargs).get_diagnostics()
 
 
 # %% tags=["active-ipynb"]
 # resscales = [4.0, 2.0, 1.0]
 # diagnostics_case1 = []
 # for resscale in resscales:
-#     diagnostics_case1.append((resscale, solve_benchmark_case1(resscale)))
+#     diagnostics_case1.append((resscale, benchmark_case1_diagnostics(resscale)))
 
 # %% tags=["active-ipynb"]
 # print('')
@@ -146,17 +148,18 @@ def solve_benchmark_case2(resscale, petsc_options_s=None, petsc_options_T=None):
     # solve it using a steady state assumption and a dislocation creep rheology
     sz.solve(petsc_options_s=petsc_options_s, petsc_options_T=petsc_options_T)
 
-    # evaluate the diagnostics
-    diag = sz.get_diagnostics()
+    return sz
 
-    return diag
+def benchmark_case2_diagnostics(*args, **kwargs):
+    """Return the diagnostics from benchmark case 2 with resolution scale resscale and petsc options petsc_options_s for the Stokes solver and petsc_options_T for the temperature solver."""
+    return solve_benchmark_case2(*args, **kwargs).get_diagnostics()
 
 
 # %% tags=["active-ipynb"]
 # resscales = [4.0, 2.0, 1.0]
 # diagnostics_case2 = []
 # for resscale in resscales:
-#     diagnostics_case2.append((resscale, solve_benchmark_case2(resscale)))
+#     diagnostics_case2.append((resscale, benchmark_case2_diagnostics(resscale)))
 
 # %% tags=["active-ipynb"]
 # print('')

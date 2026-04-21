@@ -724,7 +724,6 @@ class SubductionProblem(SubductionProblem):
         """
         # work out number of T dofs
         Tndof = self.V_T.dofmap.index_map.size_global * self.V_T.dofmap.index_map_bs
-        if self.comm.rank == 0: print("T_ndof = {:d}".format(Tndof,))
         
         # work out location of spot tempeterature on slab and evaluate T
         xpt = np.asarray(self.geom.slab_spline.intersecty(-100.0)+[0.0])
@@ -734,13 +733,11 @@ class SubductionProblem(SubductionProblem):
         # FIXME: does this really have to be an allgather?
         Tpts = self.comm.allgather(Tpt)
         Tpt = float(next(T for T in Tpts if not np.isnan(T)))
-        if self.comm.rank == 0: print("T_(200,-100) = {:.2f} deg C".format(Tpt,))
 
         # evaluate the length of the slab along which we will take the average T
         slab_diag_sids = tuple([self.geom.wedge_dividers['WedgeFocused']['slab_sid']])
         slab_diag_length = df.fem.assemble_scalar(df.fem.form(df.fem.Constant(self.wedge_submesh, df.default_scalar_type(1.0))*self.wedge_ds(slab_diag_sids)))
         slab_diag_length = self.comm.allreduce(slab_diag_length, op=MPI.SUM)
-        if self.comm.rank == 0: print("slab_diag_length = {:.2f}".format(slab_diag_length,))
         
         # evaluate average T along diagnostic section of slab
         # to avoid having to share facets in parallel we evaluate the slab temperature
@@ -748,23 +745,19 @@ class SubductionProblem(SubductionProblem):
         self.update_T_functions()
         Tslab = self.T0*df.fem.assemble_scalar(df.fem.form(self.wedge_T_i*self.wedge_ds(slab_diag_sids)))
         Tslab = self.comm.allreduce(Tslab, op=MPI.SUM)/slab_diag_length
-        if self.comm.rank == 0: print("T_slab = {:.2f} deg C".format(Tslab,))
         
         # evaluate the area of the wedge in which we will take the average T and vrms
         wedge_diag_rids = tuple([self.geom.wedge_dividers['WedgeFocused']['rid']])
         wedge_diag_area = df.fem.assemble_scalar(df.fem.form(df.fem.Constant(self.mesh, df.default_scalar_type(1.0))*self.dx(wedge_diag_rids)))
         wedge_diag_area = self.comm.allreduce(wedge_diag_area, op=MPI.SUM)
-        if self.comm.rank == 0: print("wedge_diag_area = {:.2f}".format(wedge_diag_area,))
 
         # evaluate average T in wedge diagnostic region
         Twedge = self.T0*df.fem.assemble_scalar(df.fem.form(self.T_i*self.dx(wedge_diag_rids)))
         Twedge = self.comm.allreduce(Twedge, op=MPI.SUM)/wedge_diag_area
-        if self.comm.rank == 0: print("T_wedge = {:.2f} deg C".format(Twedge,))
 
         # evaluate average vrms in wedge diagnostic region
         vrmswedge = df.fem.assemble_scalar(df.fem.form(ufl.inner(self.vw_i, self.vw_i)*self.dx(wedge_diag_rids)))
         vrmswedge = ((self.comm.allreduce(vrmswedge, op=MPI.SUM)/wedge_diag_area)**0.5)*fenics_sz.utils.mps_to_mmpyr(self.v0)
-        if self.comm.rank == 0: print("V_rms,w = {:.2f} mm/yr".format(vrmswedge,))
 
         # return results
         return {'T_ndof': Tndof, 'T_{200,-100}': Tpt, 'Tbar_s': Tslab, 'Tbar_w': Twedge, 'Vrmsw': vrmswedge}

@@ -11,6 +11,7 @@ usage() {
     echo "  -h: print this help message and exit" 1>&2
     echo "  -t: specify a tag name (defaults to latest)" 1>&2
     echo "  -p: comma separated list of platforms (defaults to current platform)" 1>&2
+    echo "  -f: force a rebuild (i.e. use --no-cache)" 1>&2
 }
 
 error() {
@@ -29,8 +30,10 @@ script_path=$(dirname $full_path)
 # parse the arguments
 TAG=''
 PLATFORMS=''
+BUILDER=''
+FORCE=''
 
-while getopts ":t:p:h" opt; do
+while getopts ":t:p:fh" opt; do
     case $opt in
         h )
            usage
@@ -42,6 +45,9 @@ while getopts ":t:p:h" opt; do
         p )
            PLATFORMS="--platform ${OPTARG}"
            ;;
+        f )
+            FORCE='--no-cache'
+            ;;
         : )
            echo "ERROR: -${OPTARG} requires an argument." 1>&2
            error
@@ -63,6 +69,9 @@ if [ -z "$PLATFORMS" ]; then
     elif [ "$PROC" == "arm64" ]; then
         PTAG="arm64"
     fi
+    PLATFORMS='--provenance false'
+else
+    BUILDER='buildx'
 fi
 
 # if no tag is specified default to latest
@@ -81,6 +90,6 @@ if [ "$PLATFORMS" ]; then
 fi
 
 cd $script_path
-docker buildx build --file Dockerfile \
-                    --tag ghcr.io/cianwilson/fenics-sz:$TAG $PLATFORMS --push .
+docker $BUILDER build $FORCE --file Dockerfile \
+                      --tag ghcr.io/cianwilson/fenics-sz:$TAG $PLATFORMS --push .
 

@@ -70,10 +70,10 @@ output_folder.mkdir(exist_ok=True, parents=True)
 
 # %% tags=["active-ipynb"]
 # # the list of the number of processors we will use
-# nprocs_scale = [1, 2, 3, 4, 6, 8]
+# nprocs_scale = [1, 2, 4]
 #
 # # the number of elements in each direction (total elements = 2*ne*ne)
-# ne = 256
+# ne = 128
 #
 # # the polynomial degree of our pressure field
 # p = 1

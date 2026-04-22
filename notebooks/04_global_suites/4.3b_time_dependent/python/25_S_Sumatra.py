@@ -174,7 +174,7 @@ filename = output_folder / "{}_td_solution_resscale_{:.2f}_cfl_{:.2f}.bp".format
 with df.io.VTXWriter(sz.mesh.comm, filename, [sz.T_i, sz.vs_i, sz.vw_i]) as vtx:
     vtx.write(0.0)
 # zip the .bp folder so that it can be downloaded from jupyter lab
-shutil.make_archive(str(filename), 'zip', str(filename))
+if my_rank == 0: shutil.make_archive(str(filename), 'zip', root_dir=str(filename.parent), base_dir=str(filename.name))
 
 # %% [markdown]
 # ## Comparison

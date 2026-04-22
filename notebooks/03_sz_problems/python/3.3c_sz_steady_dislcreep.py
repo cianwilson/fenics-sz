@@ -294,7 +294,7 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
 # with df.io.VTXWriter(sz_case2.mesh.comm, filename, [sz_case2.T_i, sz_case2.vs_i, sz_case2.vw_i]) as vtx:
 #     vtx.write(0.0)
 # # zip the .bp folder so that it can be downloaded from jupyter lab
-# shutil.make_archive(str(filename), 'zip', str(filename))
+# shutil.make_archive(str(filename), 'zip', root_dir=str(filename.parent), base_dir=str(filename.name))
 
 # %% [markdown]
 # We can also now project and visualize the dislocation-creep viscosity (note that we are using a log scale) to see the cause of the flow restriction in this case.

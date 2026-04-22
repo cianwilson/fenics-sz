@@ -190,7 +190,7 @@ class SteadyIsoSubductionProblem(SteadySubductionProblem):
 # with df.io.VTXWriter(sz_case1.mesh.comm, filename, [sz_case1.T_i, sz_case1.vs_i, sz_case1.vw_i]) as vtx:
 #     vtx.write(0.0)
 # # zip the .bp folder so that it can be downloaded from jupyter lab
-# shutil.make_archive(str(filename), 'zip', str(filename))
+# shutil.make_archive(str(filename), 'zip', root_dir=str(filename.parent), base_dir=str(filename.name))
 
 # %% [markdown]
 # It's also common to want to interogate the temperature at various points in the domain or along the slab.  Here we provide an example function for doing that that plots the slab temperature along the slab surface and along the slab Moho at 7km depth (into the slab).

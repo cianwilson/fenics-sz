@@ -34,7 +34,7 @@
 # %% [markdown]
 # ## Python Modules
 #
-# To allow inline development of python classes and subsequent usage in both jupyter notebooks and python scripts we use `jupytext` to automatically convert notebooks into python modules whenever the notebooks are saved.
+# To allow inline development of python classes and subsequent usage in both jupyter notebooks and python scripts we use [jupytext](https://jupytext.readthedocs.io/en/latest/) to automatically convert notebooks into python modules whenever the notebooks are saved.  Cells in the notebooks that should not be run in the modules should be marked with an `active-ipynb` tag (see [the jupytext documentation](https://jupytext.readthedocs.io/en/latest/advanced-options.html#active-and-inactive-cells)) to indicate that they should only be run in the notebook version.
 #
 # Python modules necessary for `fenics_sz` are linked to the `python` directory of the repository in a directory tree that mirrors the structure of the notebooks described above.  A few module files are not generated from the notebooks and exist outside of this structure (e.g. `python/fenics_sz/utils`).  All modules are imported in place by the notebooks to avoid requiring an installation step when editing the notebooks.
 #

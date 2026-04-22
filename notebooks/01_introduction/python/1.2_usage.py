@@ -15,9 +15,10 @@
 # %% [markdown]
 # # Usage
 #
-# There are two ways to use FEniCS-SZ:
+# There are three ways to use FEniCS-SZ:
 #  1. non-interactively by reading the FEniCS-SZ **website**
 #  2. interactively in a web browser from any **jupyter** server with the appropriate software packages installed
+#  3. as a python module in python **scripts**
 
 # %% [markdown]
 # ## 1. Website
@@ -214,4 +215,31 @@ import dolfinx
 print(f"DOLFINx version: {dolfinx.__version__} based on GIT commit: {dolfinx.git_commit_hash} of https://github.com/FEniCS/dolfinx/")
 
 # %% [markdown]
+# ## 3. Scripts
 #
+# FEniCS-SZ is intended to be used through jupyter notebooks however the python modules developed in those notebooks are also installable as a `fenics_sz` python package.  This can then be used in standalone python scripts.  
+#
+# Install the `fenics_sz` package using
+# ```bash
+#   cd python
+#   pip install -e .
+# ```
+# where we recommend installing in editable mode using the `-e` flag above so that changes to the notebooks immediately reflect in the installed package.
+#
+# Several example python scripts are available in subdirectories of the `scripts` directory and can be run using, e.g.
+# ```bash
+#   cd scripts/background
+#   python3 poisson_2d.py 128 -o poisson_2d_128.bp
+# ```
+# or in parallel using, e.g.
+# ```bash
+#   cd scripts/background
+#   mpiexec -np 2 python3 poisson_2d.py 128 -o poisson_2d_128.bp
+# ```
+# Documentation about the parameters each script is available using, e.g.
+# ```bash
+#   cd scripts/background
+#   python3 poisson_2d.py -h
+# ```
+#
+# The `scripts` directory only contains examples of how to use the `fenics_sz` package.  It does not include any functionality not already available through the notebooks.

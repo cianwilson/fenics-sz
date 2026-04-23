@@ -34,16 +34,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Restore the cache, either from this branch or, as a backup, use the base branch
-      # We don't use the cache on pushes or deployment calls to the release branch
-      - name: Restore cache
-        id: cache-restore
-        uses: actions/cache/restore@v5
-        if: env.BASE_NAME != 'release' || github.event_name == 'pull_request'
-        with:
-          path: _build/.jupyter_cache
-          key: jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
-          restore-keys: jupyter-book-cache-${{ env.BASE_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
+      # # Restore the cache, either from this branch or, as a backup, use the base branch
+      # # We don't use the cache on pushes or deployment calls to the release branch
+      # - name: Restore cache
+      #   id: cache-restore
+      #   uses: actions/cache/restore@v5
+      #   if: env.BASE_NAME != 'release' || github.event_name == 'pull_request'
+      #   with:
+      #     path: _build/.jupyter_cache
+      #     key: jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
+      #     restore-keys: jupyter-book-cache-${{ env.BASE_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
 
       # Build the book
       - name: Build the book
@@ -58,26 +58,26 @@ jobs:
           retention-days: 2
           if-no-files-found: error
 
-      # Delete the previous cache so we can upload a new one
-      # This is currently unsupported by the cache action so we have to
-      # do it using the gh command
-      # Based on https://github.com/azu/github-actions-overwrite-cache-example
-      - name: Delete previous cache
-        if: env.BASE_NAME != 'release' || github.event_name == 'pull_request'
-        continue-on-error: true
-        run: |
-          git config --global --add safe.directory /__w/fenics-sz/fenics-sz
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }} --confirm
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # this isn't publicly visible
+      # # Delete the previous cache so we can upload a new one
+      # # This is currently unsupported by the cache action so we have to
+      # # do it using the gh command
+      # # Based on https://github.com/azu/github-actions-overwrite-cache-example
+      # - name: Delete previous cache
+      #   if: env.BASE_NAME != 'release' || github.event_name == 'pull_request'
+      #   continue-on-error: true
+      #   run: |
+      #     git config --global --add safe.directory /__w/fenics-sz/fenics-sz
+      #     gh extension install actions/gh-actions-cache
+      #     gh actions-cache delete jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }} --confirm
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # this isn't publicly visible
 
-      # Save our cache
-      - name: Save cache
-        uses: actions/cache/save@v5
-        if: env.BASE_NAME != 'release' || github.event_name == 'pull_request'
-        continue-on-error: true
-        with:
-          path: _build/.jupyter_cache
-          key: jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
+      # # Save our cache
+      # - name: Save cache
+      #   uses: actions/cache/save@v5
+      #   if: env.BASE_NAME != 'release' || github.event_name == 'pull_request'
+      #   continue-on-error: true
+      #   with:
+      #     path: _build/.jupyter_cache
+      #     key: jupyter-book-cache-${{ env.HEAD_NAME }}-${{ hashFiles('notebooks/03_sz_problems/3.2a_sz_base.ipynb', 'notebooks/03_sz_problems/3.1c_sz_slab.ipynb', 'notebooks/03_sz_problems/3.1d_sz_geometry.ipynb', 'notebooks/03_sz_problems/3.1e_sz_problem.ipynb', 'python/geometry.py', 'python/utils/plot.py', 'python/utils/mesh.py', 'python/utils/ipp.py', 'python/utils/__init__.py') }}
 

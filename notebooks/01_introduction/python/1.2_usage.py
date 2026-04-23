@@ -156,21 +156,15 @@
 # Aside from using the recommended method through docker, [conda](https://docs.conda.io) provides the easiest way of installing the necessary software packages.  Below we provide some guidance on setting up a conda environment for running the notebooks.
 #
 # ```{admonition} Xvfb
-# Note that we use [pyvista](https://docs.pyvista.org/) for plotting and, on linux machines, this requires [Xvfb](https://x.org/releases/X11R7.7/doc/man/man1/Xvfb.1.xhtml) to be installed on the system.
+# Note that we use [pyvista](https://docs.pyvista.org/) for plotting and, on linux machines, this requires [Xvfb](https://x.org/releases/X11R7.7/doc/man/man1/Xvfb.1.xhtml) to be installed on the system independently of the instructions below.
 # ```
 #
-# Assuming a working [conda installation](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html), we provide a `conda/requirements.txt` file that can be used to install a conda environment matching the docker installation
+# Assuming a working [conda installation](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html), we provide a `conda/environment.yml` file that can be used to install a conda environment that matches the docker installation as closely as possible
 # ```bash
-#   conda create -n fenics-sz python=3.12.3 -c conda-forge --file conda/requirements.txt
+#   conda env create -f conda/environment.yml
 # ```
 # This can then be activated using
 # ```bash
-#   conda activate fenics-sz
-# ```
-# We recommend disabling threading by setting (only required once per environment)
-# ```bash
-#   conda env config vars set OMP_NUM_THREADS=1
-#   conda deactivate fenics-sz
 #   conda activate fenics-sz
 # ```
 # before starting jupyter lab with
@@ -178,18 +172,6 @@
 #   jupyter lab
 # ```
 # which will display a URL to copy and paste to the web browser (as above) if it doesn't automatically open.
-#
-# `conda/requirements.txt` contains the strictest list of version requirements to match the docker installation.  This sometimes causes conda to fail to resolve package dependencies so we provide an alternative `conda/requirements_min.txt` file that contains less stringent version restrictions and can be installed and started using
-# ```bash
-#   conda create -n fenics-sz-min python=3.12.3 -c conda-forge --file conda/requirements_min.txt
-#   conda activate fenics-sz-min
-#   conda env config vars set OMP_NUM_THREADS=1
-#   conda deactivate fenics-sz
-#   conda activate fenics-sz
-#   jupyter lab
-# ```
-# Note that as this doesn't guarantee the same software versions as used in our docker environment, some changes may occur between the published website output and the output produced using this conda environment.
-#
 #
 # If this method works and provides sufficient access to the repository and its notebooks then there's no need to read any further!  The instructions immediately after this refer to installing the dependencies of FEniCS-SZ from source.
 

@@ -24,12 +24,15 @@ jobs:
   run-tests:
     uses: ./.github/workflows/test_stable.yml
 
+  run-tests-conda:
+    uses: ./.github/workflows/test_stable_conda.yml
+
   build-book:
     uses: ./.github/workflows/book_stable.yml
 
   deploy:
     runs-on: ubuntu-22.04
-    needs: [test-docker-build, build-book, run-tests]
+    needs: [test-docker-build, build-book, run-tests, run-tests-conda]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -31,8 +31,8 @@ RUN python3 -m pip install -U setuptools pip pkgconfig
 #     python3 setup.py bdist_wheela
 
 RUN echo ${TARGETPLATFORM}
-RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then python3 -m pip install "https://github.com/finsberg/vtk-aarch64/releases/download/vtk-9.3.0-cp312/vtk-9.3.0.dev0-cp312-cp312-linux_aarch64.whl"; fi
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install vtk==9.3.0; fi
+RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then python3 -m pip install --no-cache-dir "https://github.com/scientificcomputing/vtk-aarch64/releases/download/v9.4.2-py3.12-more-flags/vtk-9.4.2-cp312-cp312-linux_aarch64.whl"; pip install --no-cache-dir pyvista[trame]==0.47.3; fi
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install --no-cache-dir vtk==9.4.2; pip install --no-cache-dir pyvista[trame]==0.47.3; fi
 
 ADD requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation -v -r requirements.txt && \

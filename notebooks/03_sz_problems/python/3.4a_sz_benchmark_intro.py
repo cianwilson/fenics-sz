@@ -1,0 +1,87 @@
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.19.1
+#   kernelspec:
+#     display_name: Python 3
+#     language: python
+#     name: python3
+# ---
+
+# %% [markdown]
+# # Subduction Zone Benchmark
+
+# %% [markdown]
+# ## A Revised Benchmark
+#
+# The community subduction zone benchmark [van Keken et al, 2008](http://dx.doi.org/10.1016/j.pepi.2008.04.015) provides a set of simplified models well suited to test the accuracy of the solution of the governing equations that are relevant for subduction zones. Unfortunately, the model geometry and assumptions that were chosen at the time are such that they introduce a few artifacts that do not occur, as best as we know, in any subduction zone on Earth. These artifacts include a slab that dips at a constant angle of 45$^\circ$ to 600 km depth, an overriding plate that excludes continental heat production,  and imposes slab-wedge coupling at 50 km rather than at 75-80 km depth.  The lack of crustal heating and the large width of the model, combined with the assumption of steady state, lead in the cases with temperature-dependent rheology to a very thick top boundary layer. This is caused by the cooling in the lithosphere, which results in a gradual thickening of the overriding lid in regions of the model that are far away from the arc-side boundary condition. While this is less of a problem in time-dependent problems (where time may not be sufficient for significant growth of the boundary layer), it shows up dramatically as a "viscous belly" in steady-state cases when the model domain is large. In time-dependent models it can show up if integration time is very long compared to the typical age of subduction zones.  The models in [Syracuse et al., 2010](http://dx.doi.org/10.1016/j.pepi.2010.02.004) avoided this issue by using time integration to 
+# only $\sim20-40$ Myr.  The models in [Wada & Wang, 2009](http://dx.doi.org/10.1029/2009GC002570) avoided it using steady-state models in a domain that is both narrower and shallower.
+#
+#
+# To mitigate the artifacts of the previous benchmark [Wilson & van Keken, 2023](http://dx.doi.org/10.1186/s40645-023-00588-6) proposed a new benchmark model. Modifications include a more shallowly dipping slab that only extends to a depth of 200 km, the incorporation of radiogenic heating in the overriding crust and a deeper slab-wedge coupling point. The geometry is still highly simplified:
+# ![Figure 1a of Wilson & van Keken, 2023](images/benchmarkgeometry.png)
+# with a constant slab dip 
+# $\Delta=\tan^{-1}(1/2)=26.56505^\circ$ with respect to the horizontal.
+# The maximum depth $D=200$ defines $L=400$. 
+# The benchmark assumes ocean-continent subduction with heat production in a two-layer crust with crustal density and thermal conductivity ($\rho_c$ and $k_c$ respectively) distinct from the mantle ($\rho_m$ and $k_m$) and a backarc boundary condition on temperature. 
+# Upper and lower crustal depths, $z_1$ and $z_2$, are chosen as 15 and 40 respectively. 
+# $z_\text{io}$ depends on wedge geometry and rheology and is therefore variable between models, though as long as $z_\text{io}$ is larger than the depth where the actual switch between inflow and outflow occurs nearly identical solutions can be obtained.
+#
+# We will use the case-specific parameters given by [Wilson & van Keken, 2023](http://dx.doi.org/10.1186/s40645-023-00588-6) 
+#
+# | case | type | $\eta$ | $q_s^*$   | $A^*$ | $z_2$ | $z_\text{io}$ | $z_\text{trench}$ | $x_\text{coast}$ | $D$ | $L$ | $V_s^*$ |
+# | ---- | ---- | ------ | --------- | ----- | ----- | ------------- | ----------------- | ---------------- | --- | --- | ------- |
+# |      |      |        | (W/m$^2$) | (Myr) |       |               |                   |                  |     |     | (mm/yr) |
+# | 1    | continental    | 1      | 0.065     | 100   | 40    | 139           | 0                 | 0                | 200 | 400 | 100     |
+# | 2    | continental    | $\eta_\text{disl}$ | 0.065 | 100 | 40 | 154        | 0                 | 0                | 200 | 400 | 100     |
+#
+# Using these parameters and [TerraFERMA](https://terraferma.github.io) [Wilson & van Keken, 2023](http://dx.doi.org/10.1186/s40645-023-00588-6) reported the following values for case 1
+#
+# | `resscale` | $T_{\text{ndof}} $ | $T_{(200,-100)}^*$ | $\overline{T}_s^*$ | $ \overline{T}_w^* $ |  $V_{\text{rms},w}^*$ |
+# | - | - | - | - | - | - |
+# | 2.0 | 21403  | 517.17 | 451.83 | 926.62 | 34.64 |
+# | 1.0 | 83935  | 516.95 | 451.71 | 926.33 | 34.64 |
+# | 0.5 | 332307 | 516.86 | 451.63 | 926.15 | 34.64 |
+#
+# and case 2
+#
+# | `resscale` | $T_{\text{ndof}} $ | $T_{(200,-100)}^*$ | $\overline{T}_s^*$ | $ \overline{T}_w^* $ |  $V_{\text{rms},w}^*$ |
+# | - | - | - | - | - | - |
+# | 2.0 | 21403  | 683.05 | 571.58 | 936.65 | 40.89 |
+# | 1.0 | 83935 | 682.87 | 572.23 | 936.11 | 40.78 |
+# | 0.5 | 332307 | 682.80 | 572.05 | 937.37 | 40.77 |
+#
+# where $T_{\text{ndof}}$ is the number of temperature degrees of freedom,
+# \begin{equation}
+#     T_{(200,-100)}^* ~=~ T_0 T(x=200,y=-100)
+# \end{equation}
+# is the dimensional slab temperature at 100 km depth,
+# \begin{equation}
+#     \overline{T}_s^* ~=~ T_0 \frac{\int_{s_1}^{s_2} T ds}{\int_{s_1}^{s_2} ds}
+# \end{equation}
+# is the average integrated dimensional temperature $\overline{T}_s^*$ along the slab surface between 
+# depths $z_{s,1}=70$ and $z_{s,2}=120$ and $s$ is distance along the slab top from the trench,
+# ($s_1 = \sqrt{5z_{s,1}^2}=156.5248$ and $s_2 = \sqrt{5z_{s,2}^2}=268.32816$ in the benchmarks),
+# \begin{equation}
+#     \overline{T}_w^* ~=~ T_0 \frac{\int_{x=140}^{x=240}\int_{z=z_2}^{z=z_\text{slab}(x)} \tilde{T} dz dx}{\int_{x=140}^{x=240}\int_{z=z_2}^{z=z_\text{slab}(x)} dz dx}
+# \end{equation}
+# is the volume-averaged dimensional temperature $\overline{T}_w^*$ in the mantle wedge corner below the Moho, 
+# $z = z_2$, and above where the slab surface, $z = z_\text{slab}(x)$, between 
+# $z_{s,1}$ and $z_{s,2}$ as defined above (where $z_\text{slab}(x) = x/2$ in the benchmarks),
+# \begin{equation}
+#     V_{\text{rms},w}^*~=~ v_0 
+#     \sqrt{ 
+#      \frac {\int_{x=140}^{x=240}\int_{z=z_2}^{z=z_\text{slab}} \left( \tilde{\vec{v}}\cdot\tilde{\vec{v}} \right) dzdx}
+#             {\int_{x=140}^{x=240}\int_{z=z_2}^{z=z_\text{slab}(x)} dz dx}
+#     }.
+# \end{equation}
+# is the root-mean-squared averaged dimensional velocity $V_{\text{rms},w}^*$ in the same volume as the third metric.  These functionals were already implemented in `SubductionProblem.get_diagnostics` in [`notebooks/03_sz_problems/3.2e_sz_problem.ipynb`](./3.2e_sz_problem.ipynb).
+#
+# In the [next notebook](./3.4b_sz_benchmark.ipynb) we will use these values to formally test the errors in our implementation.
+
+# %% [markdown]
+#

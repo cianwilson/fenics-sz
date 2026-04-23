@@ -4,9 +4,9 @@ h5py==3.13.0
 pandas==2.2.3
 tqdm==4.67.1
 ipdb==0.13.13
-ipylab==1.0.0
+ipylab==1.1.0
 ipywidgets==8.1.8
-ipyparallel==9.0.1
+ipyparallel==9.1.0
 pygmt==0.15.0
 wurlitzer==3.1.1
 jupytext==1.19.1

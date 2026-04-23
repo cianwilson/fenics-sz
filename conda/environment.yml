@@ -11,7 +11,7 @@ dependencies:
   - pip:
     - --no-binary=h5py
     - jupyterlab==4.2.5
-    - pyvista==0.44.1
+    - pyvista==0.47.3
     - scipy==1.14.1
     - gmsh==4.13.1
     - -r requirements.txt

@@ -1,4 +1,4 @@
-FROM ghcr.io/cianwilson/fenics-sz:test-packaging
+FROM ghcr.io/cianwilson/fenics-sz:release
 
 # create user with a home directory
 ARG NB_USER=jovyan

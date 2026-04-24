@@ -17,7 +17,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: ghcr.io/cianwilson/fenics-sz:test-packaging
+    container: ghcr.io/cianwilson/fenics-sz:release
     env:
       PYVISTA_OFF_SCREEN: true
 

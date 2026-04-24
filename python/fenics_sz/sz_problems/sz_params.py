@@ -1,0 +1,1 @@
+../../../notebooks/03_sz_problems/python/3.2a_sz_params.py

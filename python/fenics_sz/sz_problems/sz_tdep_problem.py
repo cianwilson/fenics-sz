@@ -1,0 +1,1 @@
+../../../notebooks/03_sz_problems/python/3.5a_sz_tdep_problem.py

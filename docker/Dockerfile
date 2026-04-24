@@ -14,11 +14,11 @@ WORKDIR /tmp/
 # Requirements for pyvista (gl1 and render1) and jupyterlab (nodejs and curl)
 RUN apt-get update && \
     apt-get install -y libgl1-mesa-dev libxrender1 xvfb curl vim ack zip gh gmt libgmt-dev ghostscript && \
-    curl -sL https://deb.nodesource.com/setup_18.x -o nodesource_setup.sh && \
-    bash nodesource_setup.sh && \
-    apt install nodejs && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    # curl -sL https://deb.nodesource.com/setup_18.x -o nodesource_setup.sh && \
+    # bash nodesource_setup.sh && \
+    # apt install nodejs && \
 
 # Upgrade setuptools and pip
 RUN python3 -m pip install -U setuptools pip pkgconfig
@@ -31,10 +31,10 @@ RUN python3 -m pip install -U setuptools pip pkgconfig
 #     python3 setup.py bdist_wheela
 
 RUN echo ${TARGETPLATFORM}
-RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then python3 -m pip install "https://github.com/finsberg/vtk-aarch64/releases/download/vtk-9.3.0-cp312/vtk-9.3.0.dev0-cp312-cp312-linux_aarch64.whl"; fi
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install vtk; fi
+RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then python3 -m pip install --no-cache-dir "https://github.com/scientificcomputing/vtk-aarch64/releases/download/v9.4.2-py3.12-more-flags/vtk-9.4.2-cp312-cp312-linux_aarch64.whl"; pip install --no-cache-dir pyvista[trame]==0.47.3; fi
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install --no-cache-dir vtk==9.4.2; pip install --no-cache-dir pyvista[trame]==0.47.3; fi
 
-ADD pyproject.toml /tmp/pyproject.toml
-RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation -v .
-RUN python3 -m pip cache purge
+ADD requirements.txt /tmp/requirements.txt
+RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation -v -r requirements.txt && \
+    python3 -m pip cache purge
 ENTRYPOINT ["jupyter", "lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root"]

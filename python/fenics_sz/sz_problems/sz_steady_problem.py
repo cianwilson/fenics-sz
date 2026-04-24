@@ -1,0 +1,1 @@
+../../../notebooks/03_sz_problems/python/3.3a_sz_steady_problem.py

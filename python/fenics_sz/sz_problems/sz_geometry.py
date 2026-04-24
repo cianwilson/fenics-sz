@@ -1,0 +1,1 @@
+../../../notebooks/03_sz_problems/python/3.2c_sz_geometry.py

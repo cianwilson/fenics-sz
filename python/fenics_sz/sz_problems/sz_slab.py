@@ -1,0 +1,1 @@
+../../../notebooks/03_sz_problems/python/3.2b_sz_slab.py

@@ -1,0 +1,19 @@
+name: fenics-sz
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12.3
+  - pip
+  - fenics-dolfinx==0.9.0
+  - mpich==4.3.0
+  - vtk==9.4.2
+  - pip:
+    - --no-binary=h5py
+    - jupyterlab==4.2.5
+    - pyvista==0.47.3
+    - scipy==1.14.1
+    - gmsh==4.13.1
+    - -r requirements.txt
+variables:
+  OMP_NUM_THREADS: '1'

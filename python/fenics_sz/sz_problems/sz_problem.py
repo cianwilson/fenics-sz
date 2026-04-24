@@ -1,0 +1,1 @@
+../../../notebooks/03_sz_problems/python/3.2e_sz_problem.py

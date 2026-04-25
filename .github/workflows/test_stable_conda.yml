@@ -21,7 +21,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
-    
+
     defaults:
       run:
         shell: bash -el {0}
@@ -32,6 +32,11 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install apt dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt update && sudo apt install -y xvfb
 
       - uses: conda-incubator/setup-miniconda@v4
         with:
@@ -44,11 +49,15 @@ jobs:
       - run: |
           conda info
           conda list
-
+      
       - name: Initialize
         run: |
             git config --global --add safe.directory "$GITHUB_WORKSPACE"
-            python3 -c "from pyvista import start_xvfb; start_xvfb(0.1)"
+            python3 -c "from pyvista import start_xvfb;
+            try:
+              start_xvfb(0.1)
+            except:
+              pass"
 
       - name: Check scripts are up to date
         working-directory: notebooks

@@ -10,6 +10,7 @@ dependencies:
   - vtk==9.4.2
   - h5py==3.13.0
   - gmsh==4.13.1
+  - python-gmsh==4.13.1
   - pip:
     - jupyterlab==4.2.5
     - pyvista==0.47.3

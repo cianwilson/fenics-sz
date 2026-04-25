@@ -36,6 +36,10 @@ jobs:
           channel-priority: strict
           auto-update-conda: true
           miniconda-version: "latest"
+      
+      - run: |
+          conda info
+          conda list
 
       - name: Initialize
         run: |

@@ -36,7 +36,6 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then python3 -m pip install --no-c
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install --no-cache-dir vtk==9.4.2; pip install --no-cache-dir pyvista[trame]==0.47.3; fi
 
 ADD requirements.txt /tmp/requirements.txt
-RUN python3 -m pip install --no-cache-dir --no-binary=h5py -v h5py==3.13.0 && \
-    python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation -v -r requirements.txt && \
+RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation -v h5py==3.13.0 -r requirements.txt && \
     python3 -m pip cache purge
 ENTRYPOINT ["jupyter", "lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root"]

@@ -1,4 +1,4 @@
-name: Test stable release
+name: Test stable release (docker)
 
 on:
   workflow_dispatch:

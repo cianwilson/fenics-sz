@@ -28,10 +28,10 @@
 # Cells without the `%%px` magic will run locally and will not have access to anything loaded on the parallel engine.
 # ```
 
-# %%
-import ipyparallel as ipp
-nprocs = 2
-rc = ipp.Cluster(engine_launcher_class="mpi", n=nprocs).start_and_connect_sync()
+# %% tags=["active-ipynb"]
+# import ipyparallel as ipp
+# nprocs = 2
+# rc = ipp.Cluster(engine_launcher_class="mpi", n=nprocs).start_and_connect_sync()
 
 # %% [markdown]
 # Set some path information.
@@ -101,9 +101,9 @@ if my_rank == 0:
 #
 # Several additional parameters can be modified, for details see the documentation for the `TDDislSubductionProblem` class.
 
-# %%
+# %% tags=["active-ipynb"]
 # %%px
-if my_rank == 0: help(TDDislSubductionProblem.__init__)
+# if my_rank == 0: help(TDDislSubductionProblem.__init__)
 
 # %% [markdown]
 # ### Setup
@@ -247,4 +247,10 @@ error = comm.allreduce(integrated_data['T'][0], op=MPI.SUM)/totalarea
 if my_rank == 0: print("Average error = {}".format(error,))
 assert np.abs(error) < 5
 
-# %%
+# %% [markdown]
+# ## Shutdown
+#
+# Shutdown the `ipyparallel` cluster engine.  Running the cell below will prevent earlier cells (with `%%px` as the first line) from being re-run.
+
+# %% tags=["active-ipynb"]
+# rc.shutdown()

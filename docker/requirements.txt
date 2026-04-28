@@ -1,6 +1,5 @@
 jupyter-book==1.0.4.post1
 meshio==5.3.5
-h5py==3.13.0
 pandas==2.2.3
 tqdm==4.67.1
 ipdb==0.13.13

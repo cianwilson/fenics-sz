@@ -32,7 +32,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-22.04
-    needs: [test-docker-build, build-book, run-tests]
+    needs: [test-docker-build, build-book, run-tests-docker, run-tests-conda]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -54,7 +54,7 @@
 # ```
 #
 # ```{admonition} Computational Costs
-# Binder limits the amount of computational resources available.  High resolution and parallel simulations are therefore often not be feasible online and may result in the jupyter kernel crashing.  If this happens please explore the options below for running FEniCS-SZ locally.
+# Binder limits the amount of computational resources available.  High resolution and parallel simulations will therefore often not be feasible online and may result in the jupyter kernel crashing.  If this happens please explore the options below for running FEniCS-SZ locally.
 # ```
 #
 # If this method works and provides sufficient computational resources to explore the notebooks then there's no need to read any further!  The instructions after this refer to running FEniCS-SZ on a local machine rather than online.

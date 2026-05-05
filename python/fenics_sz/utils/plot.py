@@ -360,7 +360,7 @@ def plot_vector(vector, scale=1.0, plotter=None, gather=False, **pv_kwargs):
 
     return plotter
 
-def plot_vector_glyphs(vector, factor=1.0, scale=1.0, plotter=None, gather=False, **pv_kwargs):
+def plot_vector_glyphs(vector, factor=1.0, scale=1.0, plotter=None, gather=False, tolerance=None, **pv_kwargs):
     """
     Plot dolfinx vector Function as glyphs using pyvista.
 
@@ -372,6 +372,7 @@ def plot_vector_glyphs(vector, factor=1.0, scale=1.0, plotter=None, gather=False
       * scale       - a scalar scale factor that the values are multipled by (default=1.0)
       * plotter     - a pyvista plotter, one will be created if none supplied (default=None)
       * gather      - gather plot to rank 0 (default=False)
+      * tolerance   - tolerance for pyvista glyph selection (default=None)
       * **pv_kwargs - kwargs for adding the mesh to the plotter
     """
 
@@ -393,7 +394,7 @@ def plot_vector_glyphs(vector, factor=1.0, scale=1.0, plotter=None, gather=False
     for r, grid in enumerate(grids):
         grid[vector.name] = values_g[r]
         geom = pv.Arrow()
-        glyphs_g.append(grid.glyph(orient=vector.name, factor=factor, geom=geom))
+        glyphs_g.append(grid.glyph(orient=vector.name, factor=factor, geom=geom, tolerance=tolerance))
     
     if len(grids) > 0 and plotter is None: plotter = pv.Plotter()
 
@@ -442,6 +443,17 @@ def plot_save(plotter, filename, **pv_kwargs):
     """
     if plotter is not None:
         figure = plotter.screenshot(filename, **pv_kwargs)
+
+def plot_save_graphic(plotter, filename, **pv_kwargs):
+    """
+    Save graphic of a pyvista plotter.
+
+    Arguments:
+      * plotter  - the pyvista plotter
+      * filename - filename to save image to
+    """
+    if plotter is not None:
+        figure = plotter.save_graphic(filename, **pv_kwargs)
 
 class PVGridProbe:
     """

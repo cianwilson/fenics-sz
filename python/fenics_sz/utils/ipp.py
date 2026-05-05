@@ -120,7 +120,7 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, in
         if extra_diagnostics_func is not None:
             tmp_extra_diagnostics = extra_diagnostics_func(output)
             for k, v in tmp_extra_diagnostics.items():
-                extra_diagnostics[k] = extra_diagnostics.get(k, 0.0) + v
+                extra_diagnostics[k] = extra_diagnostics.get(k, 0.0) + v if v is not None else None
         stdout.close()
 
 
@@ -141,10 +141,10 @@ def profile_local(labels, path, module_name, func_name, *func_args, number=1, in
     # extract extract diagnostics
     if extra_diagnostics_func is not None:
         for k, v in extra_diagnostics.items():
-            vals_to_max.append(v/number)
-            vals_to_min.append(v/number)
-            vals_to_sum.append(v/number)
-            
+            vals_to_max.append(v/number if v is not None else np.finfo(np.float64).min)
+            vals_to_min.append(v/number if v is not None else np.finfo(np.float64).max)
+            vals_to_sum.append(v/number if v is not None else 0.0)
+
     vals_to_max = np.array(vals_to_max)
     vals_to_min = np.array(vals_to_min)
     vals_to_sum = np.array(vals_to_sum)

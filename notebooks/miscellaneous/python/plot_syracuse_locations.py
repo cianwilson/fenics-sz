@@ -46,5 +46,6 @@ for c, i in enumerate([val for pair in zip(list(range(0, 28)), list(range(28, 56
 fig.legend(position="JMC+jMC+o12.5/0+w60")
 fig.show()
 fig.savefig(output_folder / "syracuselocations.png")
+fig.savefig(output_folder / "syracuselocations.pdf")
 
 # %%

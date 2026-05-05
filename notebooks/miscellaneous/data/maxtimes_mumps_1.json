@@ -1,0 +1,66 @@
+{
+    "Direct Stokes": [
+        {
+            "MUMPS analysis": 5.862679999999999,
+            "MUMPS factorization": 4.22281,
+            "MUMPS solve": 0.32555999999999996
+        },
+        {
+            "MUMPS analysis": 4.05873,
+            "MUMPS factorization": 3.09371,
+            "MUMPS solve": 0.22451000000000004
+        },
+        {
+            "MUMPS analysis": 4.264679999999999,
+            "MUMPS factorization": 2.6327000000000003,
+            "MUMPS solve": 0.15016999999999997
+        },
+        {
+            "MUMPS analysis": 4.1869700000000005,
+            "MUMPS factorization": 2.0424300000000004,
+            "MUMPS solve": 0.10718000000000001
+        },
+        {
+            "MUMPS analysis": 4.149139999999999,
+            "MUMPS factorization": 1.4628400000000001,
+            "MUMPS solve": 0.11066999999999998
+        },
+        {
+            "MUMPS analysis": 4.15385,
+            "MUMPS factorization": 1.24729,
+            "MUMPS solve": 0.07674
+        }
+    ],
+    "Direct Stokes nosplit": [
+        {
+            "MUMPS analysis": 5.879800000000001,
+            "MUMPS factorization": 4.240889999999999,
+            "MUMPS solve": 0.32618
+        },
+        {
+            "MUMPS analysis": 6.190659999999999,
+            "MUMPS factorization": 3.14855,
+            "MUMPS solve": 0.21428000000000003
+        },
+        {
+            "MUMPS analysis": 6.081690000000001,
+            "MUMPS factorization": 2.3738900000000003,
+            "MUMPS solve": 0.15722999999999998
+        },
+        {
+            "MUMPS analysis": 6.06817,
+            "MUMPS factorization": 2.08899,
+            "MUMPS solve": 0.12412000000000001
+        },
+        {
+            "MUMPS analysis": 6.068440000000001,
+            "MUMPS factorization": 1.7600800000000003,
+            "MUMPS solve": 0.10840000000000001
+        },
+        {
+            "MUMPS analysis": 6.070739999999999,
+            "MUMPS factorization": 1.4280599999999999,
+            "MUMPS solve": 0.08561
+        }
+    ]
+}

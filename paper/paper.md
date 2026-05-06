@@ -136,6 +136,7 @@ AI was not used in the development of `FEniCS-SZ`.
 
 # Acknowledgements
 
-`FEniCS-SZ` was primarily developed by undergraduate summer interns as part of the Research Experience for Undergraduates (REU) programs (SURI, 2023 and EPIIC, 2024) at the Carnegie Institution for Science, sponsored by National Science Foundation (NSF) grant EAR-2244322.  We additionally acknowledge support from NSF grants EAR-1850634 and EAR-202102.
+`FEniCS-SZ` was primarily developed by undergraduate interns Kidus Teshome (2023) and Cameron Seebeck (2024) as part of the summer internship program at the Carnegie Institution for Science (SURI, 2023 and EPIIC, 2024).  EPIIC was sponsored by National Science Foundation (NSF) grant EAR-2244322 and received support from the Alfred P. Sloan Foundation under grant G-2025-25284.  Both SURI and EPIIC received support from the Marilyn L. Fogel Fund.  We additionally acknowledge support from NSF grants EAR-1850634 and EAR-202102.
+
 
 # References

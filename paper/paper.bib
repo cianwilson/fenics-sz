@@ -9,8 +9,7 @@
                   and Barry~F. Smith and Stefano Zampini and Hong Zhang and Hong Zhang and Junchao
                   Zhang},
   title         = {{PETS}c {W}eb page},
-  url           = {https://petsc.org/},
-  howpublished  = {\url{https://petsc.org/}},
+  url           = {https://petsc.org},
   year          = {2026}
 }
 
@@ -23,7 +22,8 @@
                Rognes, Marie E and Scroggs, Matthew W and Sime, Nathan and
                Wells, Garth N",
   publisher = "Zenodo",
-  year      =  2023
+  year      =  2023,
+  doi       = {10.5281/zenodo.10447665}
 }
 
 @ARTICLE{Gerya2011,
@@ -50,7 +50,7 @@
   title     = "Jupyter Book 2 and the {MyST} Document Stack: A modular,
                extensible, web-native stack for authoring and publishing
                computational narratives",
-  author    = "{Project Jupyter} and Bolyen, Evan and Caporaso, J Gregory and
+  author    = "{Project Jupyter Dev Team} and Bolyen, Evan and Caporaso, J Gregory and
                Cockett, Rowan and Garside, Danny and Holdgraf, Chris and
                Hollands, Angus and Kent, Julia and Koch, Franklin and Madge, Jim
                and McKay, Matthew and Morrison, Mike and Pérez, Fernando and
@@ -87,7 +87,7 @@
 @INPROCEEDINGS{Binder,
   title     = "Binder 2.0 - Reproducible, interactive, sharable environments for
                science at scale",
-  author    = "{Project Jupyter} and Bussonnier, Matthias and Forde, Jessica and
+  author    = "{Project Jupyter Dev Team} and Bussonnier, Matthias and Forde, Jessica and
                Freeman, Jeremy and Granger, Brian and Head, Tim and Holdgraf,
                Chris and Kelley, Kyle and Nalvarte, Gladys and Osheroff, Andrew
                and Pacer, M and Panda, Yuvi and Perez, Fernando and
@@ -96,7 +96,8 @@
   publisher = "SciPy",
   pages     = "113--120",
   month     =  jun,
-  year      =  2018
+  year      =  2018,
+  doi       = {10.25080/Majora-4af1f417-011}
 }
 
 @ARTICLE{Merkel2014,
@@ -123,7 +124,7 @@ url = {https://github.com/conda/conda}
     journal={Earth and Planetary Science Letters},
     volume={481},
     pages={73--79},
-    doi={10.1016/j.espl.2017.10.015}
+    doi={10.1016/j.epsl.2017.10.015}
 }
 
 @ARTICLE{Syracuse2010,
@@ -133,7 +134,8 @@ url = {https://github.com/conda/conda}
   volume  =  183,
   pages   = "73--90",
   month   =  nov,
-  year    =  2010
+  year    =  2010,
+  doi     = {10.1016/j.pepi.2010.02.004}
 }
 
 @INCOLLECTION{Thomas2016,
@@ -177,7 +179,7 @@ url = {https://github.com/conda/conda}
     year    = {2011},
     journal = {Journal of Geophysical Research: Solid Earth},
     volume  = {116},
-    note    = {Art No B01401, doi:10.1029/2010JB007922}
+    doi     = {doi:10.1029/2010JB007922}
 }
 
 @ARTICLE{vanKeken2023-a,
@@ -211,9 +213,9 @@ url = {https://github.com/conda/conda}
                {II} \& {III}",
   author    = "{van~Keken}, Peter E and Wilson, Cian R",
   publisher = "Zenodo",
-  year      =  2025
+  year      =  2025,
+  doi       = {10.5281/zenodo.7843967}
 }
-
 
 @ARTICLE{vanZelst2023, 
     author  = {{van~Zelst}, I and Thieulot, C and Craig, T J},
@@ -245,7 +247,8 @@ url = {https://github.com/conda/conda}
   pages     = "769--810",
   month     =  feb,
   year      =  2017,
-  language  = "en"
+  language  = "en",
+  doi       = {10.1002/2016GC006702}
 }
 
 @ARTICLE{Wilson2023,
@@ -266,14 +269,14 @@ url = {https://github.com/conda/conda}
    author="Jørgen S. Dokken",
    title="The {FEniCSx} {T}utorial",
    year="2023",
-   url="https://jsdokken.com/dolfinx-tutorial/"
+   url="https://jsdokken.com/dolfinx-tutorial"
 }
 
-@misc{fenics-sz-github,
+@software{fenics-sz-github,
   author="Wilson, Cian R and Seebeck, Cameron and Teshome, Kidus and Sime, Nathan and {van~Keken}, Peter E",
   year="2025",
   title="{The {FEniCS} Subduction Zone Jupyter Book}",
-  url="https://github.com/cianwilson/fenics-sz/blob/main/readme.md"
+  url="https://github.com/cianwilson/fenics-sz"
 }
 
 @book{Langtangen2016,
@@ -293,20 +296,20 @@ url = {https://github.com/conda/conda}
   url          = {https://pip.pypa.io/},
 }
 
-@misc{jupytext,
+@software{jupytext,
   author = {Wouts, Marc},
   title = {{Jupytext: Jupyter Notebooks as Markdown Documents, Julia, Python or R Scripts}},
-  year = {2026},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/mwouts/jupytext}}
+  url = {https://jupytext.readthedocs.io},
+  version = {1.19.1},
+  year = {2026}
 }
 
-@misc{ipyparallel,
-  author = {IPython Development Team},
+@software{ipyparallel,
+  author = {{IPython Dev Team}},
   title = {{IPyParallel: Interactive Parallel Computing in Python}},
-  url = {https://github.com/ipython/ipyparallel},
-  year = {2015},
+  url = {https://ipyparallel.readthedocs.io},
+  version = {9.1.0},
+  year = {2026},
 }
 
 @article{MUMPS,
@@ -315,7 +318,8 @@ url = {https://github.com/conda/conda}
    journal = {SIAM Journal on Matrix Analysis and Applications},
    volume  = {23},
    year    = {2001},
-   pages   = {15-41}
+   pages   = {15-41},
+   doi     = {10.1137/S0895479899358194}
  }
 
  @misc{Cornell,

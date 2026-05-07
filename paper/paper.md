@@ -36,11 +36,7 @@ bibliography: paper.bib
 
 # Summary
 
-`FEniCS-SZ` is a hyper open source software tool that aims to make thermal models of subduction zones as accessible as possible.  Development is exposed through jupyter notebooks, which are accessible online as a jupyter book at [cianwilson.github.io/fenics-sz](https://cianwilson.github.io/fenics-sz) and can be run on any jupyter server.  Parallel scaling is demonstrated in the notebooks.  The software can also be installed as a python module and used in python scripts.  It serves a dual purpose as both a research and teaching tool and was developed as part of two undergraduate research projects.
-
-Suggested editor: Jed Brown
-
-Suggested referees: Jørgen Dokken, Adam Holt, Scott King.
+`FEniCS-SZ` is a multi-layered open source software tool that aims to make thermal models of subduction zones as accessible as possible.  Development is exposed through jupyter notebooks, which are accessible online as a jupyter book at [cianwilson.github.io/fenics-sz](https://cianwilson.github.io/fenics-sz) and can be run on any jupyter server.  Parallel scaling is demonstrated in the notebooks.  The software can also be installed as a python module and used in python scripts.  It serves a dual purpose as both a research and teaching tool and was developed as part of two undergraduate research projects.
 
 # Statement of need
 
@@ -56,7 +52,7 @@ the thermal structure of subduction zones [@vanKeken2023-a].
 ![Global locations of subdution zones modeled by FEniCS-SZ [after @Syracuse2010].\label{fig:map}](./images/syracuselocations.pdf)
 
 
-@Wilson2023 provided an introductory review of the numerical strategy for finding the thermal structure of subduction zones using the finite element method and, in @vanKeken2023-b, updated a global suite of subduction zone models originally proposed by @Syracuse2010 (see \autoref{fig:map}).  They provided access to an open source implementation using `TerraFERMA` [@Wilson2017] and an online archive of simulation inputs and results [@vanKeken2023-c].  However, these results were based on a legacy version of the finite element library `FEniCS` [@Langtangen2016].  `FEniCS-SZ` is a hyper-open-source reimplementation of the subduction zone models as described in @Wilson2023 using the latest version of the `FEniCS` library, `FEniCSx` [@Baratta2023].
+@Wilson2023 provided an introductory review of the numerical strategy for finding the thermal structure of subduction zones using the finite element method. In @vanKeken2023-b they, updated a global suite of subduction zone models originally proposed by @Syracuse2010 (see \autoref{fig:map}).  They provided access to an open source implementation using `TerraFERMA` [@Wilson2017] and an online archive of simulation inputs and results [@vanKeken2023-c].  However, these results were based on a legacy version of the finite element library `FEniCS` [@Langtangen2016].  `FEniCS-SZ` is a mylti-layered open source reimplementation of the subduction zone models as described in @Wilson2023 using the latest version of the `FEniCS` library, `FEniCSx` [@Baratta2023].
 
 In addition to providing a community resource for subduction zone modeling, `FEniCS-SZ` is also intended for classroom use.  It has been developed entirely using jupyter notebooks [@Thomas2016], providing online interactive access to the finite element examples described in @Wilson2023.
 These problems progress from implementations of the Poisson and Stokes equations, to a reproduction of mantle convection benchmarks, 

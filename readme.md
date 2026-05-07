@@ -16,3 +16,11 @@ The easiest way to read this [Jupyter Book](https://jupyterbook.org/) is on the 
 
 This Jupyter Book is based on the [FEniCSx Tutorial](https://jsdokken.com/dolfinx-tutorial/) by [Jørgen S. Dokken](https://jsdokken.com/), which is an excellent resource for learning how to use [FEniCS](https://fenicsproject.org/) in a similar interactive Jupyter Book.
 
+# License
+
+FEniCS-SZ is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+FEniCS-SZ is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along with FEniCS-SZ. If not, see
+[https://www.gnu.org/licenses](https://www.gnu.org/licenses).

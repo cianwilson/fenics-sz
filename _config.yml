@@ -3,6 +3,7 @@
 
 title: FEniCS SZ
 author: Cian Wilson
+copyright: "2023, GNU Lesser General Public License v3.0 or later"
 # Auto-exclude files not in the toc
 only_build_toc_files : true
 

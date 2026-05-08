@@ -93,7 +93,8 @@ fig, axs = pl.subplots(nrows=nplots, ncols=2, figsize=[scale*2*6.4,scale*4.8*npl
 
 lss = ['--', '-', '-.', ':']
 markers = ['^', 'P', 's', 'o', 'X']
-cs = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple']
+cs = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple', 
+      'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 
 key, name = versions[1]
 alss = ['--', '-.', ':', '-']
@@ -171,7 +172,7 @@ if nplots == len(steps)+3:
     T_ndofs_nosplit_errs = [np.abs(T_ndofs_nosplit_min-T_ndofs_nosplit_avg), np.abs(T_ndofs_nosplit_max-T_ndofs_nosplit_avg)]
 
     lines = []
-    lines.append(axs[dofrow][0].errorbar(nprocs_scale, T_ndofs_avg, yerr=T_ndofs_errs, c=cs[0], linestyle='-', marker='s', label='Temperature, DOFs/process (split)')[0])
+    lines.append(axs[dofrow][0].errorbar(nprocs_scale, T_ndofs_avg, yerr=T_ndofs_errs, c=cs[-1], linestyle='-', marker='s', label='Temperature, DOFs/process (split)')[0])
     lines[-1].set_label('Temperature, DOFs/process (split)')
     # axs[dofrow][0].fill_between(nprocs_scale, T_ndofs_min, T_ndofs_max, color='tab:blue', alpha=0.5)
 
@@ -179,9 +180,9 @@ if nplots == len(steps)+3:
     # # lines[-1].set_label('DOFs')
     # # axs[dofrow][0].fill_between(nprocs_scale, T_ndofs_nosplit_min, T_ndofs_nosplit_max, color='tab:orange', alpha=0.5)
 
-    lines.append(axs[dofrow][0].errorbar(nprocs_scale, v_wedge_ndofs_avg, yerr=v_wedge_ndofs_errs, c=cs[1], linestyle='-', marker='o', label='Velocity wedge, DOFs/process (split)')[0])
+    lines.append(axs[dofrow][0].errorbar(nprocs_scale, v_wedge_ndofs_avg, yerr=v_wedge_ndofs_errs, c=cs[-2], linestyle='-', marker='D', label='Velocity wedge, DOFs/process (split)')[0])
     lines[-1].set_label('Velocity wedge, DOFs/process (split)')
-    lines.append(axs[dofrow][0].errorbar(nprocs_scale, v_slab_ndofs_avg, yerr=v_slab_ndofs_errs, c=cs[2], linestyle='-', marker='o', label='Velocity slab, DOFs/process (split)')[0])
+    lines.append(axs[dofrow][0].errorbar(nprocs_scale, v_slab_ndofs_avg, yerr=v_slab_ndofs_errs, c=cs[-3], linestyle='-', marker='D', label='Velocity slab, DOFs/process (split)')[0])
     lines[-1].set_label('Velocity slab, DOFs/process (split)')
 
     axs[dofrow][0].set_ylim(-20000, axs[dofrow][0].get_ylim()[1])
@@ -191,10 +192,10 @@ if nplots == len(steps)+3:
     v_wedge_nghosts_sum = np.asarray([extradiag['v_wedge_nghosts_sum'] for extradiag in extradiag_2['Direct Stokes']])
     v_slab_nghosts_sum = np.asarray([extradiag['v_slab_nghosts_sum'] for extradiag in extradiag_2['Direct Stokes']])
     lines = []
-    lines.append(axs[dofrow][1].plot(nprocs_scale, T_nghosts_sum, c=cs[0], ls='-', marker='s', label='Temperature, ghosts (split)')[0])
-    lines.append(axs[dofrow][1].plot(nprocs_scale, T_nghosts_nosplit_sum, c=cs[0], ls='--', marker='^', label='Temperature, ghosts (no split)')[0])
-    lines.append(axs[dofrow][1].plot(nprocs_scale, v_wedge_nghosts_sum, c=cs[1], ls='-', marker='o', label='Velocity wedge, ghosts (split)')[0])
-    lines.append(axs[dofrow][1].plot(nprocs_scale, v_slab_nghosts_sum, c=cs[2], ls='-', marker='o', label='Velocity slab, ghosts (split)')[0])
+    lines.append(axs[dofrow][1].plot(nprocs_scale, T_nghosts_sum, c=cs[-1], ls='-', marker='s', label='Temperature, ghosts (split)')[0])
+    lines.append(axs[dofrow][1].plot(nprocs_scale, T_nghosts_nosplit_sum, c=cs[-1], ls=':', marker='s', label='Temperature, ghosts (no split)')[0])
+    lines.append(axs[dofrow][1].plot(nprocs_scale, v_wedge_nghosts_sum, c=cs[-2], ls='-', marker='D', label='Velocity wedge, ghosts (split)')[0])
+    lines.append(axs[dofrow][1].plot(nprocs_scale, v_slab_nghosts_sum, c=cs[-3], ls='-', marker='D', label='Velocity slab, ghosts (split)')[0])
 
     axs[dofrow][1].legend(lines, [line.get_label() for line in lines], handlelength=handlelength)
 

@@ -114,6 +114,6 @@ AI was not used in the development of `FEniCS-SZ`.
 
 # Acknowledgements
 
-`FEniCS-SZ` was primarily developed by undergraduate interns Kidus Teshome (2023) and Cameron Seebeck (2024) as part of the summer internship program at the Carnegie Institution for Science (SURI, 2023 and EPIIC, 2024).  EPIIC was sponsored by National Science Foundation (NSF) grant EAR-2244322 and received support from the Alfred P. Sloan Foundation under grant G-2025-25284.  Both SURI and EPIIC received support from the Marilyn L. Fogel Fund.  The authors also received support from NSF grants EAR-1850634 and EAR-2021027.
+The implementation of `FEniCS-SZ` was led by undergraduate interns Kidus Teshome (2023) and Cameron Seebeck (2024) as part of the summer internship program at the Carnegie Institution for Science (SURI, 2023 and EPIIC, 2024).  EPIIC was sponsored by National Science Foundation (NSF) grant EAR-2244322 and received support from the Alfred P. Sloan Foundation under grant G-2025-25284.  Both SURI and EPIIC received support from the Marilyn L. Fogel Fund.  The authors also received support from NSF grants EAR-1850634 and EAR-2021027.
 
 # References

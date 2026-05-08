@@ -30,6 +30,9 @@ jobs:
   build-book:
     uses: ./.github/workflows/book_stable.yml
 
+  build-paper:
+    uses: ./.github/workflows/build_paper.yml
+
   deploy:
     runs-on: ubuntu-22.04
     needs: [test-docker-build, build-book, run-tests-docker, run-tests-conda]

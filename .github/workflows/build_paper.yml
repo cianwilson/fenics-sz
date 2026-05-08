@@ -1,5 +1,12 @@
-name: Draft PDF
-on: [push]
+name: Build Paper
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  pull_request:
+    branches: ["main", "release"]
+  push:
+    branches: ["main", "paper"] # this also gets called by deploy on push into release
 
 jobs:
   paper:

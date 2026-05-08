@@ -250,5 +250,5 @@ print(f"DOLFINx version: {dolfinx.__version__} based on GIT commit: {dolfinx.git
 #
 # FEniCS-SZ is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU Lesser General Public License along with FEniCS-SZ. If not, see
+# A copy of the GNU Lesser General Public License is distributed in the FEniCS-SZ repository. If it is not, please see
 # [https://www.gnu.org/licenses](https://www.gnu.org/licenses).

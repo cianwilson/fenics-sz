@@ -184,13 +184,30 @@
 #  * [FFCx](https://github.com/FEniCS/ffcx)
 #  * [DOLFINx](https://github.com/FEniCS/dolfinx)
 #
-# along with other dependencies, which can be seen in the files `docker/pyproject.toml` and `docker/Dockerfile`.
+# along with other dependencies, which can be seen in the files `docker/requirements.txt` and `docker/Dockerfile` or `conda/environment.yml`.
 #
 # ```{admonition} Xvfb
 # Note that we use [pyvista](https://docs.pyvista.org/) for plotting and, on linux machines, this requires [Xvfb](https://x.org/releases/X11R7.7/doc/man/man1/Xvfb.1.xhtml) to be installed on the system.
 # ```
 #
-# Installation instructions for FEniCSx are available on the [FEniCS project homepage](https://fenicsproject.org/download/). This jupyter book was built with and is known to be compatible with
+# Installation instructions for FEniCSx are available on the [FEniCS project homepage](https://fenicsproject.org/download/).  On HPC systems we recommend modifying the instructions using [spack](https://spack.readthedocs.io/en/latest/) (assuming a bash-compatible shell)
+# ```bash
+#   git clone https://github.com/spack/spack.git
+#   . ./spack/share/spack/setup-env.sh
+#   spack env create fenicsx-env
+#   spack env activate fenicsx-env
+#   spack install --add py-fenics-dolfinx@0.9.0+petsc4py ^fenics-dolfinx+adios2 ^petsc+mumps \
+#                       py-h5py@3.13.0 py-gmsh@4.13.1 py-pyvista@0.46.3 \
+#                       py-scipy@1.14.0 py-pip
+# ```
+# Then installing the remaining dependencies using [pip](https://pip.pypa.io/en/stable/)
+# ```bash
+#   git clone -b release https://github.com/cianwilson/fenics-sz.git
+#   python3 -m pip install --no-cache-dir --no-build-isolation -v jupyterlab==4.2.5 -r fenics-sz/docker/requirements.txt
+# ```
+# This depends on spack finding and configuring appropriate compilers but, if succesful, will allow the jupyter notebooks to be run natively when the `fenicsx-env` spack environment is active.
+#
+# If installing manually, note that this jupyter book was built with and is known to be compatible with
 
 # %%
 import dolfinx
@@ -225,3 +242,13 @@ print(f"DOLFINx version: {dolfinx.__version__} based on GIT commit: {dolfinx.git
 # ```
 #
 # The `scripts` directory only contains examples of how to use the `fenics_sz` package.  It does not include any functionality not already available through the notebooks.
+
+# %% [markdown]
+# # License
+#
+# FEniCS-SZ is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# FEniCS-SZ is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+#
+# A copy of the GNU Lesser General Public License is distributed in the FEniCS-SZ repository. If it is not, please see
+# [https://www.gnu.org/licenses](https://www.gnu.org/licenses).

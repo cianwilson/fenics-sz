@@ -11,7 +11,7 @@
 # %% [markdown]
 # # Structure
 #
-# FEniCS-SZ is intended as a hyper open source resource for developing and understanding thermal models of subduction zones.  It is presented [online](https://cianwilson.github.io/fenics-sz) as a non-interactive jupyter book and as a set of jupyter notebooks in a [github repository](https://github.com/cianwilson/fenics-sz), which are accessible interactively through a suitable jupyter server (see [usage the instructions](1.2_usage.ipynb)).  The vast majority of development takes places in the jupyter notebooks, which are contained in the `notebooks` folder of the repository and are converted to html pages online.  All remaining folders of the repository contain auxiliary or automatically generated files.
+# FEniCS-SZ is intended as a hyper open source resource for developing and understanding thermal models of subduction zones.  It is presented [online](https://cianwilson.github.io/fenics-sz) as a non-interactive jupyter book and as a set of jupyter notebooks in a [github repository](https://github.com/cianwilson/fenics-sz), which are accessible interactively through a suitable jupyter server (see [the usage instructions](1.2_usage.ipynb)).  The vast majority of development takes places in the jupyter notebooks, which are contained in the `notebooks` folder of the repository and are converted to html pages online.  All remaining folders of the repository contain auxiliary or automatically generated files.
 #
 # The jupyter notebooks are split into three sections both in the repository and online:
 #

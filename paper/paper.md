@@ -71,7 +71,7 @@ A number of dynamical approaches exist that can be used to trace subduction zone
 predicting the thermal structure of present-day subduction zones 
 since geometry and parameters such as convergence speed cannot be controlled.
 Other workers have provided finite element and finite difference approaches to study the thermal structure 
-[e.g., @WadaWang2009; @LeeKing2009; @Lin2010; @ReesJones2018; @vanZelst2023]. 
+[e.g., @LeeKing2009; @Lin2010; @ReesJones2018; @vanZelst2023;@WadaWang2009]. 
 These approaches have shown good comparisons with other codes in a code intercomparison [@vanKeken2008], 
 by reproduction of benchmark cases therein,
 or in direct intercomparisons [@vanKeken2023-b]. 

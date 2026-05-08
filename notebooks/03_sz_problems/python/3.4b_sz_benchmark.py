@@ -48,7 +48,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 # ### Benchmark case 1
 
 # %%
-def solve_benchmark_case1(resscale, petsc_options_s=None, petsc_options_T=None):
+def solve_benchmark_case1(resscale, petsc_options_s=None, petsc_options_T=None, partition_by_region=True):
     """Solve benchmark case 1 with resolution scale resscale and petsc options petsc_options_s for the Stokes solver and petsc_options_T for the temperature solver."""
     xs = [0.0, 140.0, 240.0, 400.0]
     ys = [0.0, -70.0, -120.0, -200.0]
@@ -68,7 +68,7 @@ def solve_benchmark_case1(resscale, petsc_options_s=None, petsc_options_T=None):
     geom = create_sz_geometry(slab, resscale, sztype, io_depth, extra_width, 
                                coast_distance, lc_depth, uc_depth)
     # set up a subduction zone problem
-    sz = SteadyIsoSubductionProblem(geom, A=A, Vs=Vs, sztype=sztype, qs=qs)
+    sz = SteadyIsoSubductionProblem(geom, A=A, Vs=Vs, sztype=sztype, qs=qs, partition_by_region=partition_by_region)
 
     # solve it using a steady state assumption and an isoviscous rheology
     sz.solve(petsc_options_s=petsc_options_s, petsc_options_T=petsc_options_T)
@@ -124,7 +124,7 @@ values_wvk_case1 = [
 # ### Benchmark case 2
 
 # %%
-def solve_benchmark_case2(resscale, petsc_options_s=None, petsc_options_T=None):
+def solve_benchmark_case2(resscale, petsc_options_s=None, petsc_options_T=None, partition_by_region=True):
     xs = [0.0, 140.0, 240.0, 400.0]
     ys = [0.0, -70.0, -120.0, -200.0]
     lc_depth = 40
@@ -143,7 +143,7 @@ def solve_benchmark_case2(resscale, petsc_options_s=None, petsc_options_T=None):
     geom = create_sz_geometry(slab, resscale, sztype, io_depth, extra_width, 
                                coast_distance, lc_depth, uc_depth)
     # set up a subduction zone problem
-    sz = SteadyDislSubductionProblem(geom, A=A, Vs=Vs, sztype=sztype, qs=qs)
+    sz = SteadyDislSubductionProblem(geom, A=A, Vs=Vs, sztype=sztype, qs=qs, partition_by_region=partition_by_region)
 
     # solve it using a steady state assumption and a dislocation creep rheology
     sz.solve(petsc_options_s=petsc_options_s, petsc_options_T=petsc_options_T)

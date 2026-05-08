@@ -3,9 +3,9 @@ title: 'FEniCS-SZ: Two-dimensional modeling of the thermal structure of subducti
 tags:
   - Python
   - Jupyter
-  - geology and geophysics
+  - geodynamics
   - finite element methods
-  - benchmarking
+  - subduction
 authors:
   - name: Cian R. Wilson
     orcid: 0000-0002-4083-6529

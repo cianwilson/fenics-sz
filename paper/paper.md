@@ -9,11 +9,11 @@ tags:
 authors:
   - name: Cian R. Wilson
     orcid: 0000-0002-4083-6529
-    corresponding: true # (This is how to denote the corresponding author)
-    affiliation: 1  # (Multiple affiliations must be quoted)
+    corresponding: true 
+    affiliation: 1  
     equal-contrib: true
   - name: Cameron Seebeck
-    equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
+    equal-contrib: true 
     affiliation: 1
   - name: Kidus Teshome
     affiliation: 1
@@ -21,11 +21,11 @@ authors:
   - name: Nathan Sime
     orcid: 0000-0002-2319-048X
     equal-contrib: true
-    affiliation: 1  # (Multiple affiliations must be quoted)
+    affiliation: 1  
   - name: Peter E. van Keken
     orcid: 0000-0003-0377-8830
     equal-contrib: true
-    affiliation: 1  # (Multiple affiliations must be quoted)
+    affiliation: 1  
 affiliations:
  - name: Earth and Planets Laboratory, Carnegie Institution for Science, Washington D.C., United States
    index: 1

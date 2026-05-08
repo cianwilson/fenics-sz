@@ -242,3 +242,13 @@ print(f"DOLFINx version: {dolfinx.__version__} based on GIT commit: {dolfinx.git
 # ```
 #
 # The `scripts` directory only contains examples of how to use the `fenics_sz` package.  It does not include any functionality not already available through the notebooks.
+
+# %% [markdown]
+# # License
+#
+# FEniCS-SZ is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# FEniCS-SZ is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+#
+# A copy of the GNU Lesser General Public License is distributed in the FEniCS-SZ repository. If it is not, please see
+# [https://www.gnu.org/licenses](https://www.gnu.org/licenses).

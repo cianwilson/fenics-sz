@@ -37,7 +37,7 @@ import fenics_sz.utils.ipp
 import matplotlib.pyplot as pl
 import matplotlib.ticker as ticker
 import numpy as np
-import pathlib
+import pathlib, json
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 
@@ -74,17 +74,64 @@ steps = [
 # %%
 # declare a dictionary to store the times each step takes
 maxtimes_1 = {}
+maxtimes_mumps_1 = {}
+extradiag_1 = {}
 
 # %%
 petsc_options_s = {'ksp_type':'preonly', 
                    'pc_type':'lu', 
                    'pc_factor_mat_solver_type' : 'mumps',
+                   'mat_mumps_icntl_4': 2,
                   }
 
-maxtimes_1['Direct Stokes'], _, _ = fenics_sz.utils.ipp.profile_parallel(nprocs_scale, steps, path, 
-                                                         'fenics_sz.sz_problems.sz_benchmark', 'solve_benchmark_case1', 
-                                                        resscale_scale, number=number, petsc_options_s=petsc_options_s,
+def extra_parallel_diagnostics(sz):
+    diag = dict()
+    bs = sz.Vslab_v.dofmap.index_map_bs # assumed the same
+    diag['T_ndofs']   = sz.V_T.dofmap.index_map.size_local
+    diag['T_nghosts'] = sz.V_T.dofmap.index_map.num_ghosts
+    diag['v_wedge_ndofs']   = None
+    diag['v_wedge_nghosts'] = None
+    diag['p_wedge_ndofs']   = None
+    diag['p_wedge_nghosts'] = None
+    diag['v_slab_ndofs']    = None
+    diag['v_slab_nghosts']  = None
+    diag['p_slab_ndofs']    = None
+    diag['p_slab_nghosts']  = None
+    if sz.wedge_rank:
+        diag['v_wedge_ndofs']   = sz.Vwedge_v.dofmap.index_map.size_local*bs
+        diag['v_wedge_nghosts'] = sz.Vwedge_v.dofmap.index_map.num_ghosts*bs
+        diag['p_wedge_ndofs']   = sz.Vwedge_p.dofmap.index_map.size_local
+        diag['p_wedge_nghosts'] = sz.Vwedge_p.dofmap.index_map.num_ghosts
+    if sz.slab_rank:
+        diag['v_slab_ndofs']    = sz.Vslab_v.dofmap.index_map.size_local*bs
+        diag['v_slab_nghosts']  = sz.Vslab_v.dofmap.index_map.num_ghosts*bs
+        diag['p_slab_ndofs']    = sz.Vslab_p.dofmap.index_map.size_local
+        diag['p_slab_nghosts']  = sz.Vslab_p.dofmap.index_map.num_ghosts
+    return diag
+
+maxtimes_1['Direct Stokes'], maxtimes_mumps_1['Direct Stokes'], extradiag_1['Direct Stokes'] = \
+                   fenics_sz.utils.ipp.profile_parallel(nprocs_scale, steps, path, 
+                                                        'fenics_sz.sz_problems.sz_benchmark', 'solve_benchmark_case1', 
+                                                        resscale_scale, number=number, include_mumps_times=True, 
+                                                        extra_diagnostics_func=extra_parallel_diagnostics,
+                                                        petsc_options_s=petsc_options_s,
                                                         output_filename=output_folder / 'sz_benchmark_scaling_direct_1.png')
+
+# %%
+# # a case using not partitioning by region for comparison
+# petsc_options_s = {'ksp_type':'preonly', 
+#                    'pc_type':'lu', 
+#                    'pc_factor_mat_solver_type' : 'mumps',
+#                    'mat_mumps_icntl_4': 2,
+#                   }
+
+# maxtimes_1['Direct Stokes nosplit'], maxtimes_mumps_1['Direct Stokes nosplit'], extradiag_1['Direct Stokes nosplit']  = \
+#                     fenics_sz.utils.ipp.profile_parallel(nprocs_scale, steps, path, 
+#                                                          'fenics_sz.sz_problems.sz_benchmark', 'solve_benchmark_case1', 
+#                                                          resscale_scale, number=number, include_mumps_times=True, 
+#                                                          extra_diagnostics_func=extra_parallel_diagnostics,
+#                                                          petsc_options_s=petsc_options_s, partition_by_region=False,
+#                                                          output_filename=output_folder / 'sz_benchmark_nosplit_scaling_direct_1.png')
 
 # %% [markdown]
 # The behavior of the scaling test will strongly depend on the computational resources available on the machine where this notebook is run.  In particular when the website is generated it has to run as quickly as possible on github, hence we limit our requested numbers of processors, size of the problem (`resscale`) and number of calculations to average over (`number`) in the default setup of this notebook.
@@ -214,6 +261,17 @@ fig.savefig(output_folder / 'sz_benchmark_scaling_comparison_1.png')
 # *Figure 3.4.3 Scaling results for a direct solver with `resscale = 0.5` averaged over `number = 10` calculations using a local [conda](../01_introduction/1.2_usage.ipynb) installation of the software on a dedicated machine.*
 
 # %% [markdown]
+# Save the output for use later.
+
+# %%
+with open(output_folder/"maxtimes_1.json", "w") as f:
+    json.dump(maxtimes_1, f, indent=4)
+with open(output_folder/"maxtimes_mumps_1.json", "w") as f:
+    json.dump(maxtimes_mumps_1, f, indent=4)
+with open(output_folder/"extradiag_1.json", "w") as f:
+    json.dump(extradiag_1, f, indent=4)
+
+# %% [markdown]
 # #### Case 2 - Direct
 #
 # Time constraints mean we do not run case 2 - temperature and strain-rate dependent rheology - but we do present some previously run results below.  
@@ -223,6 +281,8 @@ fig.savefig(output_folder / 'sz_benchmark_scaling_comparison_1.png')
 # %%
 # declare a dictionary to store the times each step takes
 maxtimes_2 = {}
+maxtimes_mumps_2 = {}
+extradiag_2 = {}
 
 # note that the iterative solver requires sufficient resolution to converge
 # in the non-linear case so we decrease the resscale for these cases
@@ -233,12 +293,32 @@ resscales_conv_2 = [0.5,]
 # petsc_options_s = {'ksp_type':'preonly', 
 #                    'pc_type':'lu', 
 #                    'pc_factor_mat_solver_type' : 'mumps',
+#                    'mat_mumps_icntl_4': 2,
 #                   }
 
-# maxtimes_2['Direct Stokes'], _, _ = fenics_sz.utils.ipp.profile_parallel(nprocs_scale, steps, path, 
+# maxtimes_2['Direct Stokes'], maxtimes_mumps_2['Direct Stokes'], extradiag_2['Direct Stokes'] = \
+#                     fenics_sz.utils.ipp.profile_parallel(nprocs_scale, steps, path, 
 #                                                          'fenics_sz.sz_problems.sz_benchmark', 'solve_benchmark_case2', 
-#                                                         resscale_scale_2, number=number, petsc_options_s=petsc_options_s,
+#                                                         resscale_scale_2, number=number, include_mumps_times=True, 
+#                                                          extra_diagnostics_func=extra_parallel_diagnostics,
+#                                                          petsc_options_s=petsc_options_s,
 #                                                         output_filename=output_folder / 'sz_benchmark_scaling_direct_2.png')
+
+# %%
+# # # a case using not partitioning by region for comparison
+# # petsc_options_s = {'ksp_type':'preonly', 
+# #                    'pc_type':'lu', 
+# #                    'pc_factor_mat_solver_type' : 'mumps',
+# #                    'mat_mumps_icntl_4': 2,
+# #                   }
+
+# # maxtimes_2['Direct Stokes nosplit'], maxtimes_mumps_2['Direct Stokes nosplit'], extradiag_2['Direct Stokes nosplit'] = \
+# #                     fenics_sz.utils.ipp.profile_parallel(nprocs_scale, steps, path, 
+# #                                                          'fenics_sz.sz_problems.sz_benchmark', 'solve_benchmark_case2', 
+# #                                                         resscale_scale_2, number=number, include_mumps_times=True, 
+# #                                                          extra_diagnostics_func=extra_parallel_diagnostics,
+# #                                                         petsc_options_s=petsc_options_s, partition_by_region=False,
+# #                                                         output_filename=output_folder / 'sz_benchmark_nosplit_scaling_direct_2.png')
 
 # %% [markdown]
 # As before, the behavior of the scaling test will strongly depend on the computational resources available on the machine where this notebook is run.
@@ -256,7 +336,7 @@ resscales_conv_2 = [0.5,]
 # %%
 # diagnostics = []
 # for resscalel in resscales_conv_2:
-#     diagnostics.append(utils.ipp.run_parallel(nprocs_conv, path, 
+#     diagnostics.append(fenics_sz.utils.ipp.run_parallel(nprocs_conv, path, 
 #                                            'fenics_sz.sz_problems.sz_benchmark', 
 #                                            'benchmark_case2_diagnostics', 
 #                                            resscalel))
@@ -312,7 +392,7 @@ resscales_conv_2 = [0.5,]
 # %%
 # diagnostics = []
 # for resscalel in resscales_conv_2:
-#     diagnostics.append(utils.ipp.run_parallel(nprocs_conv, path, 
+#     diagnostics.append(fenics_sz.utils.ipp.run_parallel(nprocs_conv, path, 
 #                                            'fenics_sz.sz_problems.sz_benchmark', 
 #                                            'benchmark_case2_diagnostics', 
 #                                            resscalel, petsc_options_s=petsc_options_s))
@@ -362,7 +442,17 @@ resscales_conv_2 = [0.5,]
 # > ![Scaling Comparison](images/sz_benchmark_scaling_comparison_2.png)
 #
 # *Figure 3.4.6 Scaling results for a direct solver with `resscale = 0.5` averaged over `number = 10` calculations using a local [conda](../01_introduction/1.2_usage.ipynb) installation of the software on a dedicated machine.*
-#
-# In the [next section](../04_global_suites/4.1_global_suites_intro.ipynb) we will apply what we have learned here to the global suite of subduction zone thermal solvers.  First however we implement a [time-dependent subduction problem](./3.5a_sz_tdep_problem.ipynb).
+
+# %% [markdown]
+# Save the output for use later.
 
 # %%
+with open(output_folder/"maxtimes_2.json", "w") as f:
+    json.dump(maxtimes_2, f, indent=4)
+with open(output_folder/"maxtimes_mumps_2.json", "w") as f:
+    json.dump(maxtimes_mumps_2, f, indent=4)
+with open(output_folder/"extradiag_2.json", "w") as f:
+    json.dump(extradiag_2, f, indent=4)
+
+# %% [markdown]
+# In the [next section](../04_global_suites/4.1_global_suites_intro.ipynb) we will apply what we have learned here to the global suite of subduction zone thermal solvers.  First however we implement a [time-dependent subduction problem](./3.5a_sz_tdep_problem.ipynb).

@@ -1115,7 +1115,7 @@ class SubductionGeometry:
                             cellorder[c] = i # remember the order
                             i += 1
             grouptopos = [[numpy.array(grouptopo[t], dtype=numpy.int64) for t in range(len(topos))] for grouptopo in lgrouptopos]
-            groupsizes = [max(1, int(sum([len(grouptopo[t])/nverts[t] for t in range(len(topos))])*commsize/ncells)) for grouptopo in grouptopos]
+            groupsizes = [max(1, round(sum([len(grouptopo[t])/nverts[t] for t in range(len(topos))])*commsize/ncells)) for grouptopo in grouptopos]
             while sum(groupsizes) < commsize:
                 for g in [1, 0]:
                     groupsizes[g] = groupsizes[g] + 1

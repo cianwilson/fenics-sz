@@ -112,11 +112,14 @@ class BaseSubductionProblem:
         self.p_p = 1  # pressure
         self.p_T = 2  # temperature
 
+        # mesh options
+        self.partition_by_region = True # partition the mesh by region or not
+
         # only allow these options to be set from the update and __init__ functions
         self.allowed_input_parameters = ['A', 'Vs', 'sztype', 'Ac', 'As', 'qs', \
                                          'Ts', 'Tm', 'km', 'rhom', 'cp', \
                                          'etamax', 'nsigma', 'Aeta', 'E', \
-                                         'p_p', 'p_T']
+                                         'p_p', 'p_T', 'partition_by_region']
         self.allowed_if_continental   = ['kc', 'rhoc', 'H1', 'H2']
     
         self.required_parameters     = ['A', 'Vs', 'sztype']
@@ -268,7 +271,7 @@ class BaseSubductionProblem(BaseSubductionProblem):
         with df.common.Timer("Mesh"):
             # generate the mesh using gmsh
             # this command also returns cell and facets tags identifying regions and boundaries in the mesh
-            self.mesh, self.cell_tags, self.facet_tags = self.geom.generatemesh()
+            self.mesh, self.cell_tags, self.facet_tags = self.geom.generatemesh(partition_by_region=self.partition_by_region)
             self.comm = self.mesh.comm
 
             # record the dimensions
@@ -287,9 +290,9 @@ class BaseSubductionProblem(BaseSubductionProblem):
             self.wedge_submesh, self.wedge_cell_tags, self.wedge_facet_tags, self.wedge_cell_map = \
                                 fenics_sz.utils.mesh.create_submesh(self.mesh, 
                                                     np.concatenate([self.cell_tags.find(rid) for rid in self.wedge_rids]), \
-                                                    self.cell_tags, self.facet_tags)
+                                                    self.cell_tags, self.facet_tags, split_comm=self.partition_by_region)
             # record whether this MPI rank has slab DOFs or not
-            self.wedge_rank = self.wedge_submesh.topology.index_map(self.tdim).size_local > 0
+            self.wedge_rank = (not self.partition_by_region) or (self.wedge_submesh.topology.index_map(self.tdim).size_local > 0)
             
             # generate the slab submesh
             # this command also returns cell and facet tags mapped from the parent mesh to the submesh
@@ -297,9 +300,9 @@ class BaseSubductionProblem(BaseSubductionProblem):
             self.slab_submesh, self.slab_cell_tags, self.slab_facet_tags, self.slab_cell_map  = \
                                 fenics_sz.utils.mesh.create_submesh(self.mesh, 
                                                     np.concatenate([self.cell_tags.find(rid) for rid in self.slab_rids]), \
-                                                    self.cell_tags, self.facet_tags)
+                                                    self.cell_tags, self.facet_tags, split_comm=self.partition_by_region)
             # record whether this MPI rank has wedge DOFs or not
-            self.slab_rank = self.slab_submesh.topology.index_map(self.tdim).size_local > 0
+            self.slab_rank = (not self.partition_by_region) or (self.slab_submesh.topology.index_map(self.tdim).size_local > 0)
 
             # set up UFL measures that know about the cell and facet tags
             self.dx = ufl.Measure("dx", domain=self.mesh, subdomain_data=self.cell_tags)

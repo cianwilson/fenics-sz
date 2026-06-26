@@ -43,6 +43,8 @@ import numpy as np
 import dolfinx as df
 import pyvista as pv
 import pathlib
+import copy
+import matplotlib.pyplot as pl
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 
@@ -121,7 +123,7 @@ cdpt = slab.findpointy(-cd)
 fenics_sz.utils.plot.plot_points([[cdpt.x, cdpt.y, 0.0]], plotter=plotter, render_points_as_spheres=True, point_size=10.0, color='green')
 plotter.open_gif( str(output_folder / "{}_td_solution_resscale_{:.2f}_cfl_{:.2f}.gif".format(name, resscale, cfl,)), fps=fps)
 
-sz.solve(szdict['As'], dt, theta=0.5, rtol=1.e-1, verbosity=1, plotter=plotter)
+solutions = sz.solve(szdict['As'], dt, theta=0.5, rtol=1.e-1, verbosity=1, plotter=plotter, save_period=1.0)
 
 plotter.close()
 
@@ -151,3 +153,43 @@ with df.io.VTXWriter(sz.mesh.comm, filename, [sz.T_i, sz.vs_i, sz.vw_i]) as vtx:
     vtx.write(0.0)
 # zip the .bp folder so that it can be downloaded from jupyter lab
 shutil.make_archive(str(filename), 'zip', root_dir=str(filename.parent), base_dir=str(filename.name))
+
+# %% [markdown]
+# ### Plot slab temperatures over time
+
+# %%
+
+# get some points along the slab
+slabpoints = np.array([[curve.points[0].x, curve.points[0].y, 0.0] for curve in sz.geom.slab_spline.interpcurves])
+cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(slabpoints, sz.mesh)
+
+# do the same along a spline deeper in the slab
+slabmoho = copy.deepcopy(sz.geom.slab_spline)
+slabmoho.translatenormalandcrop(-7.0)
+slabmohopoints = np.array([[curve.points[0].x, curve.points[0].y, 0.0] for curve in slabmoho.interpcurves])
+mcinds, mcells = fenics_sz.utils.mesh.get_cell_collisions(slabmohopoints, sz.mesh)
+
+# set up a figure
+fig, (ax, axm) = pl.subplots(1,2)
+
+for sol in solutions[::5]:
+    t = sol['t']
+    T = sol['T']
+    # plot the slab temperatures
+    ax.plot(T.eval(slabpoints, cells)[:,0], -slabpoints[:,1], label='t = {:.2f} Myr'.format(t))
+    # plot the moho temperatures
+    axm.plot(T.eval(slabmohopoints, mcells)[:,0], -slabmohopoints[:,1], label='t = {:.2f} Myr'.format(t))
+# labels, title etc.
+ax.set_xlabel('T ($^\circ$C)')
+ax.set_ylabel('z (km)')
+ax.set_title('Slab surface temperatures')
+ax.legend()
+ax.invert_yaxis()
+
+axm.set_xlabel('T ($^\circ$C)')
+axm.set_ylabel('z (km)')
+axm.set_title('Moho temperatures')
+axm.legend()
+axm.invert_yaxis()
+
+# %%

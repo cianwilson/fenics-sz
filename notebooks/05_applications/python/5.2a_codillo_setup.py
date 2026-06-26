@@ -47,8 +47,10 @@ output_folder.mkdir(exist_ok=True, parents=True)
 # %%
 class TDCDDislSubductionProblem(TDDislSubductionProblem):
     def members(self):
+        # initialize the standard members in the parent class
         super().members()
 
+        # add additional parameter for time-dependent coupling
         self.allowed_input_parameters += ["cd0", "cdf", "dcd", "tc0", "tcf"]
         self.required_parameters += ["cd0", "cdf", "dcd", "tc0", "tcf"]
         self.required_parameters += ["As"] # this was previously only required if oceanic
@@ -60,8 +62,9 @@ class TDCDDislSubductionProblem(TDDislSubductionProblem):
         self.tcf = None # time for full coupling (in Myr)
 
         self.t_Myr = 0.0 # current dimensional time (in Myr)
-        self.td_bcs = dict() # dictionary oftime-dependent boundary conditions
+        self.tdep_bcs = ['vw_slabtop'] # one time-dependet boundary condition
 
+    # Overload the vw_slabtop method
     def vw_slabtop(self, x):
         """
         Return the wedge velocity on the slab surface
@@ -74,165 +77,5 @@ class TDCDDislSubductionProblem(TDDislSubductionProblem):
         for i in range(x.shape[1]):
             v[:,i] = min(max(-(x[1,i]+pcd)/self.dcd, 0.0), 1.0)*self.Vs_nd*self.geom.slab_spline.unittangentx(x[0,i])
         return v
-    
-    def setup_boundaryconditions(self):
-        """
-        Set the boundary conditions and apply them to the functions
-        """
-        super().setup_boundaryconditions()
-        with df.common.Timer("Dirichlet BCs Stokes"):
-
-            # on the slab surface for the wedge velocity
-            slab_dofs_Vwedge_v = df.fem.locate_dofs_topological(self.Vwedge_v, self.fdim, 
-                                                                np.concatenate([self.wedge_facet_tags.find(sid) for sid in set(self.geom.slab_spline.pids)]))
-            vw_slabtop_f = df.fem.Function(self.Vwedge_v)
-            vw_slabtop_f.interpolate(self.vw_slabtop)
-            # overwrite current bc (FIXME: ugly)
-            self.bcs_vw[-1] = df.fem.dirichletbc(vw_slabtop_f, slab_dofs_Vwedge_v)
-            self.td_bcs = dict()
-            self.td_bcs[vw_slabtop_f] = self.vw_slabtop
-    
-    def update_td_bcs(self):
-        """
-        Update the time-dependent boundary conditions stored in td_bcs
-        """
-        for bcf, func in self.td_bcs.items():
-            bcf.interpolate(func)
-        df.fem.set_bc(self.wedge_vw_i.x.array, self.bcs_vw)
-        # FIXME: only vw considered here
-    
-    # FIXME: this is mostly copied and pasted from the parent class with only two minor changes - really this should be done in a more elegant way
-    def solve(self, tf, dt, theta=0.5, rtol=5.e-6, atol=5.e-9, maxits=50, verbosity=2,
-              petsc_options_s=None, petsc_options_T=None, 
-              plotter=None):
-        """
-        Solve the coupled temperature-velocity-pressure problem assuming a dislocation creep rheology with time dependency
-
-        Arguments:
-          * tf - final time  (in Myr)
-          * dt - the timestep (in Myr)
-          
-        Keyword Arguments:
-          * theta         - theta parameter for timestepping (0 <= theta <= 1, defaults to theta=0.5)
-          * rtol          - nonlinear iteration relative tolerance
-          * atol          - nonlinear iteration absolute tolerance
-          * maxits        - maximum number of nonlinear iterations
-          * verbosity     - level of verbosity (<1=silent, >0=basic, >1=timestep, >2=nonlinear convergence, defaults to 2)
-          * petsc_options_s - a dictionary of petsc options to pass to the Stokes solver 
-                              (defaults to an LU direct solver using the MUMPS library) 
-          * petsc_options_T - a dictionary of petsc options to pass to the temperature solver 
-                              (defaults to an LU direct solver using the MUMPS library) 
-        """
-        assert(theta >= 0 and theta <= 1)
-
-        # set the timestepping options based on the arguments
-        # these need to be set before calling self.temperature_forms_timedependent
-        self.dt = df.fem.Constant(self.mesh, df.default_scalar_type(dt/self.t0_Myr))
-        self.theta = df.fem.Constant(self.mesh, df.default_scalar_type(theta))
-            
-        # reset the initial conditions
-        self.setup_boundaryconditions()
-        
-        # first solve the isoviscous problem
-        self.solve_stokes_isoviscous(petsc_options=petsc_options_s)
-
-        # retrieve the temperature forms (implemented in the parent class)
-        ST, fT, rT = self.temperature_forms()
-        solver_T = TemperatureSolver(ST, fT, self.bcs_T, self.T_i, 
-                                     petsc_options=petsc_options_T)
-
-        # retrieve the non-linear Stokes forms for the wedge
-        Ssw, fsw, rsw, Msw = self.stokes_forms(self.wedge_vw_t, self.wedge_pw_t, 
-                                                self.wedge_vw_a, self.wedge_pw_a, 
-                                                self.wedge_vw_i, self.wedge_pw_i, 
-                                                eta=self.etadisl(self.wedge_vw_i, self.wedge_T_i))        
-        # set up a solver for the wedge velocity and pressure
-        solver_s_w = StokesSolverNest(Ssw, fsw, self.bcs_vw, 
-                                      self.wedge_vw_i, self.wedge_pw_i, 
-                                      M=Msw, isoviscous=False,  
-                                      petsc_options=petsc_options_s)
-
-        # retrieve the non-linear Stokes forms for the slab
-        Sss, fss, rss, Mss = self.stokes_forms(self.slab_vs_t, self.slab_ps_t, 
-                                                self.slab_vs_a, self.slab_ps_a, 
-                                                self.slab_vs_i, self.slab_ps_i, 
-                                                eta=self.etadisl(self.slab_vs_i, self.slab_T_i))
-        # set up a solver for the slab velocity and pressure
-        solver_s_s = StokesSolverNest(Sss, fss, self.bcs_vs,
-                                      self.slab_vs_i, self.slab_ps_i,
-                                      M=Mss, isoviscous=False,
-                                      petsc_options=petsc_options_s)
-        
-        t = 0
-        ti = 0
-        tf_nd = tf/self.t0_Myr
-        # time loop
-        if self.comm.rank == 0 and verbosity>0:
-            print("Entering timeloop with {:d} steps (dt = {:g} Myr, final time = {:g} Myr)".format(int(np.ceil(tf_nd/self.dt.value)), dt, tf,))
-        # enter the time-loop
-        while t < tf_nd - 1e-9:
-            if self.comm.rank == 0 and verbosity>1:
-                print("Step: {:>6d}, Times: {:>9g} -> {:>9g} Myr".format(ti, t*self.t0_Myr, (t+self.dt.value)*self.t0_Myr,))
-            if plotter is not None:
-                for mesh in plotter.meshes:
-                    if self.T_i.name in mesh.point_data:
-                        mesh.point_data[self.T_i.name][:] = self.T_i.x.array
-                plotter.write_frame()
-            # set the old solution to the new solution
-            self.T_n.x.array[:] = self.T_i.x.array
-            # FIXME 1/2 Codillo change: update time-dependent bcs
-            self.update_td_bcs()
-            # calculate the initial residual
-            r = self.calculate_residual(rsw, rss, rT)
-            r0 = r
-            rrel = r/r0  # 1
-            if self.comm.rank == 0 and verbosity>2:
-                    print("    {:<11} {:<12} {:<17}".format('Iteration','Residual','Relative Residual'))
-                    print("-"*42)
-
-            it = 0
-            # enter the Picard Iteration
-            if self.comm.rank == 0 and verbosity>2: print("    {:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
-            while r > atol and rrel > rtol:
-                if it > maxits: break
-                # solve for temperature and interpolate it
-                self.T_i = solver_T.solve()
-                self.update_T_functions()
-
-                # solve for v & p and interpolate the velocity
-                if self.wedge_rank: self.wedge_vw_i, self.wedge_pw_i = solver_s_w.solve()
-                if self.slab_rank:  self.slab_vs_i,  self.slab_ps_i  = solver_s_s.solve()
-                self.update_v_functions()
-
-                # wait for all ranks to catch up 
-                # (some may not have done anything above and 
-                # letting them carry on messes with profiling)
-                self.comm.barrier()
-                
-                # calculate a new residual
-                r = self.calculate_residual(rsw, rss, rT)
-                rrel = r/r0
-                # increment iterations
-                it+=1
-                if self.comm.rank == 0 and verbosity>2: print("    {:<11} {:<12.6g} {:<12.6g}".format(it, r, rrel,))
-            # check for convergence failures
-            if it > maxits:
-                raise Exception("Nonlinear iteration failed to converge after {} iterations (maxits = {}), r = {} (atol = {}), rrel = {} (rtol = {}).".format(it, \
-                                                                                                                                                          maxits, \
-                                                                                                                                                          r, \
-                                                                                                                                                          rtol, \
-                                                                                                                                                          rrel, \
-                                                                                                                                                          rtol,))
-            # increment the timestep number
-            ti+=1
-            # increate time
-            t+=self.dt.value
-            # FIXME: 2/2 Codillo change: update dimensional time
-            self.t_Myr = t*self.t0_Myr
-        if self.comm.rank == 0 and verbosity>0:
-            print("Finished timeloop after {:d} steps (final time = {:g} Myr)".format(ti, t*self.t0_Myr,))
-
-        # only update the pressure at the end as it is not necessary earlier
-        self.update_p_functions()
 
 # %%

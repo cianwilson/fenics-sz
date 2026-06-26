@@ -118,7 +118,7 @@ class TDIsoSubductionProblem(TDSubductionProblem):
 
         # retrieve the temperature forms
         ST, fT, _ = self.temperature_forms()
-        solver_T = TemperatureSolver(ST, fT, self.bcs_T, self.T_i, 
+        solver_T = TemperatureSolver(ST, fT, list(self.bcs_T.values()), self.T_i, 
                                      petsc_options=petsc_options_T)
 
         # and solve the temperature problem repeatedly with time step dt
@@ -138,12 +138,17 @@ class TDIsoSubductionProblem(TDSubductionProblem):
                 plotter.write_frame()
             # set the old solution to the new solution
             self.T_n.x.array[:] = self.T_i.x.array
+            # update any time-dependent boundary conditions (none by default)
+            self.update_tdep_bcs()
             # solve for the new solution
             self.T_i = solver_T.solve()
             # increment the timestep number
             ti+=1
             # increment the time
             t+=self.dt.value
+            # update the current time in Myr
+            self.t_Myr = t*self.t0_Myr
+
         if self.comm.rank == 0 and verbosity>0:
             print("Finished timeloop after {:d} steps (final time = {:g} Myr)".format(ti, t*self.t0_Myr,))
 

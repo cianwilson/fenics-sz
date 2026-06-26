@@ -76,6 +76,12 @@ for k, v in allsz_params[name].items():
     if v is not None and k not in ['z0', 'z15']: print("{:<20} {}".format(k, v))
 
 # %% [markdown]
+# Modify the age of subduction to 52 Myr:
+
+# %%
+szdict['As'] = 52.0
+
+# %% [markdown]
 # ### Setup
 
 # %% [markdown]
@@ -108,24 +114,15 @@ sz = TDCDDislSubductionProblem(geom, **szdict,
 # Solve using a dislocation creep rheology.
 
 # %%
+# save period
+save_period = 1.0
+
 # Select the timestep based on the approximate target Courant number
 dt = cfl*resscale/szdict['Vs']
-# Reduce the timestep to get an integer number of timesteps
-dt = szdict['As']/np.ceil(szdict['As']/dt)
+# Reduce the timestep to get an integer number of timesteps per save period
+dt = save_period/np.ceil(save_period/dt)
 
-# set up a gif (FIXME: we need time-dependent output from these simulations)
-fps = 5
-plotter = pv.Plotter(notebook=False, off_screen=True)
-fenics_sz.utils.plot.plot_scalar(sz.T_i, plotter=plotter, scale=sz.T0, gather=True, cmap='coolwarm', clim=[0.0, sz.Tm*sz.T0], scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-geom.pyvistaplot(plotter=plotter, color='green', width=2)
-cd = min(max(sz.cd0, sz.cd0 + (sz.cdf - sz.cd0)/(sz.tcf - sz.tc0)*(sz.t_Myr - sz.tc0)), sz.cdf)
-cdpt = slab.findpointy(-cd)
-fenics_sz.utils.plot.plot_points([[cdpt.x, cdpt.y, 0.0]], plotter=plotter, render_points_as_spheres=True, point_size=10.0, color='green')
-plotter.open_gif( str(output_folder / "{}_td_solution_resscale_{:.2f}_cfl_{:.2f}.gif".format(name, resscale, cfl,)), fps=fps)
-
-solutions = sz.solve(szdict['As'], dt, theta=0.5, rtol=1.e-1, verbosity=1, plotter=plotter, save_period=1.0)
-
-plotter.close()
+solutions = sz.solve(szdict['As'], dt, theta=0.5, rtol=1.e-1, verbosity=2, save_period=save_period)
 
 # %% [markdown]
 # ### Plot
@@ -158,38 +155,53 @@ shutil.make_archive(str(filename), 'zip', root_dir=str(filename.parent), base_di
 # ### Plot slab temperatures over time
 
 # %%
-
-# get some points along the slab
-slabpoints = np.array([[curve.points[0].x, curve.points[0].y, 0.0] for curve in sz.geom.slab_spline.interpcurves])
-cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(slabpoints, sz.mesh)
-
-# do the same along a spline deeper in the slab
-slabmoho = copy.deepcopy(sz.geom.slab_spline)
-slabmoho.translatenormalandcrop(-7.0)
-slabmohopoints = np.array([[curve.points[0].x, curve.points[0].y, 0.0] for curve in slabmoho.interpcurves])
-mcinds, mcells = fenics_sz.utils.mesh.get_cell_collisions(slabmohopoints, sz.mesh)
-
 # set up a figure
-fig, (ax, axm) = pl.subplots(1,2)
+fig, axs = pl.subplots(1,2)
 
-for sol in solutions[::5]:
-    t = sol['t']
-    T = sol['T']
-    # plot the slab temperatures
-    ax.plot(T.eval(slabpoints, cells)[:,0], -slabpoints[:,1], label='t = {:.2f} Myr'.format(t))
-    # plot the moho temperatures
-    axm.plot(T.eval(slabmohopoints, mcells)[:,0], -slabmohopoints[:,1], label='t = {:.2f} Myr'.format(t))
-# labels, title etc.
-ax.set_xlabel('T ($^\circ$C)')
-ax.set_ylabel('z (km)')
-ax.set_title('Slab surface temperatures')
-ax.legend()
-ax.invert_yaxis()
+for d, depth in enumerate([0.0, 7.0]):
+    # get some points along the slab
+    slab = copy.deepcopy(sz.geom.slab_spline)
+    slab.translatenormalandcrop(-depth)
+    slabpoints = np.array([[curve.points[0].x, curve.points[0].y, 0.0] for curve in slab.interpcurves])
+    cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(slabpoints, sz.mesh)
 
-axm.set_xlabel('T ($^\circ$C)')
-axm.set_ylabel('z (km)')
-axm.set_title('Moho temperatures')
-axm.legend()
-axm.invert_yaxis()
+    for sol in solutions[::5]: # remove [::5] to get them all
+        t = sol['t']
+        T = sol['T']
+        # plot the slab temperatures
+        Tslab = T.eval(slabpoints, cells)[:,0]
+        axs[d].plot(Tslab, -slabpoints[:,1], label='t = {:.0f} Myr'.format(t))
+
+        mode = 'a'
+        if d == 0: mode = 'w'
+        with open(output_folder / 'slab_temperatures_{:.0f}.txt'.format(t), mode) as f:
+            np.savetxt(f, 
+                    np.column_stack((slabpoints[:,0], slabpoints[:,1], np.ones(len(slabpoints[:,1]))*depth, Tslab)), 
+                    delimiter=' ')
+    
+    axs[d].set_xlabel('T ($^\circ$C)')
+    axs[d].set_ylabel('z (km)')
+    axs[d].set_title('{}km depth into slab'.format(depth,))
+    axs[d].legend()
+    axs[d].invert_yaxis()
+
+
+# %%
+# intersection of crust and slab
+crustpt = sz.geom.slab_spline.intersecty(-7.0)
+# intersection of aribtrary x and slab
+x = 200
+arbpt = sz.geom.slab_spline.intersectx(x)
+crustpt[0], crustpt[1], arbpt[0], arbpt[1]
+
+# %%
+sz.geom.coast_distance, sz.deltaxcoast
+
+# %%
+sz.geom.trench_y, sz.deltaztrench
+
+# %%
+x = 135
+np.minimum(np.maximum(sz.deltaztrench*(1.0 - x/max(sz.deltaxcoast, np.finfo(float).eps)), 0.0), sz.deltaztrench)
 
 # %%

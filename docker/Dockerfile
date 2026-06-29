@@ -38,4 +38,14 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install --no-c
 ADD requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation -v h5py==3.13.0 -r requirements.txt && \
     python3 -m pip cache purge
+
+# Install Perple_X 7.1.9
+WORKDIR /usr/local/src
+RUN git clone -b v7.1.9 --single-branch --depth 1 git@github.com:jadconnolly/Perple_X.git && \
+    cd Perple_X/src && \
+    make && \
+    ln -s /usr/local/src/Perple_X/src/build /usr/local/bin/build && \
+    ln -s /usr/local/src/Perple_X/src/vertex /usr/local/bin/vertex && \
+    ln -s /usr/local/src/Perple_X/src/werami /usr/local/bin/werami
+
 ENTRYPOINT ["jupyter", "lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root"]

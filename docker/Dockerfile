@@ -41,7 +41,7 @@ RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation 
 
 # Install Perple_X 7.1.9
 WORKDIR /usr/local/src
-RUN git clone -b v7.1.9 --single-branch --depth 1 git@github.com:jadconnolly/Perple_X.git && \
+RUN git clone -b v7.1.9 --single-branch --depth 1 https://github.com/jadconnolly/Perple_X.git && \
     cd Perple_X/src && \
     make && \
     ln -s /usr/local/src/Perple_X/src/build /usr/local/bin/build && \

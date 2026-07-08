@@ -319,4 +319,11 @@ parts:
             title: 55 E Aleutians
           - file: notebooks/04_global_suites/4.3b_time_dependent/56_Calabria
             title: 56 Calabria
+  - caption: Further Applications
+    chapters:
+      - file: notebooks/applications/0_applications_intro
+        title: Introduction
+        sections:
+          - file: notebooks/applications/codillo/codillo
+            title: Time-Dependent Coupling Depth
 

@@ -229,6 +229,8 @@ class TDDislSubductionProblem(TDSubductionProblem):
             
             # set the old solution to the new solution
             self.T_n.x.array[:] = self.T_i.x.array
+            # update the current time in Myr to the time at the next timestep
+            self.t_Myr = (t + self.dt.value)*self.t0_Myr
             # update any time-dependent boundary conditions (none by default)
             self.update_tdep_bcs()
             # calculate the initial residual
@@ -276,8 +278,6 @@ class TDDislSubductionProblem(TDSubductionProblem):
             ti+=1
             # increate time
             t+=self.dt.value
-            # update the current time in Myr
-            self.t_Myr = t*self.t0_Myr
         
         if self.comm.rank == 0 and verbosity>0:
             print("Finished timeloop after {:d} steps (final time = {:g} Myr)".format(ti, t*self.t0_Myr,))

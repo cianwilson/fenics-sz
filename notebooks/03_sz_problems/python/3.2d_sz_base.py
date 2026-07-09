@@ -542,6 +542,19 @@ class BaseSubductionProblem(BaseSubductionProblem):
 
 
 # %% [markdown]
+# The final boundary condition for temperature is $T= 0$ at the top of the domain.  This is trvial to implement but we include it for completeness.
+
+# %%
+class BaseSubductionProblem(BaseSubductionProblem):
+    def T_top(self, x):
+        """
+        Return temperature at the top of the domain
+        """
+        T = np.zeros(x.shape[1])
+        return T
+
+
+# %% [markdown]
 # The wedge flow, $\vec{v}_w$ (`wedge_vw_i`), is driven by the coupling of the slab to the wedge starting at the coupling depth $z=d_c$ (set by parameter `coupling_depth` when initializing the slab spline with the point at $d_c$ stored as `Slab::PartialCouplingDepth` in the resulting slab object). Above the coupling depth the boundary condition imposes zero velocity. Below
 # the coupling depth the velocity is parallel to the slab and has non-dimensional magnitude $V_s$ (dimensional `Vs`, non-dimensional `Vs_nd`). A smooth 
 # transition from zero to full speed over a short depth interval 
@@ -560,6 +573,19 @@ class BaseSubductionProblem(BaseSubductionProblem):
         v = np.empty((self.gdim, x.shape[1]))
         for i in range(x.shape[1]):
             v[:,i] = min(max(-(x[1,i]+pcd)/dcd, 0.0), 1.0)*self.Vs_nd*self.geom.slab_spline.unittangentx(x[0,i])
+        return v
+
+
+# %% [markdown]
+# At the base of the overriding crust the wedge flow is set to zero, $\vec{v}_w = 0$ .  This is a trivial boundary condition that we include a function for in case it is overloaded later.
+
+# %%
+class BaseSubductionProblem(BaseSubductionProblem):
+    def vw_crustbase(self, x):
+        """
+        Return the wedge velocity on the crust base
+        """
+        v = np.zeros((self.gdim, x.shape[1]))
         return v
 
 
@@ -589,8 +615,8 @@ class BaseSubductionProblem(BaseSubductionProblem):
         """
         with df.common.Timer("Dirichlet BCs Stokes"):
             # locate the degrees of freedom (dofs) where various boundary conditions will be applied
-            # on the top of the wedge for the wedge velocity
-            wedgetop_dofs_Vwedge_v = df.fem.locate_dofs_topological(self.Vwedge_v, self.fdim,
+            # on the top of the wedge/base of the crust for the wedge velocity
+            crustbase_dofs_Vwedge_v = df.fem.locate_dofs_topological(self.Vwedge_v, self.fdim,
                                                                     np.concatenate([self.wedge_facet_tags.find(sid) for sid in set([line.pid for line in self.geom.crustal_lines[0]])]))
             # on the slab surface for the slab velocity
             slab_dofs_Vslab_v = df.fem.locate_dofs_topological(self.Vslab_v, self.fdim, 
@@ -600,27 +626,28 @@ class BaseSubductionProblem(BaseSubductionProblem):
                                                                 np.concatenate([self.wedge_facet_tags.find(sid) for sid in set(self.geom.slab_spline.pids)]))
                 
             # wedge velocity boundary conditions
-            self.bcs_vw = []
+            self.bcs_vw = dict()
             # zero velocity on the top of the wedge
-            zero_vw_c = df.fem.Constant(self.wedge_submesh, df.default_scalar_type((0.0, 0.0)))
-            self.bcs_vw.append(df.fem.dirichletbc(zero_vw_c, wedgetop_dofs_Vwedge_v, self.Vwedge_v))
+            vw_crustbase_f = df.fem.Function(self.Vwedge_v)
+            vw_crustbase_f.interpolate(self.vw_crustbase)
+            self.bcs_vw['vw_crustbase'] = df.fem.dirichletbc(vw_crustbase_f, crustbase_dofs_Vwedge_v)
             # kinematic slab on the slab surface of the wedge
             vw_slabtop_f = df.fem.Function(self.Vwedge_v)
             vw_slabtop_f.interpolate(self.vw_slabtop)
-            self.bcs_vw.append(df.fem.dirichletbc(vw_slabtop_f, slab_dofs_Vwedge_v))
+            self.bcs_vw['vw_slabtop'] = df.fem.dirichletbc(vw_slabtop_f, slab_dofs_Vwedge_v)
 
             # slab velocity boundary conditions
-            self.bcs_vs = []
+            self.bcs_vs = dict()
             # kinematic slab on the slab surface of the slab
             vs_slabtop_f = df.fem.Function(self.Vslab_v)
             vs_slabtop_f.interpolate(self.vs_slabtop)
-            self.bcs_vs.append(df.fem.dirichletbc(vs_slabtop_f, slab_dofs_Vslab_v))
+            self.bcs_vs['vs_slabtop'] = df.fem.dirichletbc(vs_slabtop_f, slab_dofs_Vslab_v)
 
             # set the boundary conditions on the boundaries for the velocities
             self.wedge_vw_i.x.array[:] = 0.0
             self.slab_vs_i.x.array[:] = 0.0
-            df.fem.set_bc(self.wedge_vw_i.x.array, self.bcs_vw)
-            df.fem.set_bc(self.slab_vs_i.x.array, self.bcs_vs)
+            df.fem.set_bc(self.wedge_vw_i.x.array, list(self.bcs_vw.values()))
+            df.fem.set_bc(self.slab_vs_i.x.array, list(self.bcs_vs.values()))
         # and update the interpolated v functions for consistency (timed internally)
         self.update_v_functions()
         
@@ -636,23 +663,23 @@ class BaseSubductionProblem(BaseSubductionProblem):
                                                                 np.concatenate([self.facet_tags.find(sid) for sid in set([line.pid for line in self.geom.wedge_side_lines[1:]])]))
         
             # temperature boundary conditions        
-            self.bcs_T = []
+            self.bcs_T = dict()
             # zero on the top of the domain
-            zero_c = df.fem.Constant(self.mesh, df.default_scalar_type(0.0))
-            self.bcs_T.append(df.fem.dirichletbc(zero_c, top_dofs_V_T, self.V_T))
+            T_top_f = df.fem.Function(self.V_T)
+            T_top_f.interpolate(self.T_top)
+            self.bcs_T['T_top'] = df.fem.dirichletbc(T_top_f, top_dofs_V_T)
             # an incoming slab thermal profile on the lhs of the domain
             T_trench_f = df.fem.Function(self.V_T)
             T_trench_f.interpolate(self.T_trench)
-            self.bcs_T.append(df.fem.dirichletbc(T_trench_f, slabside_dofs_V_T))
+            self.bcs_T['T_trench'] = df.fem.dirichletbc(T_trench_f, slabside_dofs_V_T)
             # on the top (above iodepth) of the incoming wedge side of the domain
+            T_backarc_f = df.fem.Function(self.V_T)
             if self.sztype=='continental':
-                T_backarc_f = df.fem.Function(self.V_T)
                 T_backarc_f.interpolate(self.T_backarc_c)
-                self.bcs_T.append(df.fem.dirichletbc(T_backarc_f, wedgeside_dofs_V_T))
+                self.bcs_T['T_backarc_c'] = df.fem.dirichletbc(T_backarc_f, wedgeside_dofs_V_T)
             else:
-                T_backarc_f = df.fem.Function(self.V_T)
                 T_backarc_f.interpolate(self.T_backarc_o)
-                self.bcs_T.append(df.fem.dirichletbc(T_backarc_f, wedgeside_dofs_V_T))
+                self.bcs_T['T_backarc_o'] = df.fem.dirichletbc(T_backarc_f, wedgeside_dofs_V_T)
 
             # interpolate the temperature boundary conditions as initial conditions/guesses
             # to the whole domain (not just the boundaries)

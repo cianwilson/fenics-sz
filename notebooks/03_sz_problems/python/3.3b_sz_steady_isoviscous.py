@@ -101,7 +101,7 @@ class SteadyIsoSubductionProblem(SteadySubductionProblem):
 
         # retrieve the temperature forms
         ST, fT, _ = self.temperature_forms()
-        solver_T = TemperatureSolver(ST, fT, self.bcs_T, self.T_i, 
+        solver_T = TemperatureSolver(ST, fT, list(self.bcs_T.values()), self.T_i, 
                                      petsc_options=petsc_options_T)
         # and solve the temperature problem
         self.T_i = solver_T.solve()

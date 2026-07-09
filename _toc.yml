@@ -321,9 +321,8 @@ parts:
             title: 56 Calabria
   - caption: Further Applications
     chapters:
-      - file: notebooks/applications/0_applications_intro
+      - file: notebooks/applications/a.1_applications_intro
         title: Introduction
-        sections:
-          - file: notebooks/applications/codillo/codillo
-            title: Time-Dependent Coupling Depth
+      - file: notebooks/applications/codillo/a.c.1_sz_tdep_coupling.ipynb
+        title: Time-dependent coupling
 

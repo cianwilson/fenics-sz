@@ -121,17 +121,17 @@ class TDDislSubductionProblem(TDSubductionProblem):
                 r_norm_sq = np.inner(r_arr, r_arr)
             return r_norm_sq
         with df.common.Timer("Assemble Stokes"):
-            r_norm_sq  = calc_r_norm_sq(rw, self.bcs_vw, self.wedge_rank)
-            r_norm_sq += calc_r_norm_sq(rs, self.bcs_vs, self.slab_rank)
+            r_norm_sq  = calc_r_norm_sq(rw, list(self.bcs_vw.values()), self.wedge_rank)
+            r_norm_sq += calc_r_norm_sq(rs, list(self.bcs_vs.values()), self.slab_rank)
         self.comm.barrier()
         with df.common.Timer("Assemble Temperature"):
-            r_norm_sq += calc_r_norm_sq(rT, self.bcs_T)
+            r_norm_sq += calc_r_norm_sq(rT, list(self.bcs_T.values()))
         r = self.comm.allreduce(r_norm_sq, op=MPI.SUM)**0.5
         return r
 
     def solve(self, tf, dt, theta=0.5, rtol=5.e-6, atol=5.e-9, maxits=50, verbosity=2,
               petsc_options_s=None, petsc_options_T=None, 
-              plotter=None):
+              plotter=None, save_period=None):
         """
         Solve the coupled temperature-velocity-pressure problem assuming a dislocation creep rheology with time dependency
 
@@ -149,8 +149,13 @@ class TDDislSubductionProblem(TDSubductionProblem):
                               (defaults to an LU direct solver using the MUMPS library) 
           * petsc_options_T - a dictionary of petsc options to pass to the temperature solver 
                               (defaults to an LU direct solver using the MUMPS library) 
+          * plotter         - a pyvista plotter object to update in-situ
+          * save_period     - period (in Myr) to save snapshots of the solution
         """
         assert(theta >= 0 and theta <= 1)
+
+        saved_solutions = None
+        if save_period is not None: saved_solutions = []
 
         # set the timestepping options based on the arguments
         # these need to be set before calling self.temperature_forms_timedependent
@@ -165,7 +170,7 @@ class TDDislSubductionProblem(TDSubductionProblem):
 
         # retrieve the temperature forms (implemented in the parent class)
         ST, fT, rT = self.temperature_forms()
-        solver_T = TemperatureSolver(ST, fT, self.bcs_T, self.T_i, 
+        solver_T = TemperatureSolver(ST, fT, list(self.bcs_T.values()), self.T_i, 
                                      petsc_options=petsc_options_T)
 
         # retrieve the non-linear Stokes forms for the wedge
@@ -174,7 +179,7 @@ class TDDislSubductionProblem(TDSubductionProblem):
                                                 self.wedge_vw_i, self.wedge_pw_i, 
                                                 eta=self.etadisl(self.wedge_vw_i, self.wedge_T_i))        
         # set up a solver for the wedge velocity and pressure
-        solver_s_w = StokesSolverNest(Ssw, fsw, self.bcs_vw, 
+        solver_s_w = StokesSolverNest(Ssw, fsw, list(self.bcs_vw.values()), 
                                       self.wedge_vw_i, self.wedge_pw_i, 
                                       M=Msw, isoviscous=False,  
                                       petsc_options=petsc_options_s)
@@ -185,12 +190,14 @@ class TDDislSubductionProblem(TDSubductionProblem):
                                                 self.slab_vs_i, self.slab_ps_i, 
                                                 eta=self.etadisl(self.slab_vs_i, self.slab_T_i))
         # set up a solver for the slab velocity and pressure
-        solver_s_s = StokesSolverNest(Sss, fss, self.bcs_vs,
+        solver_s_s = StokesSolverNest(Sss, fss, list(self.bcs_vs.values()),
                                       self.slab_vs_i, self.slab_ps_i,
                                       M=Mss, isoviscous=False,
                                       petsc_options=petsc_options_s)
         
         t = 0
+        self.t_Myr = 0
+        next_save_time = 0
         ti = 0
         tf_nd = tf/self.t0_Myr
         # time loop
@@ -200,13 +207,32 @@ class TDDislSubductionProblem(TDSubductionProblem):
         while t < tf_nd - 1e-9:
             if self.comm.rank == 0 and verbosity>1:
                 print("Step: {:>6d}, Times: {:>9g} -> {:>9g} Myr".format(ti, t*self.t0_Myr, (t+self.dt.value)*self.t0_Myr,))
+
             if plotter is not None:
                 for mesh in plotter.meshes:
                     if self.T_i.name in mesh.point_data:
                         mesh.point_data[self.T_i.name][:] = self.T_i.x.array
                 plotter.write_frame()
+
+            if save_period is not None:
+                if self.t_Myr >= next_save_time - 1e-9:
+                     solutions = {
+                         't': self.t_Myr,
+                         'T': self.T_i.copy(),
+                         'vw': self.wedge_vw_i.copy(),
+                         'pw': self.wedge_pw_i.copy(),
+                         'vs': self.slab_vs_i.copy(),
+                         'ps': self.slab_ps_i.copy()
+                     }
+                     saved_solutions.append(solutions)
+                     next_save_time += save_period
+            
             # set the old solution to the new solution
             self.T_n.x.array[:] = self.T_i.x.array
+            # update the current time in Myr to the time at the next timestep
+            self.t_Myr = (t + self.dt.value)*self.t0_Myr
+            # update any time-dependent boundary conditions (none by default)
+            self.update_tdep_bcs()
             # calculate the initial residual
             r = self.calculate_residual(rsw, rss, rT)
             r0 = r
@@ -252,11 +278,26 @@ class TDDislSubductionProblem(TDSubductionProblem):
             ti+=1
             # increate time
             t+=self.dt.value
+        
         if self.comm.rank == 0 and verbosity>0:
             print("Finished timeloop after {:d} steps (final time = {:g} Myr)".format(ti, t*self.t0_Myr,))
 
+        if save_period is not None:
+            if self.t_Myr >= next_save_time - 1e-9:
+                    solutions = {
+                        't': self.t_Myr,
+                        'T': self.T_i.copy(),
+                        'vw': self.wedge_vw_i.copy(),
+                        'pw': self.wedge_pw_i.copy(),
+                        'vs': self.slab_vs_i.copy(),
+                        'ps': self.slab_ps_i.copy()
+                    }
+                    saved_solutions.append(solutions)
+        
         # only update the pressure at the end as it is not necessary earlier
         self.update_p_functions()
+    
+        return saved_solutions
 
 # %% [markdown]
 # #### Demonstration - Benchmark case 2 (time-dependent)

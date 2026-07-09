@@ -121,11 +121,11 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
                 r_norm_sq = np.inner(r_arr, r_arr)
             return r_norm_sq
         with df.common.Timer("Assemble Stokes"):
-            r_norm_sq  = calc_r_norm_sq(rw, self.bcs_vw, self.wedge_rank)
-            r_norm_sq += calc_r_norm_sq(rs, self.bcs_vs, self.slab_rank)
+            r_norm_sq  = calc_r_norm_sq(rw, list(self.bcs_vw.values()), self.wedge_rank)
+            r_norm_sq += calc_r_norm_sq(rs, list(self.bcs_vs.values()), self.slab_rank)
         self.comm.barrier()
         with df.common.Timer("Assemble Temperature"):
-            r_norm_sq += calc_r_norm_sq(rT, self.bcs_T)
+            r_norm_sq += calc_r_norm_sq(rT, list(self.bcs_T.values()))
         r = self.comm.allreduce(r_norm_sq, op=MPI.SUM)**0.5
         return r
 
@@ -148,7 +148,7 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
 
         # retrieve the temperature forms (implemented in the parent class)
         ST, fT, rT = self.temperature_forms()
-        solver_T = TemperatureSolver(ST, fT, self.bcs_T, self.T_i, 
+        solver_T = TemperatureSolver(ST, fT, list(self.bcs_T.values()), self.T_i, 
                                      petsc_options=petsc_options_T)
         # and solve the temperature problem, given the isoviscous Stokes solution
         self.T_i = solver_T.solve()
@@ -160,7 +160,7 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
                                                 self.wedge_vw_i, self.wedge_pw_i, 
                                                 eta=self.etadisl(self.wedge_vw_i, self.wedge_T_i))        
         # set up a solver for the wedge velocity and pressure
-        solver_s_w = StokesSolverNest(Ssw, fsw, self.bcs_vw, 
+        solver_s_w = StokesSolverNest(Ssw, fsw, list(self.bcs_vw.values()), 
                                       self.wedge_vw_i, self.wedge_pw_i, 
                                       M=Msw, isoviscous=False,  
                                       petsc_options=petsc_options_s)
@@ -171,7 +171,7 @@ class SteadyDislSubductionProblem(SteadySubductionProblem):
                                                 self.slab_vs_i, self.slab_ps_i, 
                                                 eta=self.etadisl(self.slab_vs_i, self.slab_T_i))
         # set up a solver for the slab velocity and pressure
-        solver_s_s = StokesSolverNest(Sss, fss, self.bcs_vs,
+        solver_s_s = StokesSolverNest(Sss, fss, list(self.bcs_vs.values()),
                                       self.slab_vs_i, self.slab_ps_i,
                                       M=Mss, isoviscous=False,
                                       petsc_options=petsc_options_s)

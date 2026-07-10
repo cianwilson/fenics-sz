@@ -124,6 +124,12 @@ class TDSubductionProblem(SubductionProblem):
         self.theta = None
         self.dt    = None
 
+        # current time in Myr (for use in, e.g., time-dependent boundary conditions)
+        self.t_Myr = 0.0
+
+        # list of time-dependent boundary condition function names (default empty list)
+        self.tdep_bcs = []
+
 
 # %% [markdown]
 # We then override the function `temperature_forms` to return the time-dependent weak forms of the temperature equation as outlined above.
@@ -192,9 +198,35 @@ class TDSubductionProblem(TDSubductionProblem):
         # return the forms
         return df.fem.form(ST), df.fem.form(fT), df.fem.form(rT)
 
+
 # %% [markdown]
 # ### 6. Matrix-Vector System
 #
-# As before will use the `TemperatureSolver` class, implemented in [`notebooks/3.2e_sz_problem.ipynb`](./3.2e_sz_problem.ipynb), that wraps a [PETSc KSP](https://petsc.org/release/manual/ksp/) linear solver to handle the assembly and solution of the temperature system in the next two notebooks.
+# We include a function that allows us to update time-dependent boundary conditions (named by function name in the list `tdep_bcs`) in the matrix-vector system.
+
+# %%
+class TDSubductionProblem(TDSubductionProblem):
+    def update_tdep_bcs(self):
+        """
+        Update any time-dependent boundary conditions
+        """
+        for f, bcs in [(self.wedge_vw_i, self.bcs_vw), (self.slab_vs_i, self.bcs_vs), (self.T_i, self.bcs_T)]:
+            updated = False
+            for fname in self.tdep_bcs:
+                if fname in bcs:
+                    updated = True
+                    bc = bcs[fname]
+                    func = getattr(self, fname)
+                    mesh = bc.g.function_space.mesh
+                    map = mesh.topology.index_map(mesh.topology.dim)
+                    cells0 = np.arange(map.size_local + map.num_ghosts, dtype=np.int32)
+                    x = df.cpp.fem.interpolation_coords(
+                        bc.g.function_space.element, bc.g.function_space.mesh.geometry, cells0
+                    )
+                    bc.g.interpolate(np.asarray(func(x), dtype=bc.g.x.array.dtype), cells0)
+            if updated: df.fem.set_bc(f.x.array, list(bcs.values()))
+
+# %% [markdown]
+# Otherwise, as before, we will use the `TemperatureSolver` class, implemented in [`notebooks/3.2e_sz_problem.ipynb`](./3.2e_sz_problem.ipynb), that wraps a [PETSc KSP](https://petsc.org/release/manual/ksp/) linear solver to handle the assembly and solution of the temperature matrix-vector system in the next two notebooks.
 
 # %%

@@ -630,7 +630,7 @@ class SubductionProblem(SubductionProblem):
                                              self.wedge_vw_a, self.wedge_pw_a, 
                                              self.wedge_vw_i, self.wedge_pw_i)
         # set up a solver for the wedge velocity and pressure
-        solver_s_w = StokesSolverNest(Ssw, fsw, self.bcs_vw, 
+        solver_s_w = StokesSolverNest(Ssw, fsw, list(self.bcs_vw.values()), 
                                       self.wedge_vw_i, self.wedge_pw_i, 
                                       M=Msw, isoviscous=True,  
                                       petsc_options=petsc_options)
@@ -640,7 +640,7 @@ class SubductionProblem(SubductionProblem):
                                              self.slab_vs_a, self.slab_ps_a, 
                                              self.slab_vs_i, self.slab_ps_i)
         # set up a solver for the slab velocity and pressure
-        solver_s_s = StokesSolverNest(Sss, fss, self.bcs_vs,
+        solver_s_s = StokesSolverNest(Sss, fss, list(self.bcs_vs.values()),
                                       self.slab_vs_i, self.slab_ps_i,
                                       M=Mss, isoviscous=True,
                                       petsc_options=petsc_options)

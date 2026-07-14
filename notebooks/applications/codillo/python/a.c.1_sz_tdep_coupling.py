@@ -15,7 +15,7 @@
 # %% [markdown]
 # # Time-Dependent Coupling Depth (Codillo et al.)
 #
-# Codillo et al., EPSL (submitted) modified the base of models of [Wilson & van Keken, PEPS, 2023 (II)](http://dx.doi.org/10.1186/s40645-023-00588-6) (as reproduced in FEniCS-SZ) by including a time-dependent coupling depth.  Here we derive a new class for these cases and demonstrate their accuracy compared to the original models of Codillo et al.
+# Codillo et al., Journal of Geophysical Research (revised version, submitted) modified the base of models of [Wilson & van Keken, PEPS, 2023 (II)](http://dx.doi.org/10.1186/s40645-023-00588-6) (as reproduced in FEniCS-SZ) by including a time-dependent coupling depth.  Here we derive a new class for these cases and demonstrate their accuracy compared to the original models of Codillo et al.
 
 # %% [markdown]
 # ## Model Setup
@@ -179,6 +179,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% tags=["active-ipynb"]
 # szdict['As'] = 52 # Myr
 # szdict['Tm'] = 1421.5 
+# szdict['Ac'] = 82 # Myr, final age of overriding lithosphere
 
 # %% [markdown]
 # And examine the parameters to check.

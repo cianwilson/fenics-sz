@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: dolfinx-env
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
@@ -15,7 +15,7 @@
 # %% [markdown]
 # # Time-Dependent Coupling Depth (Codillo et al.)
 #
-# Codillo et al., EPSL (submitted) modified the base of models of [Wilson & van Keken, PEPS, 2023 (II)](http://dx.doi.org/10.1186/s40645-023-00588-6) (as reproduced in FEniCS-SZ) by including a time-dependent coupling depth.  Here we derive a new class for these cases and demonstrate their accuracy compared to the original models of Codillo et al.
+# Codillo et al., Journal of Geophysical Research (revised version, submitted) modified the base of models of [Wilson & van Keken, PEPS, 2023 (II)](http://dx.doi.org/10.1186/s40645-023-00588-6) (as reproduced in FEniCS-SZ) by including a time-dependent coupling depth.  Here we derive a new class for these cases and demonstrate their accuracy compared to the original models of Codillo et al.
 
 # %% [markdown]
 # ## Model Setup
@@ -179,6 +179,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% tags=["active-ipynb"]
 # szdict['As'] = 52 # Myr
 # szdict['Tm'] = 1421.5 
+# szdict['Ac'] = 82 # final age of overriding lithosphere (Myr)
 
 # %% [markdown]
 # And examine the parameters to check.

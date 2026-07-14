@@ -53,3 +53,6 @@ from fenics_sz.sz_problems.sz_tdep_dislcreep import TDDislSubductionProblem
 from fenics_sz.sz_problems.sz_params import default_params, allsz_params
 
 # %%
+from fenics_sz.fluid_release import perple_x_integration
+
+# %%

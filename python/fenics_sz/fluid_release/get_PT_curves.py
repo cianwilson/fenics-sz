@@ -1,1 +1,1 @@
-python/5.2_get_PT_curves.py
+../../../notebooks/05_fluid_release/python/5.2_get_PT_curves.py

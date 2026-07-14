@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: Python 3 (ipykernel)
+#     display_name: dolfinx-env
 #     language: python
 #     name: python3
 # ---
@@ -179,7 +179,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% tags=["active-ipynb"]
 # szdict['As'] = 52 # Myr
 # szdict['Tm'] = 1421.5 
-# szdict['Ac'] = 82 # final age of overriding lithosphere (Myr)
+# szdict['Ac'] = 82 # Myr, final age of overriding lithosphere
 
 # %% [markdown]
 # And examine the parameters to check.

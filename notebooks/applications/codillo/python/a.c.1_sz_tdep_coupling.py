@@ -15,7 +15,7 @@
 # %% [markdown]
 # # Time-Dependent Coupling Depth (Codillo et al.)
 #
-# Codillo et al., EPSL (submitted) modified the base of models of [Wilson & van Keken, PEPS, 2023 (II)](http://dx.doi.org/10.1186/s40645-023-00588-6) (as reproduced in FEniCS-SZ) by including a time-dependent coupling depth.  Here we derive a new class for these cases and demonstrate their accuracy compared to the original models of Codillo et al.
+# Codillo et al., Journal of Geophysical Research (revised version, submitted) modified the base of models of [Wilson & van Keken, PEPS, 2023 (II)](http://dx.doi.org/10.1186/s40645-023-00588-6) (as reproduced in FEniCS-SZ) by including a time-dependent coupling depth.  Here we derive a new class for these cases and demonstrate their accuracy compared to the original models of Codillo et al.
 
 # %% [markdown]
 # ## Model Setup
@@ -174,11 +174,12 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # szdict = allsz_params[name]
 
 # %% [markdown]
-# Codillo et al., used a longer integration time and a higher mantle potential temperatures so we modify those parameters here.
+# Codillo et al. used a longer integration time and a higher mantle potential temperatures so we modify those parameters here.
 
 # %% tags=["active-ipynb"]
 # szdict['As'] = 52 # Myr
 # szdict['Tm'] = 1421.5 
+# szdict['Ac'] = 82 # Myr, final age of overriding lithosphere
 
 # %% [markdown]
 # And examine the parameters to check.
@@ -304,7 +305,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # ### Plot and save slab temperatures over time
 #
-# In addition to looking at the final temperature distribution, a key output of Codillo et al. are the time-dependent variations in temperature in the downgoing slab.  We can visualize those here and compare them to the solution published by Codillo et al.
+# One of the key outputs of the models in Codillo et al. are the time-dependent variations in the near-slab temperature as seen along paths running subparallel to the slab surface.  In Codillo et al. these were obtained using the independent Sepran finite element software. Here we will construct these same paths and compare them to the published solution.
 #
 # To do this we will need to evaluate the temperature (and lithostatic pressure) along various paths subparallel to the slab surface.
 #
@@ -508,21 +509,24 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 #             if name in plot_layers:
 #                 slabpathfile_gdh1 = data_folder / pathlib.Path(os.path.join(zipbasename_gdh1, 'slabpath.{:03.0f}'.format(t)))
 #                 slabpathfile_tdcd = data_folder / pathlib.Path(os.path.join(zipbasename_tdcd, 'slabpath.{:03.0f}'.format(t)))
+#                 fsz_i = lithP <= 7
 #                 if slabpathfile_gdh1.is_file():
 #                     sepran_data = np.loadtxt(slabpathfile_gdh1)
 #                     lids = np.where(np.isclose(sepran_data[:,4], name))[0]
 #                     sepran_T = sepran_data[lids, 2]
 #                     sepran_P = sepran_data[lids, 3]
-#                     lines.append(axs[ids[0]].plot(sepran_T, sepran_P, 'k-', label='sepran (fixed cd)')[0])
-#                     lines.append(axs[ids[0]].plot(Tslabpath_gdh1, lithP, 'r:', label='FEniCS-SZ (fixed cd)')[0])
+#                     sepran_i = sepran_P <= 7
+#                     lines.append(axs[ids[0]].plot(sepran_T[sepran_i], sepran_P[sepran_i], 'k-', label='Sepran (fixed cd)')[0])
+#                     lines.append(axs[ids[0]].plot(Tslabpath_gdh1[fsz_i], lithP[fsz_i], 'r:', label='FEniCS-SZ (fixed cd)')[0])
 #                 if slabpathfile_tdcd.is_file():
 #                     sepran_data = np.loadtxt(slabpathfile_tdcd)
 #                     lids = np.where(np.isclose(sepran_data[:,4], name))[0]
 #                     sepran_T = sepran_data[lids, 2]
 #                     sepran_P = sepran_data[lids, 3]
-#                     lines.append(axs[ids[0]].plot(sepran_T, sepran_P, 'b-', label='sepran (tdep cd)')[0])
-#                     lines.append(axs[ids[0]].plot(Tslabpath_tdcd, lithP, 'g:', label='FEniCS-SZ (tdep cd)')[0])
-#                 axs[ids[0]].text(Tslabpath_gdh1[-1], lithP[-1], str(name), ha='center', va='bottom')
+#                     sepran_i = sepran_P <= 7
+#                     lines.append(axs[ids[0]].plot(sepran_T[sepran_i], sepran_P[sepran_i], 'b-', label='Sepran (t-dep cd)')[0])
+#                     lines.append(axs[ids[0]].plot(Tslabpath_tdcd[fsz_i], lithP[fsz_i], 'g:', label='FEniCS-SZ (t-dep cd)')[0])
+#                 axs[ids[0]].text(Tslabpath_tdcd[fsz_i][-1], lithP[fsz_i][-1], str(name)+' ', ha='right', va='top')
 #
 # for ax, pt in zip(axs, plot_times):
 #     ax.set_title('t = {:.0f} Myr'.format(pt,))
@@ -531,9 +535,12 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # _ = fig.legend([l.get_label() for l in lines[:min(len(lines),4)]])
 
 # %% [markdown]
-# In the figure above we can see a reasonable match between the results from Codillo et al. ("sepran") and those generated here ("FEniCS-SZ").  In addition we can see the difference that having time-dependent coupling depth ("tdep cd") has on the temperatures in and above the slab compared to a case with a fixed coupling depth ("fixed cd").
+# In the figure above we can see a reasonable match between the results from Codillo et al. ("Sepran") and those generated here ("FEniCS-SZ").  In addition we can see the difference that having time-dependent coupling depth ("t-dep cd") has on the temperatures in and above the slab compared to a case with a fixed coupling depth ("fixed cd").
 #
 #
 # ```{admonition} Resolution
 # Recall that by default the resolution (both spatial and temporal) is low to allow for a quick runtime and smaller website size.  If sufficient computational resources are available a lower `resscale` and `cfl` should be set above to get the higher spatial and temporal resolutions used by Codillo et al.
 # ```
+
+# %% [markdown]
+#

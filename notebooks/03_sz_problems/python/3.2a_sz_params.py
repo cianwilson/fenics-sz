@@ -58,7 +58,7 @@
 # | Mantle thermal conductivity                       | $k^*_m$             | 3.1  W/(m K)                             | $k_m$=1                     |
 # | Volumetric heat production (upper crust)$^\text{c}$ | $H^*_1$             | 1.3 $\mu$W/m$^3$                       | $H_1$=0.419354              |
 # | Volumetric heat production (lower crust)$^\text{c}$ | $H_2^*$             | 0.27 $\mu$W/m$^3$                      | $H_2$=0.087097              |
-# | Age of overriding crust$^\text{o}$                  | $A_c^*$             | $^\S$ Myr                           | $A_c$$^\S$             |
+# | Final age of overriding lithosphere$^\text{o}$      | $A_c^*$             | $^\S$ Myr                           | $A_c$$^\S$             |
 # | Age of subduction$^\text{t}$                        | $A_s^*$             | $^\S$ Myr                           | $A_s$$^\S$             |
 # | Age of subducting slab                            | $A^*$               | $^\S$ Myr                           | $A$$^\S$               |
 # | Reference length scale                            | $h_0$               | 1 km                                     | -                           |

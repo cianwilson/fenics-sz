@@ -1,7 +1,7 @@
-data/hp622ver.dat         thermodynamic data file  try hpha622ver for AH16 elasticity via Shinevar                                                                                               
+data/perple_x_data/hp622ver.dat         thermodynamic data file  try hpha622ver for AH16 elasticity via Shinevar                                                                                               
 PRDMMdamp_25      print file name, blank = no output                                                                                                                                                                                      
 PLOTDMMdamp_25     plot file name, blank = no output                                                                                                                                                                                                                   
-data/solution_model.dat     solution model file, blank = no solutions                                                                                                                                                                                                         
+data/perple_x_data/solution_model.dat     solution model file, blank = no solutions                                                                                                                                                                                                         
 Depleted MORB Mantle = DMM from  from Workman & Hart (2005) - damp H2O 2wt%H2O recalc by GA in 7.1.9 05.2025
     5 calculation type, 0 - no independent potentials, 1 - two independent potentials 3 - one independent potentials, 4 - swash 5 - gridded minimization, 7 - fractionation
     3 efficiency level, 0 - low, 5 - high

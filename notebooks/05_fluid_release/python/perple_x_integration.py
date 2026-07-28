@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: dolfinx-env
+#     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
@@ -181,6 +181,7 @@ def plot_PT_data(basenames, data, h20_max=5.5, save_figs=True):
         dv = 0.25
 
         levels = np.arange(vmin, vmax+dv, dv)
+        levels = np.insert(levels, 1,0.05)
         c = ax.contourf(data[i][1], data[i][0], data[i][2], levels=levels, cmap="jet_r")
         cbar = fig.colorbar(c, label=r"H$_2$O (wt%)")
         cbar.set_ticks(np.arange(vmin, vmax, 1, dtype=np.int32))
@@ -196,8 +197,7 @@ def plot_PT_data(basenames, data, h20_max=5.5, save_figs=True):
 # Now we can call the function to visualize the data:
 
 # %% tags=["active-ipynb"]
-# plot_PT_data(basenames, data, save_figs=False)
-# #Set save_figs to True if you would like to automatically save generated figures to the output folder
+# plot_PT_data(basenames, data, save_figs=True)
 
 # %% [markdown]
 # We now have a way to predict the water content of various lithologies at different pressures and temperatures. In the next notebook, we'll use the temperature probing functionality developed in the SZ_problems section to generate PT curves for sections of slabs and use those in conjuction with our PT hydration data.

@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: dolfinx-env (3.12.3.final.0)
+#     display_name: dolfinx-env
 #     language: python
 #     name: python3
 # ---
@@ -137,6 +137,77 @@ def get_st_grid(sz, h_serp, u_res, z0, z15):
 
     xys_as_array = np.asarray(new_xys)
     return xys_as_array, spline_dist, layer_offsets, spline_depth
+
+
+# %%
+# disregarding anything before 15km depth
+
+def get_regular_grid_attempt_8(sz, h_serp, u_res, z15):
+    
+    new_xys = []
+    spline_dist = []
+    spline_depth = []
+
+    x15 = sz.geom.slab_spline.intersecty(-15)[0]
+    start_u = sz.geom.slab_spline.x2delu(x15)
+    
+    us = np.linspace(start_u, 1, u_res)
+    print(us)
+
+# -----Checking which points will fall in the domain:-----
+    test_spline = copy.deepcopy(sz.geom.slab_spline)
+    test_spline.translatenormal(-7 -h_serp -z15)
+    test_xys = np.asarray([test_spline(u) + [0.0] for u in us])
+
+    slab_xys = np.asarray([sz.geom.slab_spline(u) + [0.0] for u in us])
+    # xy points on the surface of the slab
+
+    # scoords = np.asarray(slab_xys).transpose()  # transpose now to avoid some issues later
+    # print(scoords)
+    normals = np.stack([-sz.geom.slab_spline.cs(test_xys[:,0], nu=1), np.ones(u_res), np.zeros(u_res)], axis=1)
+    normags = np.sqrt(np.sum(normals**2, axis=1))
+    normals = (normals.T/normags).T
+
+
+    new_test_xys_new = slab_xys + (-z15 -7 -h_serp)*normals
+    #'corrected' test points
+    
+    good_us = [] # list of u values to use when creating the set of xy points in slab space 
+    for u in range(u_res):
+        if in_domain(sz, new_test_xys_new[u]) ==True:
+            good_us.append(us[u])
+
+    good_slab_xys = np.asarray([sz.geom.slab_spline(u) + [0.0] for u in good_us])
+    # valid xy points on the surface of the slab
+
+    print(good_us)
+# -------------------------------------------------------
+
+    layer_offsets = [-0.0, -0.3, -0.6, -1.3] + np.arange(-2.0, -10.0, -1).tolist()
+
+    new_xys.append(np.asarray(good_slab_xys))
+    spline_dist.append(np.asarray([u*sz.geom.slab_spline.length for u in good_us]))
+    spline_depth.append(0.0)
+
+
+    for depth in layer_offsets:
+        new_spline = copy.deepcopy(sz.geom.slab_spline)
+        new_spline.translatenormal(depth)
+        xys = (np.asarray([new_spline(u) + [0.0] for u in good_us]))
+        spline_dist.append(np.asarray([u*new_spline.length for u in good_us]))
+        spline_depth.append(-z15 + depth)
+
+        normals = np.stack([-sz.geom.slab_spline.cs(xys[:,0], nu=1), np.ones(len(good_us)), np.zeros(len(good_us))], axis=1)
+        normags = np.sqrt(np.sum(normals**2, axis=1))
+        normals = (normals.T/normags).T
+        new_xys.append(np.asarray(good_slab_xys + (-z15 + depth)*normals))
+
+    xys_as_array = np.asarray(new_xys)
+    return xys_as_array, spline_dist, spline_depth
+
+# %%
+layer_offsets = [-0.0, -0.3, -0.6, -1.3] + np.arange(-2.0, -10.0, -1).tolist()
+(layer_offsets)
 
 
 # %%
@@ -410,8 +481,8 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
     z0 = sz_dict["z0"]
     z15 = sz_dict["z15"]
 
-    regular_points, spline_dist, layer_depths, true_normal_depths = get_st_grid(sz, h_serp, u_res, z0, z15)
-    # layer_depths represent distances from the base of the sediments
+    regular_points, spline_dist, layer_depths = get_regular_grid_attempt_8(sz, h_serp, u_res, z15)
+    print(layer_depths)
 
     #plot s-t points
     plotter = pv.Plotter()
@@ -468,7 +539,7 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
 
 
         for j in range(len(regular_points[i])-1): # problem with area approx is that spline dist varies between layers (taking average of spline dist btwn cell's 2 defining layers might make it a bit better)
-            cell = Cell(sz, true_normal_depths[i][j][0], true_normal_depths[i][j+1][0], true_normal_depths[i+1][j][0], true_normal_depths[i+1][j+1][0], 
+            cell = Cell(sz, layer_depths[i], layer_depths[i], layer_depths[i+1], layer_depths[i+1], 
                         spline_dist[i][j], spline_dist[i][j+1], spline_dist[i+1][j], spline_dist[i+1][j+1],
                         zs[i][j], zs[i][j+1], zs[i+1][j], zs[i+1][j+1], ps[i][j], ps[i][j+1], ps[i+1][j], ps[i+1][j+1], 
                         ts[i][j], ts[i][j+1], ts[i+1][j], ts[i+1][j+1], interp)
@@ -479,7 +550,6 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
     # ---------------------------------------------------------------------------
 
  
-    arr_TND = np.asarray((true_normal_depths))
     slab_surf_dist = [] # distance along slab *surface* , not along the layer
     for i in range(len(spline_dist[0])):
         slab_surf_dist.append(spline_dist[0][i])
@@ -495,13 +565,13 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
         cell_temps.append(layer_cell_temps)
 
     fig, ax = pl.subplots()
-    c = ax.pcolor(slab_surf_dist, arr_TND[:,-1,0], cell_temps, cmap='RdBu_r')
+    c = ax.pcolor(slab_surf_dist, layer_depths, cell_temps, cmap='RdBu_r')
     ax.set_title('Cell Temps; 5x Slab-Normal Exageration')
     ax.set_xlabel('Distance along slab surface (km)')
     ax.set_ylabel('Distance normal to slab surface (km)')
 
     slab_normal_exag = 5
-    ax.set_box_aspect((-arr_TND[:,-1,0][-1] / slab_surf_dist[-1]) * slab_normal_exag)
+    ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
 
     fig.colorbar(c, ax=ax)
     pl.show()
@@ -517,13 +587,13 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
         cell_hydrations.append(layer_cell_hydrations)
 
     fig, ax = pl.subplots()
-    c = ax.pcolor(slab_surf_dist, arr_TND[:,-1,0], cell_hydrations, cmap='Blues')
+    c = ax.pcolor(slab_surf_dist, layer_depths, cell_hydrations, cmap='Blues')
     ax.set_title('Cell HYDRATIONS; 5x Slab-Normal Exageration')
     ax.set_xlabel('Distance along slab surface (km)')
     ax.set_ylabel('Distance normal to slab surface (km)')
 
     slab_normal_exag = 5
-    ax.set_box_aspect((-arr_TND[:,-1,0][-1] / slab_surf_dist[-1]) * slab_normal_exag)
+    ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
 
     fig.colorbar(c, ax=ax)
     pl.show()
@@ -532,13 +602,13 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
     # -------------------------disallowing rehydration-------------------------
     cell_hydrations_no_rehydration = remove_rehydration(cell_hydrations)
     fig, ax = pl.subplots()
-    c = ax.pcolor(slab_surf_dist, arr_TND[:,-1,0], cell_hydrations_no_rehydration, cmap='Blues') 
+    c = ax.pcolor(slab_surf_dist, layer_depths, cell_hydrations_no_rehydration, cmap='Blues') 
     ax.set_title('Cell Hydration NO REHYDRATION; 5x Slab-Normal Exageration')
     ax.set_xlabel('Distance along slab surface (km)')
     ax.set_ylabel('Distance normal to slab surface (km)')
 
     slab_normal_exag = 5
-    ax.set_box_aspect((-arr_TND[:,-1,0][-1] / slab_surf_dist[-1]) * slab_normal_exag)
+    ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
 
     fig.colorbar(c, ax=ax)
     pl.show()
@@ -675,5 +745,11 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
 
 
     # ----------------------------function outputs-------------------------------
-    layer_losses= None      # make this a dict; layer name, cum water loss of layer and layers above
-    return cum_sum_time_standardized, layer_losses
+    layer_losses = dict(sed = cum_sum_array_sediment, u_volcs = cum_sum_array_uvolc, l_volcs = cum_sum_array_lvolc,
+                        dikes = cum_sum_array_dike, gabbros = cum_sum_array_gabbros, mantle = cum_sum_array_mantle)
+    
+    loss_depths = dict(sed = sediment_losses_and_depths, u_volcs = uvolc_losses_and_depths, l_volcs = lvolc_losses_and_depths,
+                        dikes = dike_losses_and_depths, gabbros = gabbros_losses_and_depths, mantle = mantle_losses_and_depths)
+    return cum_sum_time_standardized, [row[1] for row in sorted_water_losses_and_depths], layer_losses, loss_depths
+
+# %%

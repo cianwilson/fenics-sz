@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: dolfinx-env
+#     display_name: 'defaultInterpreterPath: 3.12.3.final.0'
 #     language: python
 #     name: python3
 # ---
@@ -142,7 +142,7 @@ def get_st_grid(sz, h_serp, u_res, z0, z15):
 # %%
 # disregarding anything before 15km depth
 
-def get_regular_grid_attempt_8(sz, h_serp, u_res, z15):
+def get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=1):
     
     new_xys = []
     spline_dist = []
@@ -152,7 +152,8 @@ def get_regular_grid_attempt_8(sz, h_serp, u_res, z15):
     start_u = sz.geom.slab_spline.x2delu(x15)
     
     us = np.linspace(start_u, 1, u_res)
-    print(us)
+    if verbosity >=3:
+        print(us)
 
 # -----Checking which points will fall in the domain:-----
     test_spline = copy.deepcopy(sz.geom.slab_spline)
@@ -179,8 +180,8 @@ def get_regular_grid_attempt_8(sz, h_serp, u_res, z15):
 
     good_slab_xys = np.asarray([sz.geom.slab_spline(u) + [0.0] for u in good_us])
     # valid xy points on the surface of the slab
-
-    print(good_us)
+    if verbosity >=3:
+        print(good_us)
 # -------------------------------------------------------
 
     layer_offsets = [-0.0, -0.3, -0.6, -1.3] + np.arange(-2.0, -10.0, -1).tolist()
@@ -447,7 +448,12 @@ def sorted_water_loss_by_layer(cells, cell_hydrations):
 # ### Master Function
 
 # %%
-def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
+def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
+
+    if verbosity >=1:
+        print("Calculating ", sz_dict['dirname'], " H20")
+    if verbosity >=2:
+        print(sz_dict)
 
     sediment_data = get_PT_data_from_tabs(sz_dict['sediment'])
     sediment_interp = get_interpolator(sediment_data)
@@ -460,41 +466,46 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
 
     # ------------------create SZ problem, solve, plot solution------------------
     slab = create_slab(sz_dict['xs'], sz_dict['ys'], resscale, sz_dict['lc_depth'])
-    plot_slab(slab)
+    
+    if verbosity>=3:
+        plot_slab(slab)
+
     geom = create_sz_geometry(slab, resscale, sz_dict['sztype'], sz_dict['io_depth'], sz_dict['extra_width'], 
                              sz_dict['coast_distance'], sz_dict['lc_depth'], sz_dict['uc_depth'])
     sz = TDDislSubductionProblem(geom, **sz_dict)
 
     sz.solve(sz_dict['As'], dt=0.05, theta=0.5, rtol=1.e-1, verbosity=1)
 
-    plotter = pv.Plotter()
-    fenics_sz.utils.plot.plot_scalar(sz.T_i, plotter=plotter, scale=sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    geom.pyvistaplot(plotter=plotter, color='green', width=2)
-    cdpt = slab.findpoint('Slab::FullCouplingDepth')
-    fenics_sz.utils.plot.plot_points([[cdpt.x, cdpt.y, 0.0]], plotter=plotter, render_points_as_spheres=True, point_size=10.0, color='green')
-    fenics_sz.utils.plot.plot_show(plotter)
+    if verbosity>=3:
+        plotter = pv.Plotter()
+        fenics_sz.utils.plot.plot_scalar(sz.T_i, plotter=plotter, scale=sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+        geom.pyvistaplot(plotter=plotter, color='green', width=2)
+        cdpt = slab.findpoint('Slab::FullCouplingDepth')
+        fenics_sz.utils.plot.plot_points([[cdpt.x, cdpt.y, 0.0]], plotter=plotter, render_points_as_spheres=True, point_size=10.0, color='green')
+        fenics_sz.utils.plot.plot_show(plotter)
     # ---------------------------------------------------------------------------
 
 
     # ------------------create and plot slab-based coord system------------------
 
-    z0 = sz_dict["z0"]
     z15 = sz_dict["z15"]
 
-    regular_points, spline_dist, layer_depths = get_regular_grid_attempt_8(sz, h_serp, u_res, z15)
-    print(layer_depths)
+    regular_points, spline_dist, layer_depths = get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=verbosity)
 
-    #plot s-t points
-    plotter = pv.Plotter()
-    fenics_sz.utils.plot.plot_scalar(sz.T_i, plotter=plotter, scale=sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
-    geom.pyvistaplot(plotter=plotter, color='green', width=2)
-    cdpt = slab.findpoint('Slab::FullCouplingDepth')
-    fenics_sz.utils.plot.plot_points([[cdpt.x, cdpt.y, 0.0]], plotter=plotter, render_points_as_spheres=True, point_size=10.0, color='green')
+    if verbosity>=3:
+        print(layer_depths)
 
-    for i in range(len(regular_points)):
-        for j in range(len(regular_points[i])):            
-            fenics_sz.utils.plot.plot_points([[regular_points[i][j][0], regular_points[i][j][1], 0.0]], plotter=plotter, point_size=0.5, color='black')
-    fenics_sz.utils.plot.plot_show(plotter)
+    if verbosity>=2: #plot s-t points
+        plotter = pv.Plotter()
+        fenics_sz.utils.plot.plot_scalar(sz.T_i, plotter=plotter, scale=sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
+        geom.pyvistaplot(plotter=plotter, color='green', width=2)
+        cdpt = slab.findpoint('Slab::FullCouplingDepth')
+        fenics_sz.utils.plot.plot_points([[cdpt.x, cdpt.y, 0.0]], plotter=plotter, render_points_as_spheres=True, point_size=10.0, color='green')
+
+        for i in range(len(regular_points)):
+            for j in range(len(regular_points[i])):            
+                fenics_sz.utils.plot.plot_points([[regular_points[i][j][0], regular_points[i][j][1], 0.0]], plotter=plotter, point_size=0.5, color='black')
+        fenics_sz.utils.plot.plot_show(plotter)
 
     # ---------------------------------------------------------------------------
 
@@ -564,17 +575,18 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
             layer_cell_temps.append(cells[i][j].get_temp())
         cell_temps.append(layer_cell_temps)
 
-    fig, ax = pl.subplots()
-    c = ax.pcolor(slab_surf_dist, layer_depths, cell_temps, cmap='RdBu_r')
-    ax.set_title('Cell Temps; 5x Slab-Normal Exageration')
-    ax.set_xlabel('Distance along slab surface (km)')
-    ax.set_ylabel('Distance normal to slab surface (km)')
+    if verbosity>=3:
+        fig, ax = pl.subplots()
+        c = ax.pcolor(slab_surf_dist, layer_depths, cell_temps, cmap='RdBu_r')
+        ax.set_title('Cell Temps; 5x Slab-Normal Exageration')
+        ax.set_xlabel('Distance along slab surface (km)')
+        ax.set_ylabel('Distance normal to slab surface (km)')
 
-    slab_normal_exag = 5
-    ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
+        slab_normal_exag = 5
+        ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
 
-    fig.colorbar(c, ax=ax)
-    pl.show()
+        fig.colorbar(c, ax=ax)
+        pl.show()
 
 
     # -----------------------------cell hydrations-----------------------------
@@ -586,32 +598,35 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
             layer_cell_hydrations.append(cells[i][j].get_water_pct()[0])
         cell_hydrations.append(layer_cell_hydrations)
 
-    fig, ax = pl.subplots()
-    c = ax.pcolor(slab_surf_dist, layer_depths, cell_hydrations, cmap='Blues')
-    ax.set_title('Cell HYDRATIONS; 5x Slab-Normal Exageration')
-    ax.set_xlabel('Distance along slab surface (km)')
-    ax.set_ylabel('Distance normal to slab surface (km)')
+    if verbosity >=3:
+        fig, ax = pl.subplots()
+        c = ax.pcolor(slab_surf_dist, layer_depths, cell_hydrations, cmap='Blues')
+        ax.set_title('Cell HYDRATIONS; 5x Slab-Normal Exageration')
+        ax.set_xlabel('Distance along slab surface (km)')
+        ax.set_ylabel('Distance normal to slab surface (km)')
 
-    slab_normal_exag = 5
-    ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
+        slab_normal_exag = 5
+        ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
 
-    fig.colorbar(c, ax=ax)
-    pl.show()
+        fig.colorbar(c, ax=ax)
+        pl.show()
 
 
     # -------------------------disallowing rehydration-------------------------
     cell_hydrations_no_rehydration = remove_rehydration(cell_hydrations)
-    fig, ax = pl.subplots()
-    c = ax.pcolor(slab_surf_dist, layer_depths, cell_hydrations_no_rehydration, cmap='Blues') 
-    ax.set_title('Cell Hydration NO REHYDRATION; 5x Slab-Normal Exageration')
-    ax.set_xlabel('Distance along slab surface (km)')
-    ax.set_ylabel('Distance normal to slab surface (km)')
+    
+    if verbosity >=1:
+        fig, ax = pl.subplots()
+        c = ax.pcolor(slab_surf_dist, layer_depths, cell_hydrations_no_rehydration, cmap='Blues') 
+        ax.set_title('Cell Hydration NO REHYDRATION; 5x Slab-Normal Exageration')
+        ax.set_xlabel('Distance along slab surface (km)')
+        ax.set_ylabel('Distance normal to slab surface (km)')
 
-    slab_normal_exag = 5
-    ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
+        slab_normal_exag = 5
+        ax.set_box_aspect((-layer_depths[-1] / slab_surf_dist[-1]) * slab_normal_exag)
 
-    fig.colorbar(c, ax=ax)
-    pl.show()
+        fig.colorbar(c, ax=ax)
+        pl.show()
 
 
     # -------------------------------water loss--------------------------------
@@ -642,19 +657,19 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
         cum_sum_time_standardized_array.append(cum_sum_time_standardized)
         # print(cum_sum_time_standardized_array)
 
+    if verbosity >=1:    
+        fig, ax = pl.subplots()
+        ax.plot(cum_sum_time_standardized_array, [row[1] for row in sorted_water_losses_and_depths])
+        ax.yaxis.set_inverted(True)  # inverted axis with autoscaling
 
-    fig, ax = pl.subplots()
-    ax.plot(cum_sum_time_standardized_array, [row[1] for row in sorted_water_losses_and_depths])
-    ax.yaxis.set_inverted(True)  # inverted axis with autoscaling
+        ax.set_title(str(sz_dict['dirname']) + " TSM Line")
+        ax.set_xlabel('Tg/MYr/m lost')
+        ax.set_ylabel('Depth of water loss (km)')
+        ax.set_box_aspect(2.5)
+        pl.show()
 
-    ax.set_title(str(sz_dict['dirname']) + " TSM Line")
-    ax.set_xlabel('Tg/MYr/m lost')
-    ax.set_ylabel('Depth of water loss (km)')
-    ax.set_box_aspect(2.5)
-    pl.show()
-
-    print("Total water loss: " , cum_sum_time_standardized)
-    fig.savefig(output_folder / (str(sz_dict['dirname']) + "TSM_line"))
+        print("Total water loss: " , cum_sum_time_standardized)
+        fig.savefig(output_folder / (str(sz_dict['dirname']) + "TSM_line"))
     # ---------------------------------------------------------------------------
 
 
@@ -723,25 +738,26 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps):
         cum_sum += time_standarized_mantle_losses[i]
         cum_sum_array_mantle.append(cum_sum)
 
-    fig, ax = pl.subplots()
-    ax.plot(cum_sum_time_standardized_array, [row[1] for row in sorted_water_losses_and_depths])
+    if verbosity >=2:
+        fig, ax = pl.subplots()
+        ax.plot(cum_sum_time_standardized_array, [row[1] for row in sorted_water_losses_and_depths])
 
-    ax.plot(cum_sum_array_sediment, [row[1] for row in sediment_losses_and_depths], label = "sediments")
-    ax.plot(cum_sum_array_uvolc, [row[1] for row in uvolc_losses_and_depths], label = "upper_volcs")
-    ax.plot(cum_sum_array_lvolc, [row[1] for row in lvolc_losses_and_depths], label = "lower_volcs")
-    ax.plot(cum_sum_array_dike, [row[1] for row in dike_losses_and_depths], label = "dikes")
-    ax.plot(cum_sum_array_gabbros, [row[1] for row in gabbros_losses_and_depths], label = "gabbros")
-    ax.plot(cum_sum_array_mantle, [row[1] for row in mantle_losses_and_depths], label = "mantle")
+        ax.plot(cum_sum_array_sediment, [row[1] for row in sediment_losses_and_depths], label = "sediments")
+        ax.plot(cum_sum_array_uvolc, [row[1] for row in uvolc_losses_and_depths], label = "upper_volcs")
+        ax.plot(cum_sum_array_lvolc, [row[1] for row in lvolc_losses_and_depths], label = "lower_volcs")
+        ax.plot(cum_sum_array_dike, [row[1] for row in dike_losses_and_depths], label = "dikes")
+        ax.plot(cum_sum_array_gabbros, [row[1] for row in gabbros_losses_and_depths], label = "gabbros")
+        ax.plot(cum_sum_array_mantle, [row[1] for row in mantle_losses_and_depths], label = "mantle")
 
-    ax.yaxis.set_inverted(True)
-    ax.set_title(str(sz_dict['dirname']) + " Layer-Seperated TSM Line")
-    ax.set_xlabel('Tg/MYr/m lost')
-    ax.set_ylabel('Depth where water loss occurs (km)')
+        ax.yaxis.set_inverted(True)
+        ax.set_title(str(sz_dict['dirname']) + " Layer-Seperated TSM Line")
+        ax.set_xlabel('Tg/MYr/m lost')
+        ax.set_ylabel('Depth where water loss occurs (km)')
 
-    ax.set_box_aspect(2.5)
-    ax.legend()
-    pl.show()
-    fig.savefig(output_folder / (str(sz_dict['dirname']) + "layer_seperated_TSM_line"))
+        ax.set_box_aspect(2.5)
+        ax.legend()
+        pl.show()
+        fig.savefig(output_folder / (str(sz_dict['dirname']) + "layer_seperated_TSM_line"))
 
 
     # ----------------------------function outputs-------------------------------

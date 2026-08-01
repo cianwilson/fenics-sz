@@ -450,12 +450,12 @@ def sorted_water_loss_by_layer(cells, cell_hydrations):
 # %%
 def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
 
-    if verbosity >=1:
+    if verbosity >=0.5:
         print("Calculating ", sz_dict['dirname'], " H20")
     if verbosity >=2:
         print(sz_dict)
 
-    sediment_data = get_PT_data_from_tabs(sz_dict['sediment'])
+    sediment_data = get_PT_data_from_tabs(sz_dict['sed_type'])
     sediment_interp = get_interpolator(sediment_data)
 
     uvolcs_interp = interps[0]
@@ -766,6 +766,6 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
     
     loss_depths = dict(sed = sediment_losses_and_depths, u_volcs = uvolc_losses_and_depths, l_volcs = lvolc_losses_and_depths,
                         dikes = dike_losses_and_depths, gabbros = gabbros_losses_and_depths, mantle = mantle_losses_and_depths)
-    return cum_sum_time_standardized, [row[1] for row in sorted_water_losses_and_depths], layer_losses, loss_depths
+    return cum_sum_time_standardized_array, sorted_water_losses_and_depths, layer_losses, loss_depths
 
 # %%

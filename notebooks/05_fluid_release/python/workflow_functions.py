@@ -152,6 +152,7 @@ def get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=1):
     start_u = sz.geom.slab_spline.x2delu(x15)
     
     us = np.linspace(start_u, 1, u_res)
+    distance_increment = (((1-start_u) / u_res) * sz.geom.slab_spline.length)
     if verbosity >=3:
         print(us)
 
@@ -204,7 +205,7 @@ def get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=1):
         new_xys.append(np.asarray(good_slab_xys + (-z15 + depth)*normals))
 
     xys_as_array = np.asarray(new_xys)
-    return xys_as_array, spline_dist, spline_depth
+    return xys_as_array, spline_dist, spline_depth, distance_increment
 
 # %%
 layer_offsets = [-0.0, -0.3, -0.6, -1.3] + np.arange(-2.0, -10.0, -1).tolist()
@@ -270,6 +271,9 @@ class Cell:
 
     def get_depth(self):
         return(sum(self.vertex_depths)/4)
+
+    def get_cell_xys(self):
+        pass
 
     def get_high_depth(self):
         pass
@@ -351,6 +355,24 @@ def get_water_loss(cells, cell_hydrations):
                 slab_losses_and_depths.append(losses_and_depths)
 
     return slab_losses_and_depths
+
+
+# %%
+def get_flux_in(sz_dict, cells, distance_increment):
+    flux_in = 0
+    for i in range(len(cells)):
+        flux_in += (cells[i][0].get_water_wt()) * sz_dict['Vs'] / distance_increment
+    return flux_in * sz_dict['trench_length'] * 1e3
+    # trench length is in km, multiply my 1000 to convert to m
+
+
+# %%
+def get_flux_out(sz_dict, cells, distance_increment):
+    flux_out = 0
+    for i in range(len(cells)):
+        flux_out += (cells[i][-1].get_water_wt()) * sz_dict['Vs'] / distance_increment
+    return flux_out * sz_dict['trench_length'] * 1e3
+    # trench length is in km, multiply my 1000 to convert to m
 
 
 # %% [markdown]
@@ -444,6 +466,21 @@ def sorted_water_loss_by_layer(cells, cell_hydrations):
     return sorted(sediment_losses_and_depths, key=lambda l:l[1]), sorted(uvolc_losses_and_depths, key=lambda l:l[1]), sorted(lvolc_losses_and_depths, key=lambda l:l[1]), sorted(dike_losses_and_depths, key=lambda l:l[1]), sorted(gabbros_losses_and_depths, key=lambda l:l[1]), sorted(mantle_losses_and_depths, key=lambda l:l[1]),
 
 
+# %%
+def flux_in():
+    pass
+
+
+# %%
+def flux_out():
+    pass
+
+
+# %%
+def water_retention():
+    pass
+
+
 # %% [markdown]
 # ### Master Function
 
@@ -451,6 +488,7 @@ def sorted_water_loss_by_layer(cells, cell_hydrations):
 def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
 
     if verbosity >=0.5:
+        print("---------------------------------------------------------------------------")
         print("Calculating ", sz_dict['dirname'], " H20")
     if verbosity >=2:
         print(sz_dict)
@@ -490,7 +528,7 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
 
     z15 = sz_dict["z15"]
 
-    regular_points, spline_dist, layer_depths = get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=verbosity)
+    regular_points, spline_dist, layer_depths, distance_increment = get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=verbosity)
 
     if verbosity>=3:
         print(layer_depths)
@@ -629,7 +667,7 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
         pl.show()
 
 
-    # -------------------------------water loss--------------------------------
+    # ----------------------------water loss per unit time-----------------------------
     water_losses_and_depths = get_water_loss(cells, cell_hydrations_no_rehydration)
     sorted_water_losses_and_depths = sorted(water_losses_and_depths, key=lambda l:l[1])
 
@@ -642,8 +680,6 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
         # print(cum_sum_array)
 
 
-    distance_increment = sz.geom.slab_spline.length / u_res
-    # (in km) slab-tangent distance between two st points on the surface of the slab
 
     time_standarized_losses = []
     for i in range(len(sorted_water_losses_and_depths)):
@@ -766,6 +802,17 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
     
     loss_depths = dict(sed = sediment_losses_and_depths, u_volcs = uvolc_losses_and_depths, l_volcs = lvolc_losses_and_depths,
                         dikes = dike_losses_and_depths, gabbros = gabbros_losses_and_depths, mantle = mantle_losses_and_depths)
-    return cum_sum_time_standardized_array, sorted_water_losses_and_depths, layer_losses, loss_depths
+
+    flux_in = get_flux_in(sz_dict, cells, distance_increment)
+    flux_out = get_flux_out(sz_dict, cells, distance_increment)
+    flux_out_sanity_check = flux_in - (cum_sum_time_standardized * sz_dict['trench_length'] * 1e3)
+
+    if verbosity >=1:
+        print("Flux in: ---------------------- " , flux_in)
+        print("Flux out: --------------------- " , flux_out)
+        print("Water lost: --------------------" , cum_sum_time_standardized * sz_dict['trench_length'] * 1e3)
+        print("Flux out sanity check: -------- " , flux_out_sanity_check)
+
+    return cum_sum_time_standardized_array, sorted_water_losses_and_depths, layer_losses, loss_depths, flux_in, flux_out, flux_out_sanity_check
 
 # %%

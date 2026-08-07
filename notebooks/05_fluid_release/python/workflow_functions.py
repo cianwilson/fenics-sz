@@ -185,7 +185,7 @@ def get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=1):
         print(good_us)
 # -------------------------------------------------------
 
-    layer_offsets = [-0.0, -0.3, -0.6, -1.3] + np.arange(-2.0, -10.0, -1).tolist()
+    layer_offsets = [-0.0, -0.3, -0.6, -1.3] + np.arange(-2.0, -8.0 -h_serp, -1).tolist()
 
     new_xys.append(np.asarray(good_slab_xys))
     spline_dist.append(np.asarray([u*sz.geom.slab_spline.length for u in good_us]))
@@ -298,6 +298,7 @@ class Cell:
             self._water_pct = sum(self._hydrations)/4
         return self._water_pct
 
+    # FIXME this doesn't account for eliminaeting rehydration
     def get_water_wt(self):
         return (self.get_water_pct() * 1e-2 * self.get_area() * 3300 * 1e-3)
         # units documentation:
@@ -335,7 +336,7 @@ def remove_rehydration(cell_hydrations):
 # #### Water Loss
 
 # %%
-def get_water_loss(cells, cell_hydrations):
+def get_water_loss_old(cells, cell_hydrations):
     slab_losses_and_depths = []
     for i in range(len(cell_hydrations)):
         for j in range(len(cell_hydrations[i])-1):
@@ -353,6 +354,36 @@ def get_water_loss(cells, cell_hydrations):
                 # water_losses.append(cell_hydrations[i][j] - cell_hydrations[i][j+1])
                 # water_loss_depths.append(((cells[i][j].get_depth() + cells[i][j+1].get_depth()) / 2))
                 slab_losses_and_depths.append(losses_and_depths)
+
+    return slab_losses_and_depths
+
+
+# %%
+def get_water_loss(cells, cell_hydrations):
+
+    slab_losses_and_depths = []
+
+    for i in range(len(cell_hydrations)):
+        lowest_hydration = cell_hydrations[i][0]
+
+        for j in range(len(cell_hydrations[i])-1):
+
+            if cell_hydrations[i][j+1] < lowest_hydration:
+                lowest_hydration = cell_hydrations[i][j+1]
+                if (cell_hydrations[i][j+1] < cell_hydrations[i][j]):
+                    # should I check against an epsilon instead?
+
+                    # losses_and_depths = [cell_hydrations[i][j] - cell_hydrations[i][j+1] , ((cells[i][j].get_depth() + cells[i][j+1].get_depth()) / 2)]
+
+
+                    #This line stores total water lost, not water pct. water pct needs to be used for comparison, not water loss (I think...)
+                    losses_and_depths = [cells[i][j].get_water_wt() - cells[i][j+1].get_water_wt() , ((cells[i][j].get_depth() + cells[i][j+1].get_depth()) / 2)]
+                    
+                    #FIXME depths are currently global depths, not depths to surface of the slab
+
+                    # water_losses.append(cell_hydrations[i][j] - cell_hydrations[i][j+1])
+                    # water_loss_depths.append(((cells[i][j].get_depth() + cells[i][j+1].get_depth()) / 2))
+                    slab_losses_and_depths.append(losses_and_depths)
 
     return slab_losses_and_depths
 
@@ -568,7 +599,7 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
 
     cells = []
     interp = None
-    for i in range(12):
+    for i in range(len(regular_points)-1):
         layer_cells = []
 
         if i==0:
@@ -581,7 +612,7 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
             interp = dikes_interp
         elif i in range(10):
             interp = gabbros_interp
-        elif i in range(12):
+        elif i in range(len(regular_points)-1):
             interp = damp_DMM_interp
         else:
             raise Exception("Improper cell depth")
@@ -596,6 +627,8 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
             layer_cells.append(cell)
         cells.append(layer_cells)
 
+    print(len(cells))
+    print(len(cells[0]))
     # ---------------------------------------------------------------------------
 
  
@@ -810,7 +843,7 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
     if verbosity >=1:
         print("Flux in: ---------------------- " , flux_in)
         print("Flux out: --------------------- " , flux_out)
-        print("Water lost: --------------------" , cum_sum_time_standardized * sz_dict['trench_length'] * 1e3)
+        print("Water lost: ------------------- " , cum_sum_time_standardized * sz_dict['trench_length'] * 1e3)
         print("Flux out sanity check: -------- " , flux_out_sanity_check)
 
     return cum_sum_time_standardized_array, sorted_water_losses_and_depths, layer_losses, loss_depths, flux_in, flux_out, flux_out_sanity_check

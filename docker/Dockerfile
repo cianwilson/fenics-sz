@@ -42,14 +42,14 @@ RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation 
 WORKDIR /usr/local/src
 # Install Perple_X 6.9.1
 RUN git clone -b v6.9.1 --single-branch --depth 1 https://github.com/jadconnolly/Perple_X.git Perple_X_v6.9.1 && \
-    cd Perple_X/sources && \
+    cd Perple_X_v6.9.1/sources && \
     make -f makefile_691 && \
     ln -s /usr/local/src/Perple_X_v6.9.1/sources/build  /usr/local/bin/build-v6.9.1 && \
     ln -s /usr/local/src/Perple_X_v6.9.1/sources/vertex /usr/local/bin/vertex-v6.9.1 && \
     ln -s /usr/local/src/Perple_X_v6.9.1/sources/werami /usr/local/bin/werami-v6.9.1
 # Install Perple_X 7.1.9
 RUN git clone -b v7.1.9 --single-branch --depth 1 https://github.com/jadconnolly/Perple_X.git Perple_X_v7.1.9 && \
-    cd Perple_X/src && \
+    cd Perple_X_v7.1.9/src && \
     make && \
     ln -s /usr/local/src/Perple_X_v7.1.9/src/build /usr/local/bin/build-v7.1.9 && \
     ln -s /usr/local/src/Perple_X_v7.1.9/src/vertex /usr/local/bin/vertex-v7.1.9 && \

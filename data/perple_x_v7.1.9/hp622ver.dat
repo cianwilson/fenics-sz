@@ -1,7 +1,7 @@
 
  | for documentation of Perple_X thermodynamic data file structure and content refer to:
 
- | www.perplex.ethz.ch/perplex_thermodynamic_data_file.html
+ | www.perplex.ethz.ch/perplex_thermodynamic_v7.1.9_file.html
 
  | comments are indicated by the | character.
  | check for warnings at the end of the header section.
@@ -2750,7 +2750,7 @@ b1 = .282E-4 b5 = 379.7022 b6 = 1256000 b7 = -.37E-5 b8 = 4.68
 end
 
 
-mil      EoS = 8 | HSC caloric data (to 1250 K, mp) + vol from www.webmineral.com/data/Millerite.shtml
+mil      EoS = 8 | HSC caloric data (to 1250 K, mp) + vol from www.webmineral.c../../../data/Millerite.shtml
 NiO(1)O2(-.5)S2(.5)
 G0 = -109.805191692176d3  S0 = 53.0112172929809 V0 = 1.690
 c1 = 45.99998 c2 = 17.10001d-3 c3 = -3.51d5

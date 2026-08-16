@@ -138,7 +138,7 @@ sample_on_grid            F | [T] F => WERAMI (mode 2) samples on the computatio
 scatter-increment         default | [1d-3] scatter increment for scatter-points option
 scatter-points            default | [T] T => generate additional compositions scattered about refinement points, lopt(54)
 seismic_output            default | [some] all, some, none
-seismic_data_file         default | [T] T => summarize wavespeed relevant options and data used for endmembers and solutions
+seismic_v7.1.9_file         default | [T] T => summarize wavespeed relevant options and data used for endmembers and solutions
 short_print               default | [on] suppress output of equilibrium coordinates to the print file, only relevant for CONVEX
 solution_names            default | [mod] mod, abb or ful; use the model, abbreviation, or full name for solution models for output
 solvus_tolerance          default | [auto] auto or 0->1, should be > initial_resolution/auto_refine_factor

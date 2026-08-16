@@ -4132,7 +4132,7 @@ full_name    staurolite
 
 mstt   msto    mst    mnst   fst      | end-member names
 
-| NAME, XMIN, XMAX, XINC, IMOD (IMOD = 0 is cartesian scheme; IMOD = 1 is non-linear scheme, See https://www.perplex.ethz.ch/perplex/datafiles/solution_model.dat)
+| NAME, XMIN, XMAX, XINC, IMOD (IMOD = 0 is cartesian scheme; IMOD = 1 is non-linear scheme, See https://www.perplex.ethz.ch/perpl../../../datafiles/solution_model.dat)
 | If only one simplex no need to put NAME out front.
 
 0. .3  .1   1                | first simplex: range and resolution for X(Ti),  imod = 1 -> asymmetric transform subdivision
@@ -9557,7 +9557,7 @@ begin_model
 
                         in the header of the thermodynamic data file to be used for the 
                         calculation, for more information on make definitions see: 
-                        www.perplex.ethz.ch/perplex_thermodynamic_data_file_body.html#Make_definitions
+                        www.perplex.ethz.ch/perplex_thermodynamic_v7.1.9_file_body.html#Make_definitions
 
                       * Converted to reciprocal 688 format solution model by adding
                         mft_d and musp_d, JADC Aug 1, 2020.

@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: dolfinx-env (3.12.3.final.0)
+#     display_name: Python 3
 #     language: python
 #     name: python3
 # ---
@@ -74,11 +74,12 @@ from fenics_sz.fluid_release.perple_x_class import PerpleXGrid
 # %%
 @dataclass
 class SlabMesh:
-    vertex_xys : np.typing.NDArray[np.float64] = None
-    vertex_ss : np.typing.NDArray[np.float64] = None
-    vertex_ts : np.typing.NDArray[np.float64] = None
-    cells : np.typing.NDArray[np.int_] = None
-    layer_cell_inds : list = None
+    vertex_xys : np.typing.NDArray[np.float64]
+    vertex_ss : np.typing.NDArray[np.float64]
+    vertex_ts : np.typing.NDArray[np.float64]
+    cells : np.typing.NDArray[np.int_]
+    layer_cell_inds : list
+    dof_xys : np.typing.NDArray[np.float64]
 
 
 # %%
@@ -212,7 +213,7 @@ class SlabDehydration:
                 raise RuntimeError("Must supply Vs if sz not supplied.")
         return self._Vs
 
-    def bounds_in_domain(self, coords):
+    def inds_in_domain(self, coords):
         # FIXME: this logic could be improved to take into account the bathymetry etc
         below_trench = (coords[:,0] > self.slab.x[0]) & (coords[:,1] < self.slab.y[0])
         valid_ind_0 = np.argmax(below_trench) if np.any(below_trench) else -1
@@ -245,9 +246,9 @@ class SlabDehydration:
                        list(itertools.accumulate([t for t in self.layer_thicknesses if t < 0])))[::-1]
             # find the valid range of coordinates based on the basal (and top if offset) layer
             base_vertex_xys = slab_vertex_xys+offsets[0]*slab_vertex_normals
-            valid_vertex_ind_0, valid_vertex_ind_f = self.bounds_in_domain(base_vertex_xys)
+            valid_vertex_ind_0, valid_vertex_ind_f = self.inds_in_domain(base_vertex_xys)
             if offsets[-1] > 0.0:
-                top_ind_0, top_ind_f = self.bounds_in_domain(slab_vertex_xys+offsets[-1]*slab_vertex_normals)
+                top_ind_0, top_ind_f = self.inds_in_domain(slab_vertex_xys+offsets[-1]*slab_vertex_normals)
                 valid_vertex_ind_0 = max(valid_vertex_ind_0, top_ind_0)
                 valid_vertex_ind_f = min(valid_vertex_ind_f, top_ind_f)
 
@@ -267,6 +268,7 @@ class SlabDehydration:
             vertex_xys[:num_valid_us,:] = base_vertex_xys
             cells = np.empty((total_layers*(num_valid_us-1), 4), dtype=np.int32)
             layer_cell_inds = [np.empty((num_sub_layers, num_valid_us-1), dtype=np.int32) for num_sub_layers in nums_sub_layers]
+            dof_xys = np.empty((total_layers*(num_valid_us-1), 2))
 
             # set up orthogonal slab coordinate system
             vertex_ss = slab_vertex_us[valid_vertex_ind_0:valid_vertex_ind_f]*self.slab.length
@@ -277,7 +279,6 @@ class SlabDehydration:
             layer_ind = 0
             for l, offset in enumerate(offsets[1:]):
                 prev_offset = offsets[l]
-                thickness = offset - prev_offset
                 # the number of sublayers based on the layer thickness and resolution
                 num_sub_layers = nums_sub_layers[l]
                 sub_offsets = np.linspace(prev_offset, offset, num=num_sub_layers+1)
@@ -290,26 +291,21 @@ class SlabDehydration:
                     vertex_xys[current_vertex_inds,:] = slab_vertex_xys + sub_offset*slab_vertex_normals
                     # and t space
                     vertex_ts[layer_ind + 1] = sub_offset
+                    # work out cells
                     for i in range(num_valid_us-1):
                         cell = [(layer_ind + 1)*num_valid_us + i + 1, (layer_ind + 1)*num_valid_us + i,
                                 (layer_ind)*num_valid_us + i,   (layer_ind)*num_valid_us + i + 1]
                         cells[layer_ind*(num_valid_us-1) + i, :] = cell
+                        # work out dof xys (here the centroids of the cells)
+                        centroid = geo.Polygon(vertex_xys[cell,:]).centroid
+                        dof_xys[layer_ind*(num_valid_us-1) + i, :] = [centroid.x, centroid.y]
                     layer_cell_inds[l][sl,:] = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
                     layer_ind += 1
 
             self._mesh = SlabMesh(vertex_xys=vertex_xys, vertex_ss=vertex_ss, vertex_ts=vertex_ts, 
-                                  cells=cells, layer_cell_inds=layer_cell_inds[::-1])
+                                  cells=cells, layer_cell_inds=layer_cell_inds[::-1], dof_xys=dof_xys)
             # NOTE: we reverse layer_cell_inds to be in the same order as layer_h2os above
         return self._mesh
-
-    @property
-    def centroid_xys(self):
-        if not hasattr(self, '_centroid_xys') or self._centroid_xys is None:
-            self._centroid_xys = np.empty((self.mesh.cells.shape[0], 2))
-            for c, cell in enumerate(self.mesh.cells):
-                centroid = geo.Polygon(self.mesh.vertex_xys[cell,:]).centroid
-                self._centroid_xys[c, :] = [centroid.x, centroid.y]
-        return self._centroid_xys
 
     def zsurface(self, x):
         return np.minimum(np.maximum(-self.slab.y[0]*(1.0 - x/max(self.coast_distance, np.finfo(float).eps)), 0.0), -self.slab.y[0])
@@ -317,9 +313,9 @@ class SlabDehydration:
     @property
     def Ts(self):
         if not hasattr(self, '_Ts') or self._Ts is None:
-            points = pv.PolyData(np.concatenate([self.centroid_xys, np.zeros((self.centroid_xys.shape[0],1))], axis=1))
+            points = pv.PolyData(np.concatenate([self.mesh.dof_xys, np.zeros((self.mesh.dof_xys.shape[0],1))], axis=1))
             self._Ts = points.sample(self.Tgrid)[self.Tname]
-            if self.add_adiabat: self._Ts -= 0.3*(self.centroid_xys[:,1]+self.zsurface(self.centroid_xys[:,0]))
+            if self.add_adiabat: self._Ts -= 0.3*(self.mesh.dof_xys[:,1]+self.zsurface(self.mesh.dof_xys[:,0]))
         return self._Ts
 
     @property
@@ -328,16 +324,16 @@ class SlabDehydration:
             rhow = 1000.0 # water density, kg/m^3
             g = 9.81 # gravity magnitude, m/s^2
             # depth of the slab above the centroid points
-            zslab = np.asarray([-self.slab.intersectx(x)[1] for x in self.centroid_xys[:,0]])
+            zslab = np.asarray([-self.slab.intersectx(x)[1] for x in self.mesh.dof_xys[:,0]])
             # depth of surface above the centroid points
-            zsurface = self.zsurface(self.centroid_xys[:,0])
+            zsurface = self.zsurface(self.mesh.dof_xys[:,0])
             self._Ps = (rhow*zsurface + 
                         # ^- contribution of water
                         self.rhoc*(np.minimum(self.lc_depth, zslab)-zsurface) + 
                         # ^- contribution of crust
                         self.rhom*(np.maximum(0.0, zslab-self.lc_depth)) + 
                         # ^- contribution of overriding mantle above slab
-                        self.rhom*(-self.centroid_xys[:,1]-zslab))*g/1.e6 
+                        self.rhom*(-self.mesh.dof_xys[:,1]-zslab))*g/1.e6 
                         # ^- contribution of subducting slab 
                         # (subtracts contribution if above slab 
                         #  so only valid if rhom is used in slab as well as mantle)
@@ -393,7 +389,7 @@ class SlabDehydration:
     @property
     def total_cumulative_H2O_losses(self):
         if not hasattr(self, '_total_cumulative_H2O_losses') or self._total_cumulative_H2O_losses is None:
-            indices = np.argsort(-self.centroid_xys[:,1])
+            indices = np.argsort(-self.mesh.dof_xys[:,1])
             self._total_cumulative_H2O_losses = np.cumsum(self.H2O_losses[indices])
         return self._total_cumulative_H2O_losses
 
@@ -441,7 +437,7 @@ class SlabDehydration:
 #
 # # negative number implies below slab, positive implies above it
 # layer_thicknesses = [
-#                  2.0,            # above slab mantle
+#                 #  2.0,            # above slab mantle
 #                  -szdict['z15'], # sediments
 #                  -0.3,           # upper volcanics
 #                  -0.3,           # lower volcanics
@@ -452,7 +448,7 @@ class SlabDehydration:
 #
 # csv_path = os.path.join(os.pardir, os.pardir, 'data', 'perple_x_v7.1.9')
 # layer_h2os = [
-#     PerpleXGrid(csv_file=os.path.join(csv_path, 'DMMdry_25_h2o.csv')),
+#     # PerpleXGrid(csv_file=os.path.join(csv_path, 'DMMdry_25_h2o.csv')),
 #     PerpleXGrid(csv_file=os.path.join(csv_path, szdict['sed_type']+'_h2o.csv')),
 #     PerpleXGrid(csv_file=os.path.join(csv_path, 'upvolc_25_h2o.csv')),
 #     PerpleXGrid(csv_file=os.path.join(csv_path, 'lovolc_25_h2o.csv')),
@@ -462,7 +458,7 @@ class SlabDehydration:
 # ]
 #
 # layer_tres = [
-#     None,
+#     # None,
 #     None,
 #     None,
 #     None,
@@ -470,7 +466,7 @@ class SlabDehydration:
 # ]
 
 # %% tags=["active-ipynb"]
-# testslab = SlabDehydration(0.5, 0.5, layer_thicknesses, layer_h2os, layer_tres=None,
+# testslab = SlabDehydration(10.0, 1.0, layer_thicknesses, layer_h2os, layer_tres=None,
 #                            slab=slab, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
@@ -481,7 +477,13 @@ class SlabDehydration:
 
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(20,20))
-# testslab.plot_xy(ax, C=testslab.H2O_losses, cmap='coolwarm', edgecolor = 'none')
+# testslab.plot_xy(ax, C=testslab.Ts, cmap='coolwarm', edgecolor = 'none')
+# ax.set_aspect(3)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(20,20))
+# testslab.plot_xy(ax, C=testslab.H2O_fluxes, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # ax.set_aspect(3)
 # fig.show()
 
@@ -518,7 +520,7 @@ class SlabDehydration:
 
 # %% tags=["active-ipynb"]
 # fix, ax = pl.subplots(figsize=(20,20))
-# indices = np.argsort(-testslab.centroid_xys[:,1])
-# ax.plot(testslab.total_cumulative_H2O_losses/1000.0, testslab.centroid_xys[indices,1])
+# indices = np.argsort(-testslab.mesh.dof_xys[:,1])
+# ax.plot(testslab.total_cumulative_H2O_losses/1000.0, testslab.mesh.dof_xys[indices,1])
 
 # %%

@@ -27,6 +27,7 @@ import pyvista as pv
 import pathlib
 import hashlib
 import zipfile
+import requests
 from dataclasses import dataclass
 import itertools
 
@@ -477,9 +478,6 @@ class SlabDehydration:
 
 # %% tags=["active-ipynb"]
 # sum([errors.sum() for errors in testslab.conservation_errors])
-
-# %%
-testslab.water_retention
 
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(20,20))

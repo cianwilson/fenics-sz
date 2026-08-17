@@ -194,6 +194,9 @@ class SlabDehydrationVertical(SlabDehydration):
 # %% tags=["active-ipynb"]
 # dmm_thickness = 2.0
 #
+# tres = 0.5
+# sres = 0.5
+#
 # # negative number implies below slab, positive implies above it
 # layer_thicknesses = [
 #                 #  2.0,            # above slab mantle
@@ -225,7 +228,7 @@ class SlabDehydrationVertical(SlabDehydration):
 # ]
 
 # %% tags=["active-ipynb"]
-# testslab = SlabDehydrationVertical(0.5, 0.5, layer_thicknesses, layer_h2os, layer_tres=None,
+# testslab = SlabDehydrationVertical(sres, tres, layer_thicknesses, layer_h2os, layer_tres=None,
 #                            slab=slab, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
@@ -235,7 +238,7 @@ class SlabDehydrationVertical(SlabDehydration):
 # testslab.conservation_errors
 
 # %% tags=["active-ipynb"]
-# fig, ax = pl.subplots(figsize=(20,20))
+# fig, ax = pl.subplots(figsize=(10,8))
 # testslab.plot_xy(ax, C=testslab.Ts, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # ax.set_aspect(3)
 # fig.show()
@@ -247,18 +250,20 @@ class SlabDehydrationVertical(SlabDehydration):
 # fig.show()
 
 # %% tags=["active-ipynb"]
-# testslab2 = SlabDehydration(0.5, 0.5, layer_thicknesses, layer_h2os, layer_tres=None,
+# testslab2 = SlabDehydration(sres, tres, layer_thicknesses, layer_h2os, layer_tres=None,
 #                            slab=slab, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
 
 # %% tags=["active-ipynb"]
-# fix, ax = pl.subplots(figsize=(20,20))
+# fix, ax = pl.subplots(figsize=(5,10))
 # indices = np.argsort(-testslab.mesh.dof_xys[:,1])
 # ax.plot(testslab.total_cumulative_H2O_losses/1000.0, testslab.mesh.dof_xys[indices,1], label='vertical')
 # indices2 = np.argsort(-testslab2.mesh.dof_xys[:,1])
-# ax.plot(testslab2.total_cumulative_H2O_losses/1000.0, testslab2.mesh.dof_xys[indices2,1], label='normal')
+# ax.plot(testslab2.total_cumulative_H2O_losses/1000.0, testslab2.mesh.dof_xys[indices2,1], label='normal', ls='--')
+# ax.set_xlabel('Cumulative water loss')
+# ax.set_ylabel('y (km)')
 # _ = ax.legend()
 
 # %%

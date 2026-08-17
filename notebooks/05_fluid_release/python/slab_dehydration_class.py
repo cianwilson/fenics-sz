@@ -308,7 +308,9 @@ class SlabDehydration:
         return self._mesh
 
     def zsurface(self, x):
-        return np.minimum(np.maximum(-self.slab.y[0]*(1.0 - x/max(self.coast_distance, np.finfo(float).eps)), 0.0), -self.slab.y[0])
+        return np.minimum(np.maximum(-self.slab.y[0]*(1.0 - x/max(self.coast_distance, np.finfo(float).eps)), 
+                                     0.0), 
+                          -self.slab.y[0])
 
     @property
     def Ts(self):
@@ -476,13 +478,13 @@ class SlabDehydration:
 # sum([errors.sum() for errors in testslab.conservation_errors])
 
 # %% tags=["active-ipynb"]
-# fig, ax = pl.subplots(figsize=(20,20))
+# fig, ax = pl.subplots(figsize=(10,8))
 # testslab.plot_xy(ax, C=testslab.Ts, cmap='coolwarm', edgecolor = 'none')
 # ax.set_aspect(3)
 # fig.show()
 
 # %% tags=["active-ipynb"]
-# fig, ax = pl.subplots(figsize=(20,20))
+# fig, ax = pl.subplots(figsize=(10,8))
 # testslab.plot_xy(ax, C=testslab.H2O_fluxes, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # ax.set_aspect(3)
 # fig.show()
@@ -512,14 +514,14 @@ class SlabDehydration:
 # fig.show()
 
 # %% tags=["active-ipynb"]
-# fig, (ax, axc) = pl.subplots(figsize=(20,20), nrows=2, height_ratios=[1,0.1])
+# fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
 # pcm = testslab.plot_st(ax, C=testslab.cumulative_H2O_losses/1000.0, cmap = 'coolwarm', edgecolor = 'black', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.colorbar(pcm, cax=axc, orientation='horizontal')
 # fig.show()
 
 # %% tags=["active-ipynb"]
-# fix, ax = pl.subplots(figsize=(20,20))
+# fix, ax = pl.subplots(figsize=(5,10))
 # indices = np.argsort(-testslab.mesh.dof_xys[:,1])
 # ax.plot(testslab.total_cumulative_H2O_losses/1000.0, testslab.mesh.dof_xys[indices,1])
 

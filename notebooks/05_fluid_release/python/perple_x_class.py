@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: dolfinx-env (3.12.3.final.0)
+#     display_name: Python 3
 #     language: python
 #     name: python3
 # ---
@@ -34,7 +34,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 
 # %%
 class PerpleXGrid:
-    def __init__(self, dat_file : str=None, csv_file : str=None, version : str ='7.1.9'):
+    def __init__(self, dat_file : str = None, csv_file : str = None, version : str ='7.1.9'):
         self.version  = version
 
         self._df = None
@@ -51,14 +51,9 @@ class PerpleXGrid:
         self.basename = file.stem
         self.data_folder = file.parent
 
-        self._P = None
-        self._T = None
-        self._H2O = None
-        self._interpolator = None
-
     @property
     def df(self):
-        if self._df is None:
+        if not hasattr(self, '_df') or self._df is None:
             with tempfile.TemporaryDirectory() as tmp_work_folder:
                 shutil.copy(((self.data_folder / self.basename)).with_suffix('.dat'), tmp_work_folder)
                 shutil.copy( self.data_folder / 'perplex_option.dat', tmp_work_folder)
@@ -130,20 +125,23 @@ class PerpleXGrid:
 
     @property
     def P(self):
-        if self._P is None: self._P = np.unique(self.df['P(bar)'].to_numpy())/10000.0
+        if not hasattr(self, '_P') or self._P is None: 
+            self._P = np.unique(self.df['P(bar)'].to_numpy())/10000.0
         return self._P
 
     @property
     def T(self):
-        if self._T is None: self._T = np.unique(self.df['T(K)'].to_numpy()) - 273.15
+        if not hasattr(self, '_T') or self._T is None: 
+            self._T = np.unique(self.df['T(K)'].to_numpy()) - 273.15
         return self._T
 
     @property
     def H2O(self):
-        if self._H2O is None: self._H2O = self.df['H2O,wt%'].to_numpy().reshape(len(self.P),len(self.T))
+        if not hasattr(self, '_H2O') or self._H2O is None: 
+            self._H2O = self.df['H2O,wt%'].to_numpy().reshape(len(self.P),len(self.T))
         return self._H2O
     
-    def plot(self):
+    def plot_h2o(self):
         fig, ax = pl.subplots(figsize=(7, 4.5))
         vmin = 0.0
         vmax = 5.5
@@ -159,7 +157,7 @@ class PerpleXGrid:
 
     @property
     def interpolator(self):
-        if self._interpolator is None:
+        if not hasattr(self, '_interpolator') or self._interpolator is None:
             self._interpolator = sp.interpolate.RegularGridInterpolator((self.P, self.T), self.H2O, method='linear')
         return self._interpolator
 
@@ -174,7 +172,7 @@ class PerpleXGrid:
 # for dat_file in files:
 #     grid = PerpleXGrid(dat_file = dat_file)
 #     print(grid.basename)
-#     fig, ax = grid.plot()
+#     fig, ax = grid.plot_h2o()
 #     fig.savefig(output_folder / str(grid.basename+'.png'), dpi=400)
 #     grid.save_h2o()
 
@@ -183,7 +181,7 @@ class PerpleXGrid:
 # for csv_file in files:
 #     grid = PerpleXGrid(csv_file = csv_file)
 #     print(grid.basename)
-#     fig, ax = grid.plot()
+#     fig, ax = grid.plot_h2o()
 #     ax.set_title(grid.basename)
 
 # %%

@@ -210,7 +210,7 @@ class SlabDehydrationVertical(SlabDehydration):
 #                  -dmm_thickness  # subslab mantle
 #                 ]
 #
-# csv_path = os.path.join(os.pardir, os.pardir, 'data', 'perple_x_v7.1.9')
+# csv_path = os.path.join(os.pardir, os.pardir, 'data', 'perple_x_v7.1.9', 'abers_25')
 # layer_h2os = [
 #     # PerpleXGrid(csv_file=os.path.join(csv_path, 'DMMdry_25_h2o.csv')),
 #     PerpleXGrid(csv_file=os.path.join(csv_path, szdict['sed_type']+'_h2o.csv')),
@@ -253,7 +253,7 @@ class SlabDehydrationVertical(SlabDehydration):
 
 # %% tags=["active-ipynb"]
 # import json
-# with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25.json"), "r") as file:
+# with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25", "abers_25.json"), "r") as file:
 #     abers_25 = json.load(file)
 
 # %% tags=["active-ipynb"]

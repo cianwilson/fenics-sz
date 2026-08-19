@@ -34,65 +34,85 @@ output_folder.mkdir(exist_ok=True, parents=True)
 
 # %%
 class PerpleXGrid:
-    def __init__(self, dat_file : str = None, csv_file : str = None, version : str ='7.1.9'):
-        self.version  = version
-
+    def __init__(self, dat_file : str = None, csv_file : str = None, 
+                 version : str ='7.1.9',
+                 clean_tmp_folder : bool = True):
         self._df = None
+        self.dat_file = None
+        self.basename = None
         if csv_file is not None:
             self._df = pd.read_csv(csv_file, index_col=0)
             self._df.columns = self._df.columns.astype(float)
             if dat_file is not None:
                 raise RuntimeWarning("csv_file and dat_file provided, ignoring dat_file.")
-            file = pathlib.Path(csv_file)
         elif dat_file is not None:
             file = pathlib.Path(dat_file)
             if not file.exists(): raise RuntimeError("Provided dat_file does not exist.")
+            self.dat_file = file
+            self.basename = file.stem
         else:
             raise RuntimeError("Require csv_file or dat_file to be provided.")
-        self.basename = file.stem
-        self.data_folder = file.parent
+
+        if version not in ['7.1.9',]:
+            raise RuntimeError("Unknown perple_x version.")
+        self.version = version
+        self.clean_tmp_folder = clean_tmp_folder
+        self.data_folder = pathlib.Path(os.path.join(basedir, os.pardir, "data", "perple_x_v"+self.version))
+    
+    def __del__(self):
+        if self.clean_tmp_folder and hasattr(self, '_tmp_work_folder') and self._tmp_work_folder is not None:
+            self._tmp_work_folder.cleanup()
+
+    @property
+    def tmp_work_folder(self):
+        if not hasattr(self, '_tmp_work_folder') or self._tmp_work_folder is None:
+            work_folder = pathlib.Path(os.path.join(os.getcwd(), "work"))
+            work_folder.mkdir(exist_ok=True, parents=True)
+            self._tmp_work_folder = tempfile.TemporaryDirectory(dir=work_folder)
+        return pathlib.Path(self._tmp_work_folder.name)
 
     @property
     def df(self):
         if not hasattr(self, '_df') or self._df is None:
-            # with tempfile.TemporaryDirectory(dir=self.data_folder) as tmp_work_folder:
-            tmp_work_folder = tempfile.mkdtemp(dir=self.data_folder)
-            print('tmp_work_folder = ', tmp_work_folder)
-            shutil.copy(((self.data_folder / self.basename)).with_suffix('.dat'), tmp_work_folder)
-            shutil.copy( self.data_folder / 'perplex_option.dat', tmp_work_folder)
+            shutil.copy(self.dat_file, self.tmp_work_folder)
+            shutil.copy( self.data_folder / 'perplex_option.dat', self.tmp_work_folder)
 
             # vertex
-            stdout = open(os.path.join(tmp_work_folder, 'vertex_'+ self.basename + '.log'), 'w')
-            stderr = open(os.path.join(tmp_work_folder, 'vertex_'+ self.basename + '.err'), 'w')
-            if self.version == '7.1.9':
-                input = self.basename
-                subprocess.run(["vertex-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=tmp_work_folder)
-            else:
-                raise RuntimeError("Unknown Perple_X vertex version")
+            stdout = open(os.path.join(self.tmp_work_folder, 'vertex_'+ self.basename + '.log'), 'w')
+            stderr = open(os.path.join(self.tmp_work_folder, 'vertex_'+ self.basename + '.err'), 'w')
+            input = self.basename
+            subprocess.run(["vertex-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=self.tmp_work_folder)
             stdout.close()
             stderr.close()
 
-            stdout = open(os.path.join(tmp_work_folder, 'werami_'+ self.basename + '.log'), 'w')
-            stderr = open(os.path.join(tmp_work_folder, 'werami_'+ self.basename + '.err'), 'w')
-            if self.version == '7.1.9':
-                input=self.basename+"""
-                2
-                36
-                1
-                n
-                y
-                473 1673
-                1000 80000
-                241 396
-                0
-                """
-                subprocess.run(["werami-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=tmp_work_folder)
-            else:
-                raise RuntimeError("Unknown Perple_X werami version")
+            stdout = open(os.path.join(self.tmp_work_folder, 'werami_'+ self.basename + '.log'), 'w')
+            stderr = open(os.path.join(self.tmp_work_folder, 'werami_'+ self.basename + '.err'), 'w')
+            # basename
+            # 2D grid - 2
+            # all phase and/or system properties (could try more compact output here) - 36
+            # one system symmary per node (3 gives this plus all phases) - 1
+            # include fluid in modal properties - n
+            # change grid definition - y
+            # min and max T
+            # min and max P
+            # num T, P nodes (designed for convenient/even 5C/0.02GPa grid)
+            # end - 0
+            input=self.basename+"""
+            2
+            36
+            1
+            n
+            y
+            473 1673
+            1000 80000
+            241 396
+            0
+            """
+            subprocess.run(["werami-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=self.tmp_work_folder)
             stdout.close()
             stderr.close()
 
-            datafile = os.path.join(tmp_work_folder, self.basename + '_1.tab')
+            datafile = os.path.join(self.tmp_work_folder, self.basename + '_1.tab')
 
             cols = ["T(K)", "P(bar)", "H2O,wt%"]
 
@@ -120,8 +140,7 @@ class PerpleXGrid:
             self._interpolator = None
         return self._df
 
-    def save_h2o(self, filename=None):
-        if filename is None: filename = self.data_folder / str(self.basename + '_h2o.csv')
+    def save_h2o(self, filename):
         self.df.to_csv(filename)
 
     @property
@@ -163,24 +182,25 @@ class PerpleXGrid:
         return self.interpolator(PT)
 
 # %% tags=["active-ipynb"] vscode={"languageId": "raw"}
-# grid = PerpleXGrid(dat_file = '../../data/perple_x_v7.1.9/dike_25.dat')
-# grid.plot_h2o()
+# grid = PerpleXGrid(dat_file = '../../data/perple_x_v7.1.9/abers_25/dike_25.dat')
+# fig, ax = grid.plot_h2o()
 
 # %% tags=["active-ipynb"] vscode={"languageId": "raw"}
-# files = glob.glob('../../data/perple_x_v7.1.9/*_25.dat')
+# files = glob.glob('../../data/perple_x_v7.1.9/abers_25/*_25.dat')
 # for dat_file in files:
 #     grid = PerpleXGrid(dat_file = dat_file)
 #     print(grid.basename)
 #     fig, ax = grid.plot_h2o()
 #     fig.savefig(output_folder / str(grid.basename+'.png'), dpi=400)
-#     grid.save_h2o()
+#     grid.save_h2o(os.path.splitext(dat_file)[0]+'_h2o.csv')
 
 # %% tags=["active-ipynb"]
-# files = glob.glob('../../data/perple_x_v7.1.9/*_25_h2o.csv')
+# files = glob.glob('../../data/perple_x_v7.1.9/abers_25/*_25_h2o.csv')
 # for csv_file in files:
+#     basename = os.path.basename(csv_file).split('.')[0][:-4]
 #     grid = PerpleXGrid(csv_file = csv_file)
-#     print(grid.basename)
+#     print(basename)
 #     fig, ax = grid.plot_h2o()
-#     ax.set_title(grid.basename)
+#     _ = ax.set_title(basename)
 
 # %%

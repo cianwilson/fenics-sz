@@ -165,37 +165,35 @@ class PerpleXMeemum:
             h2oarr[i] = values[6] if dual_block else values[2]
         return h2oarr
 
+# %% tags=["active-ipynb"]
+# import json
+# with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25", "abers_25.json"), "r") as file:
+#     abers_25 = json.load(file)
 
-# %%
-import json
-with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25.json"), "r") as file:
-    abers_25 = json.load(file)
+# %% tags=["active-ipynb"]
+# basename = 'dike_25'
+# grid = PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models'])
 
-# %%
-basename = 'dike_25'
-grid = PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models'])
+# %% tags=["active-ipynb"]
+# grid.eval_h2o(0.2, 400)
 
-# %%
-grid.eval_h2o(0.2, 400)
+# %% tags=["active-ipynb"]
+# grid.eval_h2o(3.0, 1000.0)
 
-# %%
-grid.eval_h2o(3.0, 1000.0)
+# %% tags=["active-ipynb"]
+# grid.tmp_work_folder
 
-# %%
-grid.tmp_work_folder
+# %% tags=["active-ipynb"]
+#
+# from fenics_sz.fluid_release.perple_x_class import PerpleXGrid
 
-# %%
+# %% tags=["active-ipynb"]
+# oggrid = PerpleXGrid(csv_file = '../../data/perple_x_v7.1.9/abers_25/dike_25_h2o.csv')
 
-from fenics_sz.fluid_release.perple_x_class import PerpleXGrid
+# %% tags=["active-ipynb"]
+# oggrid.eval_h2o(0.2, 400)
 
-# %%
-oggrid = PerpleXGrid(csv_file = '../../data/perple_x_v7.1.9/dike_25_h2o.csv')
-
-
-# %%
-oggrid.eval_h2o(0.2, 400)
-
-# %%
-oggrid.eval_h2o(3.0, 1000)
+# %% tags=["active-ipynb"]
+# oggrid.eval_h2o(3.0, 1000)
 
 # %%

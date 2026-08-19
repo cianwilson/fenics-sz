@@ -194,8 +194,7 @@ class PerpleXBuildGrid:
             self._interpolator = None
         return self._df
 
-    def save_h2o(self, filename=None):
-        if filename is None: filename = self.data_folder / str(self.basename + '_h2o.csv')
+    def save_h2o(self, filename):
         self.df.to_csv(filename)
 
     @property
@@ -238,24 +237,17 @@ class PerpleXBuildGrid:
 
 # %% tags=["active-ipynb"]
 # import json
-# with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25.json"), "r") as file:
+# with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25", "abers_25.json"), "r") as file:
 #     abers_25 = json.load(file)
 
 # %% tags=["active-ipynb"] vscode={"languageId": "raw"}
-# basenames = [key for key in abers_25.keys() if key not in ['AlaskaTurb46_25', 'Carbonate41_25', 'Chert42_25', 'DMMdamp_25', 'DMMdry_25', 'DMMwet_25']]
+# basenames = [basename in abers_25.keys()]
 # for basename in basenames:
 #     grid = PerpleXBuildGrid(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models'])
 #     print('basename = ', basename)
 #     fig, ax = grid.plot_h2o()
 #     ax.set_title(basename)
-#     grid.save_h2o()
-
-# %% tags=["active-ipynb"] vscode={"languageId": "raw"}
-# files = glob.glob('../../data/perple_x_v7.1.9/*_25_h2o.csv')
-# for csv_file in files:
-#     grid = PerpleXGrid(csv_file = csv_file)
-#     print(grid.basename)
-#     fig, ax = grid.plot_h2o()
-#     ax.set_title(grid.basename)
+#     print(grid.data_folder/'abers_25'/ (basename+'_h2o.csv'))
+#     grid.save_h2o(grid.data_folder/'abers_25'/ (basename+'_h2o.csv'))
 
 # %%

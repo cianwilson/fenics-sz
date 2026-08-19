@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
@@ -30,12 +30,14 @@ import matplotlib.pyplot as pl
 import itertools
 import math
 from dataclasses import dataclass
+import json
 
 # %%
 import fenics_sz.utils
 from fenics_sz.sz_problems.sz_params import allsz_params
 from fenics_sz.sz_problems.sz_slab import create_slab, plot_slab
 from fenics_sz.fluid_release.perple_x_class import PerpleXGrid
+from fenics_sz.fluid_release.perple_x_class_meemum import PerpleXMeemum
 from fenics_sz.fluid_release.slab_dehydration_class import SlabDehydration, SlabMesh
 
 
@@ -194,8 +196,8 @@ class SlabDehydrationVertical(SlabDehydration):
 # %% tags=["active-ipynb"]
 # dmm_thickness = 2.0
 #
-# tres = 0.5
-# sres = 0.5
+# tres = 1.0
+# sres = 1.0
 #
 # # negative number implies below slab, positive implies above it
 # layer_thicknesses = [
@@ -239,7 +241,7 @@ class SlabDehydrationVertical(SlabDehydration):
 
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(10,8))
-# testslab.plot_xy(ax, C=testslab.Ts, cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# testslab.plot_xy(ax, C=testslab.H2Os, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # ax.set_aspect(3)
 # fig.show()
 
@@ -250,7 +252,48 @@ class SlabDehydrationVertical(SlabDehydration):
 # fig.show()
 
 # %% tags=["active-ipynb"]
-# testslab2 = SlabDehydration(sres, tres, layer_thicknesses, layer_h2os, layer_tres=None,
+# import json
+# with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25.json"), "r") as file:
+#     abers_25 = json.load(file)
+
+# %% tags=["active-ipynb"]
+# layer_h2os_meemum = [
+#     PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models']) for basename in [szdict['sed_type'], 'upvolc_25', 'lovolc_25', 'dike_25', 'gabbro_25', 'DMMdamp_25']
+# ]
+
+# %% tags=["active-ipynb"]
+# testslabmeemum = SlabDehydrationVertical(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
+#                            slab=slab, Tgrid=tfgrid, 
+#                            Tname='Temperature::PotentialTemperature', 
+#                            coast_distance=szdict['coast_distance'], 
+#                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(20,20))
+# testslabmeemum.plot_st(ax, C=testslabmeemum.cumulative_H2O_losses, cmap='coolwarm', edgecolor = 'black', lw=0.5)
+# ax.set_aspect(5)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(20,20))
+# testslab.plot_st(ax, C=testslab.cumulative_H2O_losses, cmap='coolwarm', edgecolor = 'black', lw=0.5)
+# ax.set_aspect(5)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(20,20))
+# testslabmeemum.plot_st(ax, C=testslabmeemum.maxH2Os, cmap='coolwarm', edgecolor = 'black', lw=0.5)
+# ax.set_aspect(5)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(20,20))
+# testslab.plot_st(ax, C=testslab.maxH2Os, cmap='coolwarm', edgecolor = 'black', lw=0.5)
+# ax.set_aspect(5)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# testslabog = SlabDehydration(sres, tres, layer_thicknesses, layer_h2os, layer_tres=None,
 #                            slab=slab, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
@@ -260,8 +303,10 @@ class SlabDehydrationVertical(SlabDehydration):
 # fix, ax = pl.subplots(figsize=(5,10))
 # indices = np.argsort(-testslab.mesh.dof_xys[:,1])
 # ax.plot(testslab.total_cumulative_H2O_losses/1000.0, testslab.mesh.dof_xys[indices,1], label='vertical')
-# indices2 = np.argsort(-testslab2.mesh.dof_xys[:,1])
-# ax.plot(testslab2.total_cumulative_H2O_losses/1000.0, testslab2.mesh.dof_xys[indices2,1], label='normal', ls='--')
+# indicesog = np.argsort(-testslabog.mesh.dof_xys[:,1])
+# ax.plot(testslabog.total_cumulative_H2O_losses/1000.0, testslabog.mesh.dof_xys[indicesog,1], label='normal', ls='--')
+# indicesmm = np.argsort(-testslabmeemum.mesh.dof_xys[:,1])
+# ax.plot(testslabmeemum.total_cumulative_H2O_losses/1000.0, testslabmeemum.mesh.dof_xys[indicesmm,1], label='meemum', ls='-.')
 # ax.set_xlabel('Cumulative water loss')
 # ax.set_ylabel('y (km)')
 # _ = ax.legend()

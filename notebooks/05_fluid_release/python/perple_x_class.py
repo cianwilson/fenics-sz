@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
@@ -39,7 +39,8 @@ class PerpleXGrid:
 
         self._df = None
         if csv_file is not None:
-            self._df = pd.read_csv(csv_file)
+            self._df = pd.read_csv(csv_file, index_col=0)
+            self._df.columns = self._df.columns.astype(float)
             if dat_file is not None:
                 raise RuntimeWarning("csv_file and dat_file provided, ignoring dat_file.")
             file = pathlib.Path(csv_file)
@@ -54,92 +55,86 @@ class PerpleXGrid:
     @property
     def df(self):
         if not hasattr(self, '_df') or self._df is None:
-            with tempfile.TemporaryDirectory() as tmp_work_folder:
-                shutil.copy(((self.data_folder / self.basename)).with_suffix('.dat'), tmp_work_folder)
-                shutil.copy( self.data_folder / 'perplex_option.dat', tmp_work_folder)
+            # with tempfile.TemporaryDirectory(dir=self.data_folder) as tmp_work_folder:
+            tmp_work_folder = tempfile.mkdtemp(dir=self.data_folder)
+            print('tmp_work_folder = ', tmp_work_folder)
+            shutil.copy(((self.data_folder / self.basename)).with_suffix('.dat'), tmp_work_folder)
+            shutil.copy( self.data_folder / 'perplex_option.dat', tmp_work_folder)
 
-                # vertex
-                stdout = open(os.path.join(tmp_work_folder, 'vertex_'+ self.basename + '.log'), 'w')
-                stderr = open(os.path.join(tmp_work_folder, 'vertex_'+ self.basename + '.err'), 'w')
-                if self.version == '7.1.9':
-                    input = self.basename
-                    subprocess.run(["vertex-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=tmp_work_folder)
-                else:
-                    raise RuntimeError("Unknown Perple_X vertex version")
-                stdout.close()
-                stderr.close()
+            # vertex
+            stdout = open(os.path.join(tmp_work_folder, 'vertex_'+ self.basename + '.log'), 'w')
+            stderr = open(os.path.join(tmp_work_folder, 'vertex_'+ self.basename + '.err'), 'w')
+            if self.version == '7.1.9':
+                input = self.basename
+                subprocess.run(["vertex-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=tmp_work_folder)
+            else:
+                raise RuntimeError("Unknown Perple_X vertex version")
+            stdout.close()
+            stderr.close()
 
-                stdout = open(os.path.join(tmp_work_folder, 'werami_'+ self.basename + '.log'), 'w')
-                stderr = open(os.path.join(tmp_work_folder, 'werami_'+ self.basename + '.err'), 'w')
-                if self.version == '7.1.9':
-                    input=self.basename+"""
-                    2
-                    36
-                    1
-                    n
-                    y
-                    473 1673
-                    1000 80000
-                    241 396
-                    0
-                    """
-                    subprocess.run(["werami-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=tmp_work_folder)
-                else:
-                    raise RuntimeError("Unknown Perple_X werami version")
-                stdout.close()
-                stderr.close()
+            stdout = open(os.path.join(tmp_work_folder, 'werami_'+ self.basename + '.log'), 'w')
+            stderr = open(os.path.join(tmp_work_folder, 'werami_'+ self.basename + '.err'), 'w')
+            if self.version == '7.1.9':
+                input=self.basename+"""
+                2
+                36
+                1
+                n
+                y
+                473 1673
+                1000 80000
+                241 396
+                0
+                """
+                subprocess.run(["werami-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=tmp_work_folder)
+            else:
+                raise RuntimeError("Unknown Perple_X werami version")
+            stdout.close()
+            stderr.close()
 
-                datafile = os.path.join(tmp_work_folder, self.basename + '_1.tab')
+            datafile = os.path.join(tmp_work_folder, self.basename + '_1.tab')
 
-                cols = ["T(K)", "P(bar)", "H2O,wt%"]
+            cols = ["T(K)", "P(bar)", "H2O,wt%"]
 
-                # we need to find the row of the file that contains the header
-                header_idx = None
-                with open(datafile, 'r') as f:
-                    i = 0
-                    for line in f:
-                        if all([c in line for c in cols]):
-                            header_idx = i
-                            break
-                        i += 1
+            # we need to find the row of the file that contains the header
+            header_idx = None
+            with open(datafile, 'r') as f:
+                i = 0
+                for line in f:
+                    if all([c in line for c in cols]):
+                        header_idx = i
+                        break
+                    i += 1
 
-                # some sanity checks
-                if header_idx is None:
-                    raise RuntimeError("Could not find header row")
+            # some sanity checks
+            if header_idx is None:
+                raise RuntimeError("Could not find header row")
 
-                if header_idx < 1:
-                    raise RuntimeError("Unexpected number of header rows")
+            if header_idx < 1:
+                raise RuntimeError("Unexpected number of header rows")
 
-                self._df = pd.read_csv(datafile, sep=r"\s+", skiprows=header_idx-1, header=1, usecols=cols)
+            long_df = pd.read_csv(datafile, sep=r"\s+", skiprows=header_idx-1, header=1, usecols=cols)
+            self._df = long_df.pivot(index='P(bar)', columns='T(K)', values='H2O,wt%')
 
-                # reset other stored variables
-                self._P = None
-                self._T = None
-                self._H2O = None
-                self._interpolator = None
+            # reset other stored variables
+            self._interpolator = None
         return self._df
 
     def save_h2o(self, filename=None):
         if filename is None: filename = self.data_folder / str(self.basename + '_h2o.csv')
-        self.df.to_csv(filename, index=False)
+        self.df.to_csv(filename)
 
     @property
     def P(self):
-        if not hasattr(self, '_P') or self._P is None: 
-            self._P = np.unique(self.df['P(bar)'].to_numpy())/10000.0
-        return self._P
+        return self.df.index.to_numpy()/10000.0
 
     @property
     def T(self):
-        if not hasattr(self, '_T') or self._T is None: 
-            self._T = np.unique(self.df['T(K)'].to_numpy()) - 273.15
-        return self._T
+        return self.df.columns.to_numpy() - 273.15
 
     @property
     def H2O(self):
-        if not hasattr(self, '_H2O') or self._H2O is None: 
-            self._H2O = self.df['H2O,wt%'].to_numpy().reshape(len(self.P),len(self.T))
-        return self._H2O
+        return self.df.to_numpy()
     
     def plot_h2o(self):
         fig, ax = pl.subplots(figsize=(7, 4.5))
@@ -166,6 +161,10 @@ class PerpleXGrid:
         Tarr = np.clip(np.atleast_1d(T), a_min=self.T.min(), a_max=self.T.max())
         PT = np.stack((Parr, Tarr), axis=1)
         return self.interpolator(PT)
+
+# %% tags=["active-ipynb"] vscode={"languageId": "raw"}
+# grid = PerpleXGrid(dat_file = '../../data/perple_x_v7.1.9/dike_25.dat')
+# grid.plot_h2o()
 
 # %% tags=["active-ipynb"] vscode={"languageId": "raw"}
 # files = glob.glob('../../data/perple_x_v7.1.9/*_25.dat')

@@ -46,13 +46,15 @@ RUN git clone -b v6.9.1 --single-branch --depth 1 https://github.com/jadconnolly
     make -f makefile_691 && \
     ln -s /usr/local/src/Perple_X_v6.9.1/sources/build  /usr/local/bin/build-v6.9.1 && \
     ln -s /usr/local/src/Perple_X_v6.9.1/sources/vertex /usr/local/bin/vertex-v6.9.1 && \
-    ln -s /usr/local/src/Perple_X_v6.9.1/sources/werami /usr/local/bin/werami-v6.9.1
+    ln -s /usr/local/src/Perple_X_v6.9.1/sources/werami /usr/local/bin/werami-v6.9.1 && \
+    ln -s /usr/local/src/Perple_X_v6.9.1/sources/meemum /usr/local/bin/meemum-v6.9.1
 # Install Perple_X 7.1.9
 RUN git clone -b v7.1.9 --single-branch --depth 1 https://github.com/jadconnolly/Perple_X.git Perple_X_v7.1.9 && \
     cd Perple_X_v7.1.9/src && \
     make && \
     ln -s /usr/local/src/Perple_X_v7.1.9/src/build /usr/local/bin/build-v7.1.9 && \
     ln -s /usr/local/src/Perple_X_v7.1.9/src/vertex /usr/local/bin/vertex-v7.1.9 && \
-    ln -s /usr/local/src/Perple_X_v7.1.9/src/werami /usr/local/bin/werami-v7.1.9
+    ln -s /usr/local/src/Perple_X_v7.1.9/src/werami /usr/local/bin/werami-v7.1.9 && \
+    ln -s /usr/local/src/Perple_X_v7.1.9/src/meemum /usr/local/bin/meemum-v7.1.9
 
 ENTRYPOINT ["jupyter", "lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root"]

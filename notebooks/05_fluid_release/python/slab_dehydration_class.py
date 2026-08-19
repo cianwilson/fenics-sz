@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
@@ -84,6 +84,9 @@ class SlabMesh:
 
 # %%
 class SlabDehydration:
+    """
+    
+    """
     def __init__(self, sres : float, tres : float, 
                  layer_thicknesses : (list[np.float64] | np.typing.NDArray[np.float64]), 
                  layer_h2os : list[np.int_], 
@@ -94,13 +97,19 @@ class SlabDehydration:
                  trench_length : float = None,
                  rhoc : float = None, rhom : float = None,  Vs : float = None,
                  Tname : str ='T', add_adiabat : bool =True):
+
+        # resolutions
         self.sres = sres
         self.tres = tres
 
+        # layer specifications:
+        # - thicknesses
         self.layer_thicknesses = layer_thicknesses
+        # - hydrations
         if len(layer_h2os) != len(layer_thicknesses):
             raise RuntimeError("Length of layer_h2os must match layer_thicknesses.")
         self.layer_h2os = layer_h2os
+        # - resolutions (per layer)
         if layer_tres is not None:
             self.layer_tres = [layer_tres[t] if t < len(layer_tres) 
                                                     and layer_tres[t] is not None 
@@ -109,14 +118,24 @@ class SlabDehydration:
         else:
             self.layer_tres = [self.tres]*len(layer_thicknesses)
 
+        # subduction zone class
         self._sz = sz
 
+        # pyvista temperature grid
         self._Tgrid = Tgrid
+        # temperature field name in pyvista grid
+        if not Tname in self.Tgrid.array_names:
+            raise RuntimeError("Temperature field {:s} not found.  Please check Tname parameter.".format(Tname))
+        self.Tname = Tname
+
+        # the slab spline
         self._slab = slab
 
+        # the minimum and maximum depths allowed to be considered
         self.zmin = zmin
         self.zmax = zmax
 
+        # other parameters required if sz not supplied
         self._coast_distance = coast_distance
         self._sztype = sztype
         self._lc_depth = lc_depth
@@ -124,10 +143,8 @@ class SlabDehydration:
         self._rhoc = rhoc
         self._rhom = rhom
         self._Vs = Vs
-        
-        if not Tname in self.Tgrid.array_names:
-            raise RuntimeError("Temperature field {:s} not found.  Please check Tname parameter.".format(Tname))
-        self.Tname = Tname
+
+        # does the temperature field require an adiabat to be added?
         self.add_adiabat = add_adiabat
 
     @property
@@ -216,9 +233,9 @@ class SlabDehydration:
     def inds_in_domain(self, coords):
         # FIXME: this logic could be improved to take into account the bathymetry etc
         below_trench = (coords[:,0] > self.slab.x[0]) & (coords[:,1] < self.slab.y[0])
-        valid_ind_0 = np.argmax(below_trench) if np.any(below_trench) else -1
+        valid_ind_0 = np.argmax(below_trench) if np.any(below_trench) else None
         above_base = (coords[:,0] < self.slab.x[-1]) & (coords[:,1] > self.slab.y[-1])
-        valid_ind_f = len(coords) - np.argmax(above_base[::-1]) if np.any(above_base) else -1
+        valid_ind_f = len(coords) - np.argmax(above_base[::-1]) if np.any(above_base) else None
         return valid_ind_0, valid_ind_f
 
     @property
@@ -325,9 +342,9 @@ class SlabDehydration:
         if not hasattr(self, '_Ps') or self._Ps is None:
             rhow = 1000.0 # water density, kg/m^3
             g = 9.81 # gravity magnitude, m/s^2
-            # depth of the slab above the centroid points
+            # depth of the slab above the dofs
             zslab = np.asarray([-self.slab.intersectx(x)[1] for x in self.mesh.dof_xys[:,0]])
-            # depth of surface above the centroid points
+            # depth of surface above the dofs
             zsurface = self.zsurface(self.mesh.dof_xys[:,0])
             self._Ps = (rhow*zsurface + 
                         # ^- contribution of water
@@ -419,12 +436,12 @@ class SlabDehydration:
         nvs = len(self.mesh.vertex_ss)
         X = self.mesh.vertex_xys[:,0].reshape((nvt, nvs))
         Y = self.mesh.vertex_xys[:,1].reshape((nvt, nvs))
-        return self.plot(ax, X, Y, C, **mpl_kwargs)
+        return self.plot(ax, X, Y, C=C, **mpl_kwargs)
     
     def plot_st(self, ax, C=None, **mpl_kwargs):
         coords = np.empty_like(self.mesh.vertex_xys)
         S, T = np.meshgrid(self.mesh.vertex_ss, self.mesh.vertex_ts)
-        return self.plot(ax, S, T, C, **mpl_kwargs)
+        return self.plot(ax, S, T, C=C, **mpl_kwargs)
         
     def plot(self, ax, X, Y, C=None, **mpl_kwargs):
         if C is None: 

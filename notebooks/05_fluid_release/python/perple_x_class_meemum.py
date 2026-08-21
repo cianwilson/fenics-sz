@@ -32,6 +32,8 @@ import re
 
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
+work_folder = pathlib.Path(os.path.join(os.getcwd(), "work"))
+work_folder.mkdir(exist_ok=True, parents=True)
 
 
 # %%
@@ -40,7 +42,8 @@ class PerpleXMeemum:
                  component_masses : dict, excluded_phases : list,
                  solution_models : list,
                  csv_file : str = None, version : str ='7.1.9',
-                 clean_tmp_folder : bool = True):
+                 clean_tmp_folder : bool = True,
+                 work_folder : str = None):
         self.basename = basename
         self.component_masses = component_masses
         self.excluded_phases = excluded_phases
@@ -53,6 +56,7 @@ class PerpleXMeemum:
             raise RuntimeError("Unknown perple_x version.")
         self.version  = version
         self.clean_tmp_folder = clean_tmp_folder
+        self.work_folder = work_folder
         self.data_folder = pathlib.Path(os.path.join(basedir, os.pardir, "data", "perple_x_v"+self.version))
     
     def __del__(self):
@@ -62,9 +66,7 @@ class PerpleXMeemum:
     @property
     def tmp_work_folder(self):
         if not hasattr(self, '_tmp_work_folder') or self._tmp_work_folder is None:
-            work_folder = pathlib.Path(os.path.join(os.getcwd(), "work"))
-            work_folder.mkdir(exist_ok=True, parents=True)
-            self._tmp_work_folder = tempfile.TemporaryDirectory(dir=work_folder)
+            self._tmp_work_folder = tempfile.TemporaryDirectory(dir=self.work_folder)
 
             shutil.copy( self.data_folder / 'perplex_option.dat', self.tmp_work_folder)
             shutil.copy( self.data_folder / 'solution_model.dat', self.tmp_work_folder)
@@ -129,25 +131,34 @@ class PerpleXMeemum:
             stderr.close()
         return pathlib.Path(self._tmp_work_folder.name)
 
-    def eval_h2o(self, P : float, T : float):
+    def eval_h2o(self, P : float, T : float, **comps):
         Parr = np.clip(np.atleast_1d(P)*10000.0, a_min=1000.0, a_max=80000.0)
         Tarr = np.clip(np.atleast_1d(T)+273.15,  a_min=473.0,  a_max=1673.0)
 
         if len(Parr) != len(Tarr):
             raise RuntimeError("P and T must have same length")
+        
+        compsarr = np.empty((len(Parr), len(self.component_masses)))
+        for i, (k, v) in enumerate(self.component_masses.items()):
+            comparr = np.atleast_1d(comps.get(k, [v]*len(Parr)))
+            if len(Parr) != len(comparr):
+                raise RuntimeError("P and {:s} values must have same length".format(k,))
+            compsarr[:, i] = comparr
 
-        points = os.linesep.join(str(Ti)+" "+str(Pi) for Pi, Ti in zip(Parr, Tarr))
+        points = os.linesep.join(str(Ti)+" "+str(Pi)+os.linesep+" ".join([str(v) for v in compsi]) for Pi, Ti, compsi in zip(Parr, Tarr, compsarr))
         input = self.basename+"""
-        n
+        y
         """+points+"""
         0 0"""
         input = os.linesep.join(line.lstrip() for line in input.splitlines())
-        result = subprocess.run(["meemum-v"+self.version], input=input, text=True, capture_output=True, cwd=self.tmp_work_folder)
+        stderr = open(os.path.join(self.tmp_work_folder, 'meemum_'+self.basename + '.err'), 'w')
+        result = subprocess.run(["meemum-v"+self.version], input=input, text=True, 
+                                stdout=subprocess.PIPE, stderr=stderr,
+                                cwd=self.tmp_work_folder)
 
         blocks = re.findall(r'Bulk Composition:\s*\n(.*?)\n\s*\nOther Bulk Properties:',
                              result.stdout, re.S)
         if len(blocks) != len(Parr):
-            print(result.stdout)
             raise RuntimeError(f"Expected {len(Parr)} 'Bulk Composition:' blocks in meemum "
                                 f"output, found {len(blocks)}.")
 
@@ -163,7 +174,12 @@ class PerpleXMeemum:
             # the solid-only composition.
             dual_block = 'Complete Assemblage' in block and 'Solid Only' in block
             h2oarr[i] = values[6] if dual_block else values[2]
+        
+        with open(os.path.join(self.tmp_work_folder, 'meemum_'+self.basename + '.log'), 'a') as stdout:
+            stdout.write(result.stdout)
+        
         return h2oarr
+
 
 # %% tags=["active-ipynb"]
 # import json
@@ -172,10 +188,13 @@ class PerpleXMeemum:
 
 # %% tags=["active-ipynb"]
 # basename = 'dike_25'
-# grid = PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models'])
+# grid = PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models'], work_folder=work_folder)
+
+# %%
+grid.tmp_work_folder
 
 # %% tags=["active-ipynb"]
-# grid.eval_h2o(0.2, 400)
+# grid.eval_h2o([0.2, 1.7], [400, 1200.0], SiO2=[40.2, 57.1], H2O=[1.2, 5.6])
 
 # %% tags=["active-ipynb"]
 # grid.eval_h2o(3.0, 1000.0)
@@ -195,5 +214,8 @@ class PerpleXMeemum:
 
 # %% tags=["active-ipynb"]
 # oggrid.eval_h2o(3.0, 1000)
+
+# %%
+oggrid.tmp_work_folder
 
 # %%

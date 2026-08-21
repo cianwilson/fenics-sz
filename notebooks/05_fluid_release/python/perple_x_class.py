@@ -30,13 +30,16 @@ import glob
 
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
+work_folder = pathlib.Path(os.path.join(os.getcwd(), "work"))
+work_folder.mkdir(exist_ok=True, parents=True)
 
 
 # %%
 class PerpleXGrid:
     def __init__(self, dat_file : str = None, csv_file : str = None, 
                  version : str ='7.1.9',
-                 clean_tmp_folder : bool = True):
+                 clean_tmp_folder : bool = True,
+                 work_folder : str = None):
         self._df = None
         self.dat_file = None
         self.basename = None
@@ -57,6 +60,7 @@ class PerpleXGrid:
             raise RuntimeError("Unknown perple_x version.")
         self.version = version
         self.clean_tmp_folder = clean_tmp_folder
+        self.work_folder = work_folder
         self.data_folder = pathlib.Path(os.path.join(basedir, os.pardir, "data", "perple_x_v"+self.version))
     
     def __del__(self):
@@ -66,9 +70,7 @@ class PerpleXGrid:
     @property
     def tmp_work_folder(self):
         if not hasattr(self, '_tmp_work_folder') or self._tmp_work_folder is None:
-            work_folder = pathlib.Path(os.path.join(os.getcwd(), "work"))
-            work_folder.mkdir(exist_ok=True, parents=True)
-            self._tmp_work_folder = tempfile.TemporaryDirectory(dir=work_folder)
+            self._tmp_work_folder = tempfile.TemporaryDirectory(dir=self.work_folder)
         return pathlib.Path(self._tmp_work_folder.name)
 
     @property

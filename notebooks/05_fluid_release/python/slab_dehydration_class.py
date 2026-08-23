@@ -80,6 +80,7 @@ class SlabMesh:
     cells : np.typing.NDArray[np.int_]
     layer_cell_inds : list
     dof_xys : np.typing.NDArray[np.float64]
+    cell_areas : np.typing.NDArray[np.float64]
 
 
 # %%
@@ -290,6 +291,8 @@ class SlabDehydration:
             # we set up in layer_cell_inds from top to bottom to match layer_h2os and other user input
             layer_cell_inds = [np.empty((num_sub_layers, num_valid_us-1), dtype=np.int32) for num_sub_layers in nums_sub_layers]
             dof_xys = np.empty((total_layers*(num_valid_us-1), 2))
+            # memory for cell areas
+            cell_areas = np.empty(total_layers*(num_valid_us-1))
 
             # set up orthogonal slab coordinate system
             vertex_ss = slab_vertex_us[valid_vertex_ind_0:valid_vertex_ind_f]*self.slab.length
@@ -297,6 +300,8 @@ class SlabDehydration:
             vertex_ts = np.empty(total_layers + 1)
             # note that this is bottom to top
             vertex_ts[0] = offsets[0]
+            # tangent angles (used in calculation of area)
+            slab_vertex_thetas = np.arctan(self.slab.cs(slab_vertex_xys[:,0], nu=1))
 
             layer_ind = 0
             for l, offset in enumerate(offsets[1:]):
@@ -306,9 +311,11 @@ class SlabDehydration:
                 sub_offsets = np.linspace(prev_offset, offset, num=num_sub_layers+1)
                 # loop over the sub layers
                 for sl, sub_offset in enumerate(sub_offsets[1:]):
+                    prev_sub_offset = sub_offsets[sl]
+                    sub_thickness = sub_offset - prev_sub_offset
                     # work out coordinates...
                     vertex_ind = (layer_ind + 1)*num_valid_us
-                    current_vertex_inds = list(range(vertex_ind, vertex_ind+num_valid_us))
+                    current_vertex_inds = np.arange(vertex_ind, vertex_ind+num_valid_us, dtype=np.int32)
                     # in xy space
                     vertex_xys[current_vertex_inds,:] = slab_vertex_xys + sub_offset*slab_vertex_normals
                     # and t space
@@ -324,12 +331,16 @@ class SlabDehydration:
                         # work out dof xys (here the centroids of the cells)
                         centroid = geo.Polygon(vertex_xys[cell,:]).centroid
                         dof_xys[layer_ind*(num_valid_us-1) + i, :] = [centroid.x, centroid.y]
+                    # indices of cells we've just added
+                    current_cell_inds = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
+                    # work out cell areas
+                    cell_areas[current_cell_inds] = sub_thickness*(vertex_ss[1:]-vertex_ss[:-1]) - 0.5*(sub_offset**2 - prev_sub_offset**2)*(slab_vertex_thetas[1:] - slab_vertex_thetas[:-1])
                     # we fill in layer_cell_inds from top to bottom to match layer_h2os and other user input
-                    layer_cell_inds[num_outer_layers-1-l][num_sub_layers-1-sl,:] = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
+                    layer_cell_inds[num_outer_layers-1-l][num_sub_layers-1-sl,:] = current_cell_inds
                     layer_ind += 1
 
             self._mesh = SlabMesh(vertex_xys=vertex_xys, vertex_ss=vertex_ss, vertex_ts=vertex_ts, 
-                                  cells=cells, layer_cell_inds=layer_cell_inds, dof_xys=dof_xys)
+                                  cells=cells, layer_cell_inds=layer_cell_inds, dof_xys=dof_xys, cell_areas=cell_areas)
             # NOTE: during construction we reversed layer_cell_inds to be in the same 
             # order as layer_h2os above (i.e. it goes from top to bottom, while 
             # everything else is natively ordered from bottom to top but this should 
@@ -550,6 +561,25 @@ class SlabDehydration:
 # %% tags=["active-ipynb"]
 # fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
 # pcm = testslab.plot_st(ax, C=testslab.cumulative_H2O_losses/1000.0, cmap = 'coolwarm', edgecolor = 'black', linewidth=0.5, shading='flat')
+# ax.set_aspect(10.0)
+# fig.colorbar(pcm, cax=axc, orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
+# # work out areas relative to first cell of each row of mesh (easier to visualize)
+# relcellareas = np.empty_like(testslab.mesh.cell_areas)
+# for cell_inds in testslab.mesh.layer_cell_inds:
+#     for sub_cell_inds in cell_inds:
+#         relcellareas[sub_cell_inds] = testslab.mesh.cell_areas[sub_cell_inds]/testslab.mesh.cell_areas[sub_cell_inds[0]]
+# pcm = testslab.plot_st(ax, C=relcellareas, cmap = 'viridis', edgecolor = 'black', linewidth=0.5, shading='flat')
+# ax.set_aspect(10.0)
+# fig.colorbar(pcm, cax=axc, orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
+# pcm = testslab.plot_st(ax, C=testslab.mesh.cell_areas, cmap = 'viridis', edgecolor = 'black', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.colorbar(pcm, cax=axc, orientation='horizontal')
 # fig.show()

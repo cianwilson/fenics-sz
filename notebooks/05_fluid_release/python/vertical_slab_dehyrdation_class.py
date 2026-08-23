@@ -31,6 +31,7 @@ import itertools
 import math
 from dataclasses import dataclass
 import json
+from scipy import integrate as integ
 
 # %%
 import fenics_sz.utils
@@ -88,6 +89,8 @@ class SlabDehydrationVertical(SlabDehydration):
             # we set up in layer_cell_inds from top to bottom to match layer_h2os and other user input
             layer_cell_inds = [np.empty((num_sub_layers, num_valid_us-1), dtype=np.int32) for num_sub_layers in nums_sub_layers]
             dof_xys = np.empty((total_layers*(num_valid_us-1), 2))
+            # memory for cell areas
+            cell_areas = np.empty(total_layers*(num_valid_us-1))
 
             # set up near-orthogonal slab coordinate system
             vertex_ss = slab_vertex_us[valid_vertex_ind_0:valid_vertex_ind_f]*self.slab.length
@@ -108,13 +111,13 @@ class SlabDehydrationVertical(SlabDehydration):
                     sub_thickness = sub_offset - prev_sub_offset
                     # work out coordinates...
                     vertex_ind = (layer_ind + 1)*num_valid_us
-                    current_vertex_inds = list(range(vertex_ind, vertex_ind+num_valid_us))
+                    current_vertex_inds = np.arange(vertex_ind, vertex_ind+num_valid_us, dtype=np.int32)
                     # in xy space
                     vertex_xys[current_vertex_inds,:] = np.asarray([self.slab.intersectx(x, offset=sub_offset) for x in slab_vertex_xys[:,0]])
                     # and t space
                     vertex_ts[layer_ind + 1] = sub_offset
                     # the current cells
-                    current_cell_inds = list(range(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1)))
+                    current_cell_inds = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
                     # use a halfway offset to work out the dof xys at the mid x points of each cell
                     half_sub_offset = prev_sub_offset + 0.5*sub_thickness
                     dof_xys[current_cell_inds,:] = np.asarray([self.slab.intersectx(x, offset=half_sub_offset) for x in 0.5*(slab_vertex_xys[:-1,0] + slab_vertex_xys[1:,0])])
@@ -126,14 +129,17 @@ class SlabDehydrationVertical(SlabDehydration):
                                 (layer_ind + 1)*num_valid_us + i + 1, (layer_ind + 1)*num_valid_us + i
                                ]
                         cells[layer_ind*(num_valid_us-1) + i, :] = cell
+                    # work out the cell areas by numerical integration
+                    cell_areas[current_cell_inds] = np.asarray([integ.quad(lambda x: self.slab.intersectx(x, offset=sub_offset)[1] - self.slab.intersectx(x, offset=prev_sub_offset)[1], x0, x1)[0] for (x0,x1) in itertools.pairwise(slab_vertex_xys[:,0])])
                     # we fill in layer_cell_inds from top to bottom to match layer_h2os and other user input
-                    layer_cell_inds[num_outer_layers-1-l][num_sub_layers-1-sl,:] = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
+                    layer_cell_inds[num_outer_layers-1-l][num_sub_layers-1-sl,:] = current_cell_inds
                     # increment layer index
                     layer_ind += 1
 
             self._mesh = SlabMesh(vertex_xys=vertex_xys, vertex_ss=vertex_ss, vertex_ts=vertex_ts, 
                                   cells=cells, layer_cell_inds=layer_cell_inds, 
-                                  dof_xys=dof_xys)
+                                  dof_xys=dof_xys, 
+                                  cell_areas=cell_areas)
             # NOTE: during construction we reversed layer_cell_inds to be in the same 
             # order as layer_h2os above (i.e. it goes from top to bottom, while 
             # everything else is natively ordered from bottom to top but this should 
@@ -171,8 +177,8 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 #
 
 # %% tags=["active-ipynb"]
-# slab = create_slab(szdict['xs'], szdict['ys'], resscale, szdict['lc_depth'])
-# _ = plot_slab(slab)
+# slab1 = create_slab(szdict['xs'], szdict['ys'], resscale, szdict['lc_depth'])
+# _ = plot_slab(slab1)
 
 # %% tags=["active-ipynb"]
 # zipfilename = pathlib.Path(os.path.join(basedir, os.path.pardir, os.path.pardir, "data", "vankeken_wilson_peps_2023_TF_lowres_minimal.zip"))
@@ -227,7 +233,7 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 
 # %% tags=["active-ipynb"]
 # testslab = SlabDehydrationVertical(sres, tres, layer_thicknesses, layer_h2os, layer_tres=None,
-#                            slab=slab, Tgrid=tfgrid, 
+#                            slab=slab1, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
@@ -248,7 +254,25 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 # fig.show()
 
 # %% tags=["active-ipynb"]
-# import json
+# fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
+# # work out areas relative to first cell of each row of mesh (easier to visualize)
+# relcellareas = np.empty_like(testslab.mesh.cell_areas)
+# for cell_inds in testslab.mesh.layer_cell_inds:
+#     for sub_cell_inds in cell_inds:
+#         relcellareas[sub_cell_inds] = testslab.mesh.cell_areas[sub_cell_inds]/testslab.mesh.cell_areas[sub_cell_inds[0]]
+# pcm = testslab.plot_st(ax, C=relcellareas, cmap = 'viridis', edgecolor = 'black', linewidth=0.5, shading='flat')
+# ax.set_aspect(10.0)
+# fig.colorbar(pcm, cax=axc, orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
+# pcm = testslab.plot_st(ax, C=testslab.mesh.cell_areas, cmap = 'viridis', edgecolor = 'black', linewidth=0.5, shading='flat')
+# ax.set_aspect(10.0)
+# fig.colorbar(pcm, cax=axc, orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
 # with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25", "abers_25.json"), "r") as file:
 #     abers_25 = json.load(file)
 
@@ -259,7 +283,7 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 
 # %% tags=["active-ipynb"]
 # testslabmeemum = SlabDehydrationVertical(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
-#                            slab=slab, Tgrid=tfgrid, 
+#                            slab=slab1, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
@@ -278,7 +302,7 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 
 # %% tags=["active-ipynb"]
 # testslabmeemumflux = SlabDehydrationVerticalFlux(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
-#                            slab=slab, Tgrid=tfgrid, 
+#                            slab=slab1, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
@@ -312,7 +336,7 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 
 # %% tags=["active-ipynb"]
 # testslabog = SlabDehydration(sres, tres, layer_thicknesses, layer_h2os, layer_tres=None,
-#                            slab=slab, Tgrid=tfgrid, 
+#                            slab=slab1, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])

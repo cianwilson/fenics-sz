@@ -177,11 +177,11 @@ class PerpleXGrid:
             self._interpolator = sp.interpolate.RegularGridInterpolator((self.P, self.T), self.H2O, method='linear')
         return self._interpolator
 
-    def eval_h2o(self, P, T):
+    def eval(self, P, T):
         Parr = np.clip(np.atleast_1d(P), a_min=self.P.min(), a_max=self.P.max())
         Tarr = np.clip(np.atleast_1d(T), a_min=self.T.min(), a_max=self.T.max())
         PT = np.stack((Parr, Tarr), axis=1)
-        return self.interpolator(PT)
+        return {'H2O' : self.interpolator(PT)}
 
 # %% tags=["active-ipynb"] vscode={"languageId": "raw"}
 # grid = PerpleXGrid(dat_file = '../../data/perple_x_v7.1.9/abers_25/dike_25.dat')

@@ -276,14 +276,18 @@ class SlabDehydration:
 
             # work out the dimensions of our grid
             num_valid_us = len(slab_vertex_xys)
+            num_outer_layers = len(self.layer_thicknesses)
+            # we fill in nums_sub_layers from top to bottom to match layer_h2os and other user input
+            # and will reverse access it in the assembly loop
             nums_sub_layers = [math.ceil(abs(thickness)/tres) 
-                               for thickness, tres in zip(self.layer_thicknesses, self.layer_tres)][::-1] # NOTE reversed
+                               for thickness, tres in zip(self.layer_thicknesses, self.layer_tres)]
             total_layers = sum(nums_sub_layers)
 
             # pre-allocate memory for the full coordinate system and the cells
             vertex_xys = np.empty(((total_layers+1)*num_valid_us, 2))
             vertex_xys[:num_valid_us,:] = base_vertex_xys
             cells = np.empty((total_layers*(num_valid_us-1), 4), dtype=np.int32)
+            # we set up in layer_cell_inds from top to bottom to match layer_h2os and other user input
             layer_cell_inds = [np.empty((num_sub_layers, num_valid_us-1), dtype=np.int32) for num_sub_layers in nums_sub_layers]
             dof_xys = np.empty((total_layers*(num_valid_us-1), 2))
 
@@ -291,13 +295,14 @@ class SlabDehydration:
             vertex_ss = slab_vertex_us[valid_vertex_ind_0:valid_vertex_ind_f]*self.slab.length
             vertex_ss = vertex_ss - vertex_ss[0]
             vertex_ts = np.empty(total_layers + 1)
+            # note that this is bottom to top
             vertex_ts[0] = offsets[0]
 
             layer_ind = 0
             for l, offset in enumerate(offsets[1:]):
                 prev_offset = offsets[l]
                 # the number of sublayers based on the layer thickness and resolution
-                num_sub_layers = nums_sub_layers[l]
+                num_sub_layers = nums_sub_layers[num_outer_layers-1-l]
                 sub_offsets = np.linspace(prev_offset, offset, num=num_sub_layers+1)
                 # loop over the sub layers
                 for sl, sub_offset in enumerate(sub_offsets[1:]):
@@ -310,18 +315,25 @@ class SlabDehydration:
                     vertex_ts[layer_ind + 1] = sub_offset
                     # work out cells
                     for i in range(num_valid_us-1):
-                        cell = [(layer_ind + 1)*num_valid_us + i + 1, (layer_ind + 1)*num_valid_us + i,
-                                (layer_ind)*num_valid_us + i,   (layer_ind)*num_valid_us + i + 1]
+                        # lower left, lower right, upper right, upper left
+                        cell = [
+                                (layer_ind)*num_valid_us + i,   (layer_ind)*num_valid_us + i + 1,
+                                (layer_ind + 1)*num_valid_us + i + 1, (layer_ind + 1)*num_valid_us + i
+                               ]
                         cells[layer_ind*(num_valid_us-1) + i, :] = cell
                         # work out dof xys (here the centroids of the cells)
                         centroid = geo.Polygon(vertex_xys[cell,:]).centroid
                         dof_xys[layer_ind*(num_valid_us-1) + i, :] = [centroid.x, centroid.y]
-                    layer_cell_inds[l][sl,:] = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
+                    # we fill in layer_cell_inds from top to bottom to match layer_h2os and other user input
+                    layer_cell_inds[num_outer_layers-1-l][num_sub_layers-1-sl,:] = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
                     layer_ind += 1
 
             self._mesh = SlabMesh(vertex_xys=vertex_xys, vertex_ss=vertex_ss, vertex_ts=vertex_ts, 
-                                  cells=cells, layer_cell_inds=layer_cell_inds[::-1], dof_xys=dof_xys)
-            # NOTE: we reverse layer_cell_inds to be in the same order as layer_h2os above
+                                  cells=cells, layer_cell_inds=layer_cell_inds, dof_xys=dof_xys)
+            # NOTE: during construction we reversed layer_cell_inds to be in the same 
+            # order as layer_h2os above (i.e. it goes from top to bottom, while 
+            # everything else is natively ordered from bottom to top but this should 
+            # be OK as the other things should be accesses through layer_cell_inds)
         return self._mesh
 
     def zsurface(self, x):
@@ -364,7 +376,7 @@ class SlabDehydration:
             self._maxH2Os = np.empty(self.mesh.cells.shape[0])
             for cell_inds, h2ogrid in zip(self.mesh.layer_cell_inds, self.layer_h2os):
                 cell_inds_f = cell_inds.flatten()
-                self._maxH2Os[cell_inds_f] = h2ogrid.eval_h2o(self.Ps[cell_inds_f], self.Ts[cell_inds_f])/100.0
+                self._maxH2Os[cell_inds_f] = h2ogrid.eval(self.Ps[cell_inds_f], self.Ts[cell_inds_f])['H2O']/100.0
         return self._maxH2Os
     
     @property
@@ -379,11 +391,16 @@ class SlabDehydration:
     def H2O_fluxes(self):
         if not hasattr(self, '_H2O_fluxes') or self._H2O_fluxes is None:
             self._H2O_fluxes = np.empty(self.mesh.cells.shape[0])
+            # basing the flux off the thickness alone is valid for both
+            # a slab normal coordinate system and a vertical cell boundary
+            # system
+            thicknesses = (self.mesh.vertex_ts[1:]-self.mesh.vertex_ts[:-1])[::-1]
+            # thicknesses has to be reversed to match the top to bottom ordered of layer_cell_inds
+            i = 0
             for cell_inds in self.mesh.layer_cell_inds:
                 for sub_cell_inds in cell_inds:
-                    thicknesses = np.linalg.norm(self.mesh.vertex_xys[self.mesh.cells[sub_cell_inds,1]] - 
-                                                 self.mesh.vertex_xys[self.mesh.cells[sub_cell_inds,2]], axis=1)
-                    self._H2O_fluxes[sub_cell_inds] = self.H2Os[sub_cell_inds]*thicknesses*self.rhom*self.Vs
+                    self._H2O_fluxes[sub_cell_inds] = self.H2Os[sub_cell_inds]*thicknesses[i]*self.rhom*self.Vs
+                    i += 1
         return self._H2O_fluxes
 
     @property
@@ -541,5 +558,7 @@ class SlabDehydration:
 # fix, ax = pl.subplots(figsize=(5,10))
 # indices = np.argsort(-testslab.mesh.dof_xys[:,1])
 # ax.plot(testslab.total_cumulative_H2O_losses/1000.0, testslab.mesh.dof_xys[indices,1])
+
+# %%
 
 # %%

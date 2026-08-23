@@ -27,13 +27,26 @@ import subprocess
 import pathlib
 import tempfile
 import shutil
-import glob
 import re
+import pty
+import select
+import time
+from dataclasses import dataclass
+from typing import TextIO
 
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 work_folder = pathlib.Path(os.path.join(os.getcwd(), "work"))
 work_folder.mkdir(exist_ok=True, parents=True)
+
+
+# %%
+@dataclass
+class Meemum:
+    process : subprocess.Popen = None
+    fd      : int              = None
+    log     : TextIO           = None
+    err     : TextIO           = None
 
 
 # %%
@@ -60,6 +73,18 @@ class PerpleXMeemum:
         self.data_folder = pathlib.Path(os.path.join(basedir, os.pardir, "data", "perple_x_v"+self.version))
     
     def __del__(self):
+        if hasattr(self, '_meemum') and self._meemum is not None:
+            try:
+                self.meemum_write("0 0")
+            except OSError:
+                pass
+            try:
+                self._meemum.process.wait(timeout=10)
+            except Exception:
+                self._meemum.process.kill()
+            os.close(self._meemum.fd)
+            self._meemum.log.close()
+            self._meemum.err.close()
         if self.clean_tmp_folder and hasattr(self, '_tmp_work_folder') and self._tmp_work_folder is not None:
             self._tmp_work_folder.cleanup()
 
@@ -131,13 +156,86 @@ class PerpleXMeemum:
             stderr.close()
         return pathlib.Path(self._tmp_work_folder.name)
 
-    def eval_h2o(self, P : float, T : float, **comps):
+    # -- a persistent, interactive meemum session, driven through a pty --------
+    #
+    # meemum is a REPL: give it a T,P (and, since we opt in below, a bulk
+    # composition) and it prints a full report and loops back for the next
+    # one, until fed "0 0". Keeping ONE meemum process alive across calls
+    # (rather than spawning a fresh one per eval call) avoids paying its
+    # startup cost - reading the thermodynamic data and regenerating
+    # pseudocompounds for the solution models - more than once, and lets
+    # later calls change the bulk composition without re-running build.
+    #
+    # meemum's stdout is only line-buffered when it thinks it's talking to a
+    # terminal; piped (as subprocess.PIPE would give it) it's fully
+    # block-buffered, so prompts we need to see before writing our next
+    # input may never actually reach us. Running it behind a pty (as opened
+    # by the pty module) makes it behave as if it has a real terminal
+    # attached, so prompts are flushed as they're printed.
+
+    @property
+    def meemum(self):
+        if not hasattr(self, '_meemum') or self._meemum is None:
+            parent_fd, child_fd = pty.openpty()
+
+            # this must be assigned before the first call to meemum_write below
+            self._meemum = Meemum()
+
+            self._meemum.err = open(os.path.join(self.tmp_work_folder, 'meemum_'+self.basename+'.err'), 'w')
+
+            self._meemum.process = subprocess.Popen(
+                ["meemum-v"+self.version],
+                stdin=child_fd, stdout=child_fd, stderr=self._meemum.err,
+                cwd=self.tmp_work_folder, close_fds=True,
+            )
+            # the child now holds its own copy of the child fd; we only need the parent
+            os.close(child_fd)
+            self._meemum.fd = parent_fd
+            self._meemum.log = open(os.path.join(self.tmp_work_folder, 'meemum_'+self.basename+'.log'), 'w')
+
+            # drive the session through to the first T,P prompt: give the
+            # project name, then opt into per-point interactive
+            # compositions (rather than the fixed one baked into the build)
+            self.meemum_write(self.basename)
+            self.meemum_read_until("Interactively enter bulk compositions")
+            self.meemum_write("y")
+            self.meemum_read_until("Enter (zeroes to quit)")
+        return self._meemum
+
+    def meemum_write(self, text):
+        os.write(self.meemum.fd, (text + os.linesep).encode())
+
+    def meemum_read_until(self, marker, timeout=30.0):
+        buffer = ""
+        deadline = time.monotonic() + timeout
+        while marker not in buffer:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"Timed out waiting for {marker!r} from meemum. "
+                                    f"Buffer tail:"+os.linesep+f"{buffer[-2000:]}")
+            ready, _, _ = select.select([self.meemum.fd], [], [], remaining)
+            if not ready:
+                raise TimeoutError(f"Timed out (no output) waiting for {marker!r} from meemum. "
+                                    f"Buffer tail:"+os.linesep+f"{buffer[-2000:]}")
+            try:
+                chunk = os.read(self.meemum.fd, 4096)
+            except OSError:
+                # the child closed its end of the pty (process exited)
+                break
+            if not chunk:
+                break
+            decoded = chunk.decode(errors="replace")
+            buffer += decoded
+            self.meemum.log.write(decoded)
+        return buffer
+
+    def eval(self, P : float, T : float, **comps):
         Parr = np.clip(np.atleast_1d(P)*10000.0, a_min=1000.0, a_max=80000.0)
         Tarr = np.clip(np.atleast_1d(T)+273.15,  a_min=473.0,  a_max=1673.0)
 
         if len(Parr) != len(Tarr):
             raise RuntimeError("P and T must have same length")
-        
+
         compsarr = np.empty((len(Parr), len(self.component_masses)))
         for i, (k, v) in enumerate(self.component_masses.items()):
             comparr = np.atleast_1d(comps.get(k, [v]*len(Parr)))
@@ -145,41 +243,34 @@ class PerpleXMeemum:
                 raise RuntimeError("P and {:s} values must have same length".format(k,))
             compsarr[:, i] = comparr
 
-        points = os.linesep.join(str(Ti)+" "+str(Pi)+os.linesep+" ".join([str(v) for v in compsi]) for Pi, Ti, compsi in zip(Parr, Tarr, compsarr))
-        input = self.basename+"""
-        y
-        """+points+"""
-        0 0"""
-        input = os.linesep.join(line.lstrip() for line in input.splitlines())
-        stderr = open(os.path.join(self.tmp_work_folder, 'meemum_'+self.basename + '.err'), 'w')
-        result = subprocess.run(["meemum-v"+self.version], input=input, text=True, 
-                                stdout=subprocess.PIPE, stderr=stderr,
-                                cwd=self.tmp_work_folder)
+        wt_pct = {name: np.empty(len(Parr)) for name in self.component_masses}
 
-        blocks = re.findall(r'Bulk Composition:\s*\n(.*?)\n\s*\nOther Bulk Properties:',
-                             result.stdout, re.S)
-        if len(blocks) != len(Parr):
-            raise RuntimeError(f"Expected {len(Parr)} 'Bulk Composition:' blocks in meemum "
-                                f"output, found {len(blocks)}.")
+        for i, (Pi, Ti, compsi) in enumerate(zip(Parr, Tarr, compsarr)):
+            self.meemum_write(str(Ti)+" "+str(Pi))
+            self.meemum_write(" ".join(str(v) for v in compsi))
+            block_text = self.meemum_read_until("Enter (zeroes to quit)")
 
-        h2oarr = np.empty(len(Parr))
-        for i, block in enumerate(blocks):
-            h2o_line = next((line for line in block.splitlines() if line.split()[:1] == ['H2O']), None)
-            if h2o_line is None:
-                raise RuntimeError("Could not find H2O row in meemum Bulk Composition.")
-            values = [float(v) for v in h2o_line.split()[1:]]
+            match = re.search(r'Bulk Composition:\s*\n(.*?)\n\s*\nOther Bulk Properties:',
+                               block_text, re.S)
+            if match is None:
+                raise RuntimeError("Could not find 'Bulk Composition:' block in meemum output.\n"
+                                    + block_text[-3000:])
+            block = match.group(1)
 
             # 'Complete Assemblage'/'Solid Only' side-by-side columns only appear when a
             # free fluid is stable; without one the single (unlabeled) block already is
             # the solid-only composition.
             dual_block = 'Complete Assemblage' in block and 'Solid Only' in block
-            h2oarr[i] = values[6] if dual_block else values[2]
-        
-        with open(os.path.join(self.tmp_work_folder, 'meemum_'+self.basename + '.log'), 'a') as stdout:
-            stdout.write(result.stdout)
-        
-        return h2oarr
 
+            component_lines = {line.split()[0]: line for line in block.splitlines() if line.split()}
+            for name in self.component_masses:
+                line = component_lines.get(name)
+                if line is None:
+                    raise RuntimeError(f"Could not find {name} row in meemum Bulk Composition.")
+                values = [float(v) for v in line.split()[1:]]
+                wt_pct[name][i] = values[6] if dual_block else values[2]
+
+        return wt_pct
 
 # %% tags=["active-ipynb"]
 # import json
@@ -190,14 +281,14 @@ class PerpleXMeemum:
 # basename = 'dike_25'
 # grid = PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models'], work_folder=work_folder)
 
-# %%
-grid.tmp_work_folder
+# %% tags=["active-ipynb"]
+# grid.tmp_work_folder
 
 # %% tags=["active-ipynb"]
-# grid.eval_h2o([0.2, 1.7], [400, 1200.0], SiO2=[40.2, 57.1], H2O=[1.2, 5.6])
+# grid.eval([0.2, 1.7], [400, 1200.0], SiO2=[40.2, 57.1], H2O=[1.2, 5.6])
 
 # %% tags=["active-ipynb"]
-# grid.eval_h2o(3.0, 1000.0)
+# grid.eval(3.0, 1000.0)
 
 # %% tags=["active-ipynb"]
 # grid.tmp_work_folder
@@ -210,12 +301,12 @@ grid.tmp_work_folder
 # oggrid = PerpleXGrid(csv_file = '../../data/perple_x_v7.1.9/abers_25/dike_25_h2o.csv')
 
 # %% tags=["active-ipynb"]
-# oggrid.eval_h2o(0.2, 400)
+# oggrid.eval(0.2, 400)
 
 # %% tags=["active-ipynb"]
-# oggrid.eval_h2o(3.0, 1000)
+# oggrid.eval(3.0, 1000)
 
-# %%
-oggrid.tmp_work_folder
+# %% tags=["active-ipynb"]
+# oggrid.tmp_work_folder
 
 # %%

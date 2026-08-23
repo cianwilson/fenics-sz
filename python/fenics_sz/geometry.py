@@ -320,11 +320,53 @@ class InterpolatedCubicSpline:
   #  self.interpu.append(self.u[p+1])
   #  self.interpu = numpy.asarray(self.interpu)
 
-  def intersecty(self, yint, extrapolate=False):
-    return [self.cs.solve(yint, extrapolate=extrapolate)[0], yint]
+  def intersecty(self, yint, extrapolate=False, offset:float=None):
+    if offset is not None:
+      # y location of offset spline as function of x on this spline
+      def h(x):
+        der = self.cs(x, nu=1, extrapolate=extrapolate)
+        mag = numpy.sqrt(1 + der**2)
+        return self.cs(x, extrapolate=extrapolate) + offset/mag - yint
+      # derivative of y location of offset spline w.r.t. x on this spline
+      def hp(x):
+        der = self.cs(x, nu=1, extrapolate=extrapolate)
+        der2 = self.cs(x, nu=2, extrapolate=extrapolate)
+        mag = numpy.sqrt(1 + der**2)
+        return der - offset*der*der2/(mag**3)
+      # initial guess (just using x location on this spline)
+      x0 = self.cs.solve(yint, extrapolate=extrapolate)[0]
+      # x location on this spline corresponding to yint
+      xint0 = opt.fsolve(h, x0, fprime=hp)[0]
+      der = self.cs(xint0, nu=1, extrapolate=extrapolate)
+      mag = numpy.sqrt(1 + der**2)
+      # x,y location on offset spline
+      return [xint0 - offset*der/mag, yint]
+    else:
+      # x,y location on this spline
+      return [self.cs.solve(yint, extrapolate=extrapolate)[0], yint]
       
-  def intersectx(self, xint):
-    return [xint, float(self.cs(xint))]
+  def intersectx(self, xint, extrapolate=False, offset:float=None):
+    if offset is not None:
+      # x location of offset spline as function of x on this spline
+      def g(x):
+        der = self.cs(x, nu=1, extrapolate=extrapolate)
+        mag = numpy.sqrt(1 + der**2)
+        return x - offset*der/mag - xint
+      # derivative of x location of offset spline w.r.t. x on this spline
+      def gp(x):
+        der = self.cs(x, nu=1, extrapolate=extrapolate)
+        der2 = self.cs(x, nu=2, extrapolate=extrapolate)
+        mag = numpy.sqrt(1 + der**2)
+        return 1 - offset*der2/(mag**3)
+      # x location on this spline corresponding to xint (taken as initial guess)
+      xint0 = opt.fsolve(g, xint, fprime=gp)[0]
+      der = self.cs(xint0, nu=1, extrapolate=extrapolate)
+      mag = numpy.sqrt(1 + der**2)
+      # x,y location on offset spline
+      return [xint, self.cs(xint0, extrapolate=extrapolate) + offset/mag]
+    else:
+      # x,y location on this spline
+      return [xint, float(self.cs(xint, extrapolate=extrapolate))]
 
   def interpcurveindex(self, u):
     loc = abs(self.interpu - u).argmin()
@@ -339,9 +381,26 @@ class InterpolatedCubicSpline:
         loc0 = loc-1
     return loc0
 
-  def unittangentx(self, x):
-    der = self.cs(x, nu=1)
-    vec = numpy.array([1.0, der])
+  def unittangentx(self, x, extrapolate=False, offset:float=None):
+    x0 = x
+    if offset is not None:
+      # x location of offset spline as function of x on this spline
+      def g(xp):
+        der = self.cs(xp, nu=1, extrapolate=extrapolate)
+        mag = numpy.sqrt(1 + der**2)
+        return xp - offset*der/mag - x
+      # derivative of x location of offset spline w.r.t. x on this spline
+      def gp(xp):
+        der = self.cs(xp, nu=1, extrapolate=extrapolate)
+        der2 = self.cs(xp, nu=2, extrapolate=extrapolate)
+        mag = numpy.sqrt(1 + der**2)
+        return 1 - offset*der2/(mag**3)
+      # x location on this spline corresponding to x (x is taken as initial guess)
+      x0 = opt.fsolve(g, x, fprime=gp)[0]
+    # else:
+    der = self.cs(x0, nu=1, extrapolate=extrapolate)
+    ycomp = der
+    vec = numpy.array([1.0, ycomp])
     vec = vec/numpy.sqrt(sum(vec**2))
     return vec
 

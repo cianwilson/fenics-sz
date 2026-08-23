@@ -42,12 +42,6 @@ from fenics_sz.fluid_release.slab_dehydration_class import SlabDehydration, Slab
 
 
 # %%
-@dataclass
-class SlabMeshFlux(SlabMesh):
-    cell_out_flux : np.typing.NDArray[np.float64]
-
-
-# %%
 class SlabDehydrationVertical(SlabDehydration):
 
     @property
@@ -67,14 +61,10 @@ class SlabDehydrationVertical(SlabDehydration):
             offsets = (list(itertools.accumulate([t for t in self.layer_thicknesses if t > 0])) + \
                        [0.0] + \
                        list(itertools.accumulate([t for t in self.layer_thicknesses if t < 0])))[::-1]
-            base_slab = copy.deepcopy(self.slab)
-            base_slab.translatenormal(offsets[0])
-            base_vertex_xys = np.asarray([base_slab.intersectx(x) for x in slab_vertex_xys[:,0]])
+            base_vertex_xys = np.asarray([self.slab.intersectx(x, offset=offsets[0]) for x in slab_vertex_xys[:,0]])
             valid_vertex_ind_0, valid_vertex_ind_f = self.inds_in_domain(base_vertex_xys)
             if offsets[-1] > 0.0:
-                top_slab = copy.deepcopy(self.slab)
-                top_slab.translatenormal(offsets[-1])
-                top_ind_0, top_ind_f = self.inds_in_domain(np.asarray([top_slab.intersectx(x) for x in slab_vertex_xys[:,0]]))
+                top_ind_0, top_ind_f = self.inds_in_domain(np.asarray([self.slab.intersectx(x, offset=offsets[-1]) for x in slab_vertex_xys[:,0]]))
                 valid_vertex_ind_0 = max(valid_vertex_ind_0, top_ind_0)
                 valid_vertex_ind_f = min(valid_vertex_ind_f, top_ind_f)
 
@@ -84,15 +74,18 @@ class SlabDehydrationVertical(SlabDehydration):
 
             # work out the dimensions of our grid
             num_valid_us = len(slab_vertex_xys)
+            num_outer_layers = len(self.layer_thicknesses)
+            # we fill in nums_sub_layers from top to bottom to match layer_h2os and other user input
+            # and will reverse access it in the assembly loop
             nums_sub_layers = [math.ceil(abs(thickness)/tres) 
-                               for thickness, tres in zip(self.layer_thicknesses, self.layer_tres)][::-1] # NOTE reversed
+                               for thickness, tres in zip(self.layer_thicknesses, self.layer_tres)]
             total_layers = sum(nums_sub_layers)
 
             # pre-allocate memory for the full coordinate system and the cells
             vertex_xys = np.empty(((total_layers+1)*num_valid_us, 2))
             vertex_xys[:num_valid_us,:] = base_vertex_xys
             cells = np.empty((total_layers*(num_valid_us-1), 4), dtype=np.int32)
-            cell_out_flux = np.empty((total_layers*(num_valid_us-1),2))
+            # we set up in layer_cell_inds from top to bottom to match layer_h2os and other user input
             layer_cell_inds = [np.empty((num_sub_layers, num_valid_us-1), dtype=np.int32) for num_sub_layers in nums_sub_layers]
             dof_xys = np.empty((total_layers*(num_valid_us-1), 2))
 
@@ -100,64 +93,67 @@ class SlabDehydrationVertical(SlabDehydration):
             vertex_ss = slab_vertex_us[valid_vertex_ind_0:valid_vertex_ind_f]*self.slab.length
             vertex_ss = vertex_ss - vertex_ss[0]
             vertex_ts = np.empty(total_layers + 1)
+            # note that this is bottom to top
             vertex_ts[0] = offsets[0]
 
             layer_ind = 0
             for l, offset in enumerate(offsets[1:]):
                 prev_offset = offsets[l]
                 # the number of sublayers based on the layer thickness and resolution
-                num_sub_layers = nums_sub_layers[l]
+                num_sub_layers = nums_sub_layers[num_outer_layers-1-l]
                 sub_offsets = np.linspace(prev_offset, offset, num=num_sub_layers+1)
                 # loop over the sub layers
                 for sl, sub_offset in enumerate(sub_offsets[1:]):
                     prev_sub_offset = sub_offsets[sl]
                     sub_thickness = sub_offset - prev_sub_offset
-                    # set up a spline for this layer
-                    layer_spline = copy.deepcopy(self.slab)
-                    layer_spline.translatenormal(sub_offset)
                     # work out coordinates...
                     vertex_ind = (layer_ind + 1)*num_valid_us
                     current_vertex_inds = list(range(vertex_ind, vertex_ind+num_valid_us))
                     # in xy space
-                    vertex_xys[current_vertex_inds,:] = np.asarray([layer_spline.intersectx(x) for x in slab_vertex_xys[:,0]])
+                    vertex_xys[current_vertex_inds,:] = np.asarray([self.slab.intersectx(x, offset=sub_offset) for x in slab_vertex_xys[:,0]])
                     # and t space
                     vertex_ts[layer_ind + 1] = sub_offset
-                    # set up a spline for halfway through the layer
-                    halflayer_spline = copy.deepcopy(self.slab)
-                    halflayer_spline.translatenormal(prev_sub_offset + 0.5*sub_thickness)
-                    # use the halfway spline to figure out flux vectors out (of the rhs) of the cell
-                    halflayer_tangents = np.stack([np.ones(num_valid_us-1), halflayer_spline.cs(slab_vertex_xys[1:,0], nu=1)], axis=1)
-                    halflayer_tangmags = np.sqrt(np.sum(halflayer_tangents**2, axis=1))
-                    halflayer_tangents = (halflayer_tangents.T/halflayer_tangmags).T
+                    # the current cells
                     current_cell_inds = list(range(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1)))
-                    cell_out_flux[current_cell_inds,:] = halflayer_tangents
-                    # also use the halfway spline to work out the dof xys at the mid x points of each cell
-                    dof_xys[current_cell_inds,:] = np.asarray([halflayer_spline.intersectx(x) for x in 0.5*(slab_vertex_xys[:-1,0] + slab_vertex_xys[1:,0])])
+                    # use a halfway offset to work out the dof xys at the mid x points of each cell
+                    half_sub_offset = prev_sub_offset + 0.5*sub_thickness
+                    dof_xys[current_cell_inds,:] = np.asarray([self.slab.intersectx(x, offset=half_sub_offset) for x in 0.5*(slab_vertex_xys[:-1,0] + slab_vertex_xys[1:,0])])
                     # work out cells
                     for i in range(num_valid_us-1):
-                        cell = [(layer_ind + 1)*num_valid_us + i + 1, (layer_ind + 1)*num_valid_us + i,
-                                (layer_ind)*num_valid_us + i,   (layer_ind)*num_valid_us + i + 1]
+                        # lower left, lower right, upper right, upper left
+                        cell = [
+                                (layer_ind)*num_valid_us + i,   (layer_ind)*num_valid_us + i + 1,
+                                (layer_ind + 1)*num_valid_us + i + 1, (layer_ind + 1)*num_valid_us + i
+                               ]
                         cells[layer_ind*(num_valid_us-1) + i, :] = cell
-                    layer_cell_inds[l][sl,:] = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
+                    # we fill in layer_cell_inds from top to bottom to match layer_h2os and other user input
+                    layer_cell_inds[num_outer_layers-1-l][num_sub_layers-1-sl,:] = np.arange(layer_ind*(num_valid_us-1), (layer_ind+1)*(num_valid_us-1), dtype=np.int32)
                     # increment layer index
                     layer_ind += 1
 
-            self._mesh = SlabMeshFlux(vertex_xys=vertex_xys, vertex_ss=vertex_ss, vertex_ts=vertex_ts, 
-                                  cells=cells, layer_cell_inds=layer_cell_inds[::-1], 
-                                  dof_xys=dof_xys, cell_out_flux=cell_out_flux)
-            # NOTE: we reverse layer_cell_inds to be in the same order as layer_h2os above
+            self._mesh = SlabMesh(vertex_xys=vertex_xys, vertex_ss=vertex_ss, vertex_ts=vertex_ts, 
+                                  cells=cells, layer_cell_inds=layer_cell_inds, 
+                                  dof_xys=dof_xys)
+            # NOTE: during construction we reversed layer_cell_inds to be in the same 
+            # order as layer_h2os above (i.e. it goes from top to bottom, while 
+            # everything else is natively ordered from bottom to top but this should 
+            # be OK as the other things should be accesses through layer_cell_inds)
         return self._mesh
 
+
+# %%
+class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
     @property
-    def H2O_fluxes(self):
-        if not hasattr(self, '_H2O_fluxes') or self._H2O_fluxes is None:
-            self._H2O_fluxes = np.empty(self.mesh.cells.shape[0])
-            for cell_inds in self.mesh.layer_cell_inds:
-                for sub_cell_inds in cell_inds:
-                    thicknesses = np.linalg.norm(self.mesh.vertex_xys[self.mesh.cells[sub_cell_inds,1]] - 
-                                                 self.mesh.vertex_xys[self.mesh.cells[sub_cell_inds,2]], axis=1)
-                    self._H2O_fluxes[sub_cell_inds] = self.H2Os[sub_cell_inds]*thicknesses*self.rhom*self.Vs*self.mesh.cell_out_flux[sub_cell_inds,0]
-        return self._H2O_fluxes
+    def maxH2Os(self):
+        if not hasattr(self, '_maxH2Os') or self._maxH2Os is None:
+            self._maxH2Os = np.empty(self.mesh.cells.shape[0])
+            for cell_inds, h2ogrid in zip(self.mesh.layer_cell_inds, self.layer_h2os):
+                for sl_cell_inds in cell_inds:
+                    comps = h2ogrid.component_masses
+                    for sl_cell_ind in sl_cell_inds:
+                        comps = h2ogrid.eval(self.Ps[sl_cell_ind], self.Ts[sl_cell_ind], **comps)
+                        self._maxH2Os[sl_cell_ind] = comps['H2O']/100.0
+        return self._maxH2Os
 
 # %% tags=["active-ipynb"]
 # name = "03_British_Columbia"
@@ -196,8 +192,8 @@ class SlabDehydrationVertical(SlabDehydration):
 # %% tags=["active-ipynb"]
 # dmm_thickness = 2.0
 #
-# tres = 1.0
-# sres = 1.0
+# tres = 1
+# sres = 20
 #
 # # negative number implies below slab, positive implies above it
 # layer_thicknesses = [
@@ -281,6 +277,28 @@ class SlabDehydrationVertical(SlabDehydration):
 # fig.show()
 
 # %% tags=["active-ipynb"]
+# testslabmeemumflux = SlabDehydrationVerticalFlux(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
+#                            slab=slab, Tgrid=tfgrid, 
+#                            Tname='Temperature::PotentialTemperature', 
+#                            coast_distance=szdict['coast_distance'], 
+#                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(20,20))
+# testslabmeemumflux.plot_st(ax, C=testslabmeemumflux.cumulative_H2O_losses, cmap='coolwarm', edgecolor = 'black', lw=0.5)
+# ax.set_aspect(5)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# testslabmeemumflux.H2O_losses.min(), testslabmeemumflux.cumulative_H2O_losses.min(), (testslabmeemumflux.maxH2Os-testslabmeemumflux.H2Os).max()
+
+# %% tags=["active-ipynb"]
+# testslabmeemum.H2O_losses.min(), testslabmeemum.cumulative_H2O_losses.min(), (testslabmeemum.maxH2Os-testslabmeemum.H2Os).max()
+
+# %% tags=["active-ipynb"]
+# testslab.H2O_losses.min(), testslab.cumulative_H2O_losses.min()
+
+# %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(20,20))
 # testslabmeemum.plot_st(ax, C=testslabmeemum.maxH2Os, cmap='coolwarm', edgecolor = 'black', lw=0.5)
 # ax.set_aspect(5)
@@ -300,6 +318,9 @@ class SlabDehydrationVertical(SlabDehydration):
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
 
 # %% tags=["active-ipynb"]
+# testslabog.H2O_losses.min(), testslabog.cumulative_H2O_losses.min()
+
+# %% tags=["active-ipynb"]
 # fix, ax = pl.subplots(figsize=(5,10))
 # indices = np.argsort(-testslab.mesh.dof_xys[:,1])
 # ax.plot(testslab.total_cumulative_H2O_losses/1000.0, testslab.mesh.dof_xys[indices,1], label='vertical')
@@ -307,8 +328,12 @@ class SlabDehydrationVertical(SlabDehydration):
 # ax.plot(testslabog.total_cumulative_H2O_losses/1000.0, testslabog.mesh.dof_xys[indicesog,1], label='normal', ls='--')
 # indicesmm = np.argsort(-testslabmeemum.mesh.dof_xys[:,1])
 # ax.plot(testslabmeemum.total_cumulative_H2O_losses/1000.0, testslabmeemum.mesh.dof_xys[indicesmm,1], label='meemum', ls='-.')
+# indicesmmf = np.argsort(-testslabmeemumflux.mesh.dof_xys[:,1])
+# ax.plot(testslabmeemumflux.total_cumulative_H2O_losses/1000.0, testslabmeemumflux.mesh.dof_xys[indicesmmf,1], label='flux', ls=':')
 # ax.set_xlabel('Cumulative water loss')
 # ax.set_ylabel('y (km)')
 # _ = ax.legend()
+
+# %%
 
 # %%

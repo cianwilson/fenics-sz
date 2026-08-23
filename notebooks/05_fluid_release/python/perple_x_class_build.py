@@ -231,11 +231,11 @@ class PerpleXBuildGrid:
             self._interpolator = sp.interpolate.RegularGridInterpolator((self.P, self.T), self.H2O, method='linear')
         return self._interpolator
 
-    def eval_h2o(self, P, T):
+    def eval(self, P, T):
         Parr = np.clip(np.atleast_1d(P), a_min=self.P.min(), a_max=self.P.max())
         Tarr = np.clip(np.atleast_1d(T), a_min=self.T.min(), a_max=self.T.max())
         PT = np.stack((Parr, Tarr), axis=1)
-        return self.interpolator(PT)
+        return {'H2O' : self.interpolator(PT)}
 
 # %% tags=["active-ipynb"]
 # import json
@@ -243,7 +243,7 @@ class PerpleXBuildGrid:
 #     abers_25 = json.load(file)
 
 # %% tags=["active-ipynb"] vscode={"languageId": "raw"}
-# basenames = [basename in abers_25.keys()]
+# basenames = [basename for basename in abers_25.keys()]
 # for basename in basenames:
 #     grid = PerpleXBuildGrid(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models'])
 #     print('basename = ', basename)

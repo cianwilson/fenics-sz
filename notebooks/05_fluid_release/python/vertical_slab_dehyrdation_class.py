@@ -243,7 +243,17 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(10,8))
-# testslab.plot_xy(ax, C=testslab.H2Os, cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# ax = fenics_sz.utils.plot.mpl_plot_pv_scalar(tfgrid, ax, cmap='coolwarm')
+# testslab.plot_xy(ax, C=testslab.Ts, cmap='coolwarm', edgecolor = 'none', lw=0.1, vmin=0, vmax=tfgrid[tfgrid.active_scalars_name].max())
+# # some discrepancy because adiabat added in
+# ax.set_aspect(3)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(10,8))
+# ax = fenics_sz.utils.plot.mpl_plot_pv_scalar(tfgrid, ax, cmap='coolwarm')
+# ax = fenics_sz.utils.plot.mpl_plot_pv_mesh(tfgrid, ax, facecolor='none', edgecolor='black', linewidth=0.2)
+# testslab.plot_xy(ax, C=testslab.H2Os, cmap='Blues', edgecolor = 'none', lw=0.1)
 # ax.set_aspect(3)
 # fig.show()
 

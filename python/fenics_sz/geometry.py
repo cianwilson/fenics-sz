@@ -651,10 +651,10 @@ class Geometry:
 
     return gmshfile
 
-  def pylabplot(self, curvelabels=False, surfacelabels=False, lineres=100):
-    import matplotlib.pyplot as pl
-    fig = pl.figure()
-    ax = fig.gca()
+  def pylabplot(self, ax=None, curvelabels=False, surfacelabels=False, lineres=100):
+    if ax is None:
+      import matplotlib.pyplot as pl
+      ax = pl.figure().gca()
     #for interpcurve in self.interpcurves:
     #  unew = numpy.arange(interpcurve.u[0], interpcurve.u[-1]+((interpcurve.u[-1]-interpcurve.u[0])/(2.*lineres)), 1./lineres)
     #  unewx = numpy.zeros_like(unew)
@@ -687,7 +687,7 @@ class Geometry:
     ax.set_aspect('equal', 'datalim')
     #for point in self.points:
     #  ax.plot(point.x, point.y, 'ok')
-    return fig
+    return ax
 
   def cleareid(self):
     for surface in self.surfaces: surface.cleareid()
@@ -1063,12 +1063,12 @@ class SubductionGeometry:
       self.sortlines()
     return point
 
-  def plot(self, label_sids=False, label_rids=False):
+  def plot(self, ax=None, label_sids=False, label_rids=False):
     geom = Geometry()
     for surfaces in [self.wedge_surfaces, self.slab_surfaces]:
       for surface in surfaces:
         geom.addsurface(surface)
-    return geom.pylabplot(curvelabels=label_sids, surfacelabels=label_rids)
+    return geom.pylabplot(ax=ax, curvelabels=label_sids, surfacelabels=label_rids)
   
   def pyvistaplot(self, plotter=None, **pv_kwargs):
     """

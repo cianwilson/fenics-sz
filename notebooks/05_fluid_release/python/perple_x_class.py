@@ -68,6 +68,10 @@ class PerpleXGrid:
             self._tmp_work_folder.cleanup()
 
     @property
+    def initialized(self) -> bool:
+        return getattr(self, '_df', None) is not None
+
+    @property
     def tmp_work_folder(self):
         if not hasattr(self, '_tmp_work_folder') or self._tmp_work_folder is None:
             self._tmp_work_folder = tempfile.TemporaryDirectory(dir=self.work_folder)
@@ -75,7 +79,7 @@ class PerpleXGrid:
 
     @property
     def df(self):
-        if not hasattr(self, '_df') or self._df is None:
+        if not self.initialized:
             shutil.copy(self.dat_file, self.tmp_work_folder)
             shutil.copy( self.data_folder / 'perplex_option.dat', self.tmp_work_folder)
 

@@ -353,11 +353,17 @@ class SlabDehydration:
                           -self.slab.y[0])
 
     @property
+    def adiabat_Ts(self):
+        if getattr(self, '_adiabat_Ts', None) is None:
+            self._adiabat_Ts = -0.3*(self.mesh.dof_xys[:,1]+self.zsurface(self.mesh.dof_xys[:,0]))
+        return self._adiabat_Ts
+
+    @property
     def Ts(self):
         if not hasattr(self, '_Ts') or self._Ts is None:
             points = pv.PolyData(np.concatenate([self.mesh.dof_xys, np.zeros((self.mesh.dof_xys.shape[0],1))], axis=1))
             self._Ts = points.sample(self.Tgrid)[self.Tname]
-            if self.add_adiabat: self._Ts -= 0.3*(self.mesh.dof_xys[:,1]+self.zsurface(self.mesh.dof_xys[:,0]))
+            if self.add_adiabat: self._Ts += self.adiabat_Ts
         return self._Ts
 
     @property

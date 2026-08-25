@@ -63,6 +63,10 @@ class PerpleXBuildGrid:
             self._tmp_work_folder.cleanup()
 
     @property
+    def initialized(self) -> bool:
+        return getattr(self, '_df', None) is not None
+
+    @property
     def tmp_work_folder(self):
         if not hasattr(self, '_tmp_work_folder') or self._tmp_work_folder is None:
             self._tmp_work_folder = tempfile.TemporaryDirectory(dir=self.work_folder)
@@ -70,7 +74,7 @@ class PerpleXBuildGrid:
 
     @property
     def df(self):
-        if not hasattr(self, '_df') or self._df is None:
+        if not self.initialized:
             shutil.copy( self.data_folder / 'perplex_option.dat', self.tmp_work_folder)
             shutil.copy( self.data_folder / 'solution_model.dat', self.tmp_work_folder)
             shutil.copy( self.data_folder / 'hp622ver.dat', self.tmp_work_folder)
@@ -116,7 +120,7 @@ class PerpleXBuildGrid:
             473 1673
             1000 80000
             y
-            """+os.linesep.join(v for v in self.component_masses.values())+"""
+            """+os.linesep.join(str(v) for v in self.component_masses.values())+"""
             y
             y
             n

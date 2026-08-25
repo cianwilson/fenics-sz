@@ -29,9 +29,11 @@ import numpy as np
 import matplotlib.pyplot as pl
 import itertools
 import math
+import warnings
 from dataclasses import dataclass
 import json
 from scipy import integrate as integ
+from scipy import optimize as opt
 
 # %%
 import fenics_sz.utils
@@ -161,6 +163,10 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
                         self._maxH2Os[sl_cell_ind] = comps['H2O']/100.0
         return self._maxH2Os
 
+    @property
+    def H2Os(self):
+        return self.maxH2Os
+
 # %% tags=["active-ipynb"]
 # name = "03_British_Columbia"
 # resscale = 5.0
@@ -172,9 +178,6 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 # print("-"*85)
 # for k, v in allsz_params[name].items():
 #     if v is not None: print("{:<20} {}".format(k, v))
-
-# %% tags=["active-ipynb"]
-#
 
 # %% tags=["active-ipynb"]
 # slab1 = create_slab(szdict['xs'], szdict['ys'], resscale, szdict['lc_depth'])
@@ -198,7 +201,7 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 # %% tags=["active-ipynb"]
 # dmm_thickness = 2.0
 #
-# tres = 1
+# tres = 2
 # sres = 20
 #
 # # negative number implies below slab, positive implies above it
@@ -244,8 +247,8 @@ class SlabDehydrationVerticalFlux(SlabDehydrationVertical):
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(10,8))
 # ax = fenics_sz.utils.plot.mpl_plot_pv_scalar(tfgrid, ax, cmap='coolwarm')
-# testslab.plot_xy(ax, C=testslab.Ts, cmap='coolwarm', edgecolor = 'none', lw=0.1, vmin=0, vmax=tfgrid[tfgrid.active_scalars_name].max())
-# # some discrepancy because adiabat added in
+# testslab.plot_xy(ax, C=testslab.Ts-testslab.adiabat_Ts, cmap='coolwarm', edgecolor = 'none', lw=0.1, vmin=0, vmax=tfgrid[tfgrid.active_scalars_name].max())
+# # here we take the adiabat back out!
 # ax.set_aspect(3)
 # fig.show()
 

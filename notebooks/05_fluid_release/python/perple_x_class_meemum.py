@@ -73,7 +73,7 @@ class PerpleXMeemum:
         self.data_folder = pathlib.Path(os.path.join(basedir, os.pardir, "data", "perple_x_v"+self.version))
     
     def __del__(self):
-        if hasattr(self, '_meemum') and self._meemum is not None:
+        if self.initialized:
             try:
                 self.meemum_write("0 0")
             except OSError:
@@ -89,15 +89,42 @@ class PerpleXMeemum:
             self._tmp_work_folder.cleanup()
 
     @property
+    def initialized(self) -> bool:
+        return getattr(self, '_meemum', None) is not None
+
+    @property
     def tmp_work_folder(self):
         if not hasattr(self, '_tmp_work_folder') or self._tmp_work_folder is None:
             self._tmp_work_folder = tempfile.TemporaryDirectory(dir=self.work_folder)
+        return pathlib.Path(self._tmp_work_folder.name)
 
+    # -- a persistent, interactive meemum session, driven through a pty --------
+    #
+    # meemum is a REPL: give it a T,P (and, since we opt in below, a bulk
+    # composition) and it prints a full report and loops back for the next
+    # one, until fed "0 0". Keeping ONE meemum process alive across calls
+    # (rather than spawning a fresh one per eval call) avoids paying its
+    # startup cost - reading the thermodynamic data and regenerating
+    # pseudocompounds for the solution models - more than once, and lets
+    # later calls change the bulk composition without re-running build.
+    #
+    # meemum's stdout is only line-buffered when it thinks it's talking to a
+    # terminal; piped (as subprocess.PIPE would give it) it's fully
+    # block-buffered, so prompts we need to see before writing our next
+    # input may never actually reach us. Running it behind a pty (as opened
+    # by the pty module) makes it behave as if it has a real terminal
+    # attached, so prompts are flushed as they're printed.
+
+    @property
+    def meemum(self):
+        if not self.initialized:
             shutil.copy( self.data_folder / 'perplex_option.dat', self.tmp_work_folder)
             shutil.copy( self.data_folder / 'solution_model.dat', self.tmp_work_folder)
             shutil.copy( self.data_folder / 'hp622ver.dat', self.tmp_work_folder)
 
-            # build
+            # build - this is where component_masses, excluded_phases and
+            # solution_models are actually consumed, so nothing has been
+            # "initialized" until this has run
             stdout = open(os.path.join(self.tmp_work_folder, 'build_'+self.basename + '.log'), 'w')
             stderr = open(os.path.join(self.tmp_work_folder, 'build_'+self.basename + '.err'), 'w')
             # basename
@@ -138,7 +165,7 @@ class PerpleXMeemum:
             473 1673
             1000 80000
             y
-            """+os.linesep.join(v for v in self.component_masses.values())+"""
+            """+os.linesep.join(str(v) for v in self.component_masses.values())+"""
             y
             y
             n
@@ -154,28 +181,7 @@ class PerpleXMeemum:
             subprocess.run(["build-v"+self.version], input=input, text=True, stdout=stdout, stderr=stderr, cwd=self.tmp_work_folder)
             stdout.close()
             stderr.close()
-        return pathlib.Path(self._tmp_work_folder.name)
 
-    # -- a persistent, interactive meemum session, driven through a pty --------
-    #
-    # meemum is a REPL: give it a T,P (and, since we opt in below, a bulk
-    # composition) and it prints a full report and loops back for the next
-    # one, until fed "0 0". Keeping ONE meemum process alive across calls
-    # (rather than spawning a fresh one per eval call) avoids paying its
-    # startup cost - reading the thermodynamic data and regenerating
-    # pseudocompounds for the solution models - more than once, and lets
-    # later calls change the bulk composition without re-running build.
-    #
-    # meemum's stdout is only line-buffered when it thinks it's talking to a
-    # terminal; piped (as subprocess.PIPE would give it) it's fully
-    # block-buffered, so prompts we need to see before writing our next
-    # input may never actually reach us. Running it behind a pty (as opened
-    # by the pty module) makes it behave as if it has a real terminal
-    # attached, so prompts are flushed as they're printed.
-
-    @property
-    def meemum(self):
-        if not hasattr(self, '_meemum') or self._meemum is None:
             parent_fd, child_fd = pty.openpty()
 
             # this must be assigned before the first call to meemum_write below
@@ -244,6 +250,9 @@ class PerpleXMeemum:
             compsarr[:, i] = comparr
 
         wt_pct = {name: np.empty(len(Parr)) for name in self.component_masses}
+        for name in self.component_masses:
+            wt_pct[name+'_f'] = np.zeros(len(Parr))
+        wt_pct['F_f'] = np.zeros(len(Parr))
 
         for i, (Pi, Ti, compsi) in enumerate(zip(Parr, Tarr, compsarr)):
             self.meemum_write(str(Ti)+" "+str(Pi))
@@ -259,16 +268,27 @@ class PerpleXMeemum:
 
             # 'Complete Assemblage'/'Solid Only' side-by-side columns only appear when a
             # free fluid is stable; without one the single (unlabeled) block already is
-            # the solid-only composition.
+            # the solid-only composition, so there is no fluid to report.
             dual_block = 'Complete Assemblage' in block and 'Solid Only' in block
 
             component_lines = {line.split()[0]: line for line in block.splitlines() if line.split()}
+            component_values = {}
             for name in self.component_masses:
                 line = component_lines.get(name)
                 if line is None:
                     raise RuntimeError(f"Could not find {name} row in meemum Bulk Composition.")
                 values = [float(v) for v in line.split()[1:]]
+                component_values[name] = values
                 wt_pct[name][i] = values[6] if dual_block else values[2]
+
+            if dual_block:
+                fluid_g = {name: values[1] - values[5] for name, values in component_values.items()}
+                total_fluid_g = sum(fluid_g.values())
+                total_complete_g = sum(values[1] for values in component_values.values())
+                wt_pct['F_f'][i] = total_fluid_g/total_complete_g*100.0
+                if total_fluid_g > 0:
+                    for name in self.component_masses:
+                        wt_pct[name+'_f'][i] = fluid_g[name]/total_fluid_g*100.0
 
         return wt_pct
 

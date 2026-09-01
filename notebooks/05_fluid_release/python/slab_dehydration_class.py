@@ -445,6 +445,14 @@ class SlabDehydration:
             indices = np.argsort(-self.mesh.dof_xys[:,1])
             self._total_cumulative_H2O_losses = np.cumsum(self.H2O_losses[indices])
         return self._total_cumulative_H2O_losses
+    
+    @property
+    def vertical_flux(self):
+        if getattr(self, '_vertical_flux', None) is None:
+            slaby = np.asarray([self.slab.intersectx(x)[1] for x in self.mesh.dof_xys[:,0]])
+            indices = np.argsort(-slaby)
+            self._vertical_flux = np.cumsum(self.H2O_losses[indices])
+        return self._vertical_flux
 
     @property
     def conservation_errors(self):
@@ -510,16 +518,18 @@ class SlabDehydration:
 #     PerpleXGrid(csv_file=os.path.join(csv_path, 'DMMdamp_25_h2o.csv'))
 # ]
 #
-# layer_tres = [
-#     # None,
-#     None,
-#     None,
-#     None,
-#     1.4,
-# ]
+# # layer_tres = [
+# #     # None,
+# #     None,
+# #     None,
+# #     None,
+# #     1.4,
+# # ]
 
 # %% tags=["active-ipynb"]
-# testslab = SlabDehydration(10.0, 1.0, layer_thicknesses, layer_h2os, layer_tres=None,
+# sres = 1.0
+# tres = 0.5
+# testslab = SlabDehydration(sres, tres, layer_thicknesses, layer_h2os, layer_tres=None,
 #                            slab=slab, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
@@ -542,31 +552,31 @@ class SlabDehydration:
 
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(20,20))
-# testslab.plot_st(ax, C=testslab.maxH2Os, cmap = 'coolwarm', edgecolor = 'black', linewidth=0.5, shading='flat')
+# testslab.plot_st(ax, C=testslab.maxH2Os, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.show()
 
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(20,20))
-# testslab.plot_st(ax, C=testslab.H2Os, cmap = 'coolwarm', edgecolor = 'black', linewidth=0.5, shading='flat')
+# testslab.plot_st(ax, C=testslab.H2Os, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.show()
 
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(20,20))
-# testslab.plot_st(ax, C=testslab.H2O_fluxes, cmap = 'coolwarm', edgecolor = 'black', linewidth=0.5, shading='flat')
+# testslab.plot_st(ax, C=testslab.H2O_fluxes, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.show()
 
 # %% tags=["active-ipynb"]
 # fig, ax = pl.subplots(figsize=(20,20))
-# testslab.plot_st(ax, C=testslab.H2O_losses, cmap = 'coolwarm', edgecolor = 'black', linewidth=0.5, shading='flat')
+# testslab.plot_st(ax, C=testslab.H2O_losses, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.show()
 
 # %% tags=["active-ipynb"]
 # fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
-# pcm = testslab.plot_st(ax, C=testslab.cumulative_H2O_losses/1000.0, cmap = 'coolwarm', edgecolor = 'black', linewidth=0.5, shading='flat')
+# pcm = testslab.plot_st(ax, C=testslab.cumulative_H2O_losses/1000.0, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.colorbar(pcm, cax=axc, orientation='horizontal')
 # fig.show()
@@ -578,14 +588,14 @@ class SlabDehydration:
 # for cell_inds in testslab.mesh.layer_cell_inds:
 #     for sub_cell_inds in cell_inds:
 #         relcellareas[sub_cell_inds] = testslab.mesh.cell_areas[sub_cell_inds]/testslab.mesh.cell_areas[sub_cell_inds[0]]
-# pcm = testslab.plot_st(ax, C=relcellareas, cmap = 'viridis', edgecolor = 'black', linewidth=0.5, shading='flat')
+# pcm = testslab.plot_st(ax, C=relcellareas, cmap = 'viridis', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.colorbar(pcm, cax=axc, orientation='horizontal')
 # fig.show()
 
 # %% tags=["active-ipynb"]
 # fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
-# pcm = testslab.plot_st(ax, C=testslab.mesh.cell_areas, cmap = 'viridis', edgecolor = 'black', linewidth=0.5, shading='flat')
+# pcm = testslab.plot_st(ax, C=testslab.mesh.cell_areas, cmap = 'viridis', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.colorbar(pcm, cax=axc, orientation='horizontal')
 # fig.show()

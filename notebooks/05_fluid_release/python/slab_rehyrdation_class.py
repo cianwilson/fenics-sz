@@ -34,6 +34,7 @@ from dataclasses import dataclass
 import json
 from scipy import integrate as integ
 from scipy import optimize as opt
+from tqdm.auto import tqdm
 
 # %%
 import fenics_sz.utils
@@ -45,10 +46,23 @@ from fenics_sz.fluid_release.vertical_slab_dehyrdation_class import SlabDehydrat
 
 
 # %%
+@dataclass
+class SlabSolution:
+    cfs : dict[str,np.typing.NDArray[np.float64]]
+    css : dict[str,np.typing.NDArray[np.float64]]
+    cbs : dict[str,np.typing.NDArray[np.float64]]
+    Ffs : np.typing.NDArray[np.float64]
+    qs  : np.typing.NDArray[np.float64]
+    rho : np.typing.NDArray[np.float64]
+
+
+# %%
 class SlabRehydration(SlabDehydrationVerticalFlux):
     def __init__(self, *args, **kwargs):
         # call parent constructor
         super().__init__(*args, **kwargs)
+
+        self.fluid_components = ['H2O', 'CO2']
 
         # this version of the class requires that all layers contain H2O and CO2 components
         for h2ogrid in self.layer_h2os:
@@ -60,21 +74,28 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
                     raise RuntimeError(f"{g.basename} (layer_h2os) has already been initialized and is missing components: {sorted(missing)}")
 
     @property
-    def maxH2Os(self):
-        if not hasattr(self, '_maxH2Os') or self._maxH2Os is None:
-            self._maxH2Os = np.empty(self.mesh.cells.shape[0])
+    def solution(self):
+        if getattr(self, '_solution', None) is None:
+            all_components = set.union(*(set(h2ogrid.component_masses.keys()) for h2ogrid in self.layer_h2os))
+
+            cfs = {k:np.zeros(self.mesh.cells.shape[0]) for k in all_components}
+            css = {k:np.zeros(self.mesh.cells.shape[0]) for k in all_components}
+            cbs = {k:np.zeros(self.mesh.cells.shape[0]) for k in all_components}
+            Ffs = np.zeros(self.mesh.cells.shape[0])
+            qs  = np.zeros(self.mesh.cells.shape[0])
+            rho = np.zeros(self.mesh.cells.shape[0])
 
             thicknesses = (self.mesh.vertex_ts[1:]-self.mesh.vertex_ts[:-1])[::-1]
             deltaxs = self.mesh.vertex_xys[1:,0]-self.mesh.vertex_xys[:-1,0]
-            fluid_components = ['H2O', 'CO2']
-            param_names = fluid_components + ['q']
-            rhof = 1000.0
-            rhos = 3300.0
+            
+            param_names = ['c_b'+fc for fc in self.fluid_components] + ['q']
 
             def residuals(x, P : float, T :float, 
                           thickness : float, deltax : float, 
+                          fluid_components : list[str],
                           comps : dict, cfsb : dict, cssl : dict, 
-                          qb : float, phil : float, Vs : float):
+                          rhob : float, rhol : float, 
+                          qb : float, Fl : float, Vs : float):
                 assert(len(x) == len(fluid_components)+1)
                 for i, k in enumerate(fluid_components):
                     comps[k] = x[i]
@@ -82,24 +103,30 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 
                 pxout = h2ogrid.eval(P, T, **comps)
 
-                F = pxout['F_f'][0]/100.0
+                Fwp = pxout['F_f'][0]
+                rho = pxout['rho'][0]
                 css = {k : pxout[k][0]/100.0       for k in fluid_components}
                 cfs = {k : pxout[k+'_f'][0]/100.0  for k in fluid_components}
 
-                phi = rhos*F/(rhof*(1-F) + rhos*F)
-
-                # residuals for cfs
-                rs = [rhof*deltax*(q*cfs[k] - qb*cfsb[k]) + \
-                      thickness*Vs*rhos*(phi*css[k] - phil*cssl[k]) 
-                      for k in fluid_components]
-                # residual for q
-                rs.append(rhof*deltax*(q - qb) + thickness*Vs*rhos*(phi - phil))
-
+                rs = []
+                if np.isnan(Fwp):
+                    cfs = {k : cfsb[k] for k in fluid_components}
+                    rs += [-deltax*qb*rhob*cfsb[k] \
+                        + thickness*Vs*(rho*css[k] - (1.-Fl)*rhol*cssl[k]) 
+                        for k in fluid_components]
+                    rs.append(deltax*q*rho) # q = 0
+                else:
+                    F = Fwp/100.0
+                    rs += [deltax*(q*rho*cfs[k] - qb*rhob*cfsb[k]) \
+                        + thickness*Vs*((1.-F)*rho*css[k] - (1.-Fl)*rhol*cssl[k]) 
+                        for k in fluid_components]
+                    rs.append(deltax*(q*rho - qb*rhob) + thickness*Vs*((1.-F)*rho - (1.-Fl)*rhol))
+                
                 return rs
 
             # bounds: bulk wt% for each fluid component in [0, 100], flux q in [0, inf)
-            lb = [0.0]*len(fluid_components) + [0.0]
-            ub = [100.0]*len(fluid_components) + [np.inf]
+            lb = [0.0]*len(self.fluid_components) + [0.0]
+            ub = [100.0]*len(self.fluid_components) + [np.inf]
 
             # tolerances for the post-solve diagnostics below - tune these to the
             # actual residual/bound scale of the problem if they prove too tight/loose
@@ -108,33 +135,55 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 
             qs_below = np.zeros(self.mesh.layer_cell_inds[0].shape[1])     
             Fs_below = np.zeros(self.mesh.layer_cell_inds[0].shape[1])     
-            cfs_below = {k:np.zeros(self.mesh.layer_cell_inds[0].shape[1]) for k in fluid_components}
+            cfs_below = {k:np.zeros(self.mesh.layer_cell_inds[0].shape[1]) for k in self.fluid_components}
+            rho_below = np.zeros(self.mesh.layer_cell_inds[0].shape[1])
             l = 0
+            # progress bars: an outer one over sublayers (one tick per row, bottom to
+            # top) and an inner one over the cells within the current sublayer, which
+            # resets each time we move to a new sublayer
+            n_sublayers = sum(len(cell_inds) for cell_inds in self.mesh.layer_cell_inds)
+            outer_pbar = tqdm(total=n_sublayers, desc="Layers     ", position=0)
+            inner_pbar = tqdm(total=0, desc="Layer cells", position=1, leave=False)
             # reverse everything so that we're going from bottom to top
             for cell_inds, h2ogrid in zip(self.mesh.layer_cell_inds[::-1], self.layer_h2os[::-1]):
                 # also reversed to go from bottom to top
                 for sl_cell_inds in cell_inds[::-1]:
+                    # reset the inner progress bar for this sublayer
+                    inner_pbar.reset(total=len(sl_cell_inds))
                     # initial bulk component masses (set by user input)
                     comps = h2ogrid.component_masses.copy()
-                    # incoming porosity from the left
-                    phil = 0.0
+                    pxout = h2ogrid.eval(self.Ps[sl_cell_inds[0]], self.Ts[sl_cell_inds[0]], **comps)
+                    # incoming fluid from the left
+                    Fwp = pxout['F_f'][0]
+                    if np.isnan(Fwp):
+                        Fl = 0.0
+                    else:
+                        Fl = Fwp/100.0
+                    rhol = pxout['rho'][0]
                     # incoming solid composition of components
                     # (that also occur in the fluid)
-                    cssl = {k : comps[k]/100.0 for k in fluid_components}
+                    cssl = {k : pxout[k][0]/100.0 for k in self.fluid_components}
                     for c, sl_cell_ind in enumerate(sl_cell_inds):
                         # incoming fluid flux and mass fraction from below
                         qb = qs_below[c]
                         Fb = Fs_below[c]
                         # incoming fluid compositions from below
                         cfsb = {k : v[c] for k,v in cfs_below.items()}
+                        # incoming density from below
+                        rhob = rho_below[c]
 
+                        # set the initial guess (in wt %)
                         x0 = []
-                        for k in fluid_components:
+                        for k in self.fluid_components:
                             x0.append((Fb*cfsb[k]+ (1-Fb)*cssl[k])*100)
                         x0.append(qb)
                         sol = opt.least_squares(lambda x: residuals(x, 
-                                                           self.Ps[sl_cell_ind], self.Ts[sl_cell_ind], thicknesses[l], deltaxs[c], 
-                                                           comps, cfsb, cssl, qb, phil, self.Vs), 
+                                                           self.Ps[sl_cell_ind], self.Ts[sl_cell_ind], 
+                                                           thicknesses[l], deltaxs[c], 
+                                                           self.fluid_components,
+                                                           comps, cfsb, cssl, 
+                                                           rhob, rhol, 
+                                                           qb, Fl, self.Vs), 
                                         x0, bounds=(lb, ub))
                         if not sol.success:
                             raise RuntimeError(
@@ -166,23 +215,53 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 
                         # need to find a better way of getting these out of the actual solution
                         # rather than recalculating after the nonlinear solve
-                        for i, k in enumerate(fluid_components): comps[k] = sol.x[i]
+                        for i, k in enumerate(self.fluid_components): comps[k] = sol.x[i]
                         q = sol.x[-1]
                         pxout = h2ogrid.eval(self.Ps[sl_cell_ind], self.Ts[sl_cell_ind], **comps)
-                        F = pxout['F_f'][0]/100.0
+                        rhol = pxout['rho'][0]
 
+                        Fwp = pxout['F_f'][0]
+                        if np.isnan(Fwp):
+                            Fl = 0.0
+                        else:
+                            Fl = Fwp/100.0
+                        
+                        # record in array for next row
                         qs_below[c] = q
-                        Fs_below[c] = F
-                        for k in fluid_components: 
-                            cfs_below[k][c] = pxout[k+'_f'][0]/100.0
+                        Fs_below[c] = Fl
+                        rho_below[c] = rhol
+                        for k in self.fluid_components: 
+                            if not np.isnan(Fwp):
+                                cfs_below[k][c] = pxout[k+'_f'][0]/100.0
+                                # otherwise leave the fluid composition as it was
+                                # in the cell below this one as it is not defined 
+                                # if no fluid is present
                             cssl[k] = pxout[k][0]/100.0
-                        phil = rhos*F/(rhof*(1-F) + rhos*F)
 
-                        # save wt % H2O of solid from perple_x
-                        self._maxH2Os[sl_cell_ind] = pxout['H2O'][0]/100.0
+                        # save data to grids
+                        for k in all_components:
+                            css[k][sl_cell_ind] = pxout.get(k, [0.0])[0]/100.0
+                            cfs[k][sl_cell_ind] = pxout.get(k+'_f', [0.0])[0]/100.0
+                            cbs[k][sl_cell_ind] = comps.get(k, 0.0)
+                        Ffs[sl_cell_ind] = Fl
+                        qs[sl_cell_ind] = q
+                        rho[sl_cell_ind] = rhol
+
+                        # update the inner progress bar
+                        inner_pbar.update(1)
                     l += 1
-        return self._maxH2Os
+                    # update the outer progress bar
+                    outer_pbar.update(1)
+            # close the progress bars
+            inner_pbar.close()
+            outer_pbar.close()
+            # save the solution
+            self._solution = SlabSolution(cfs=cfs, css=css, cbs=cbs, Ffs=Ffs, qs=qs, rho=rho)
+        return self._solution
 
+    @property
+    def maxH2Os(self):
+        return self.solution.css['H2O']
 
 # %% tags=["active-ipynb"]
 # name = "03_British_Columbia"
@@ -218,12 +297,12 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 # %% tags=["active-ipynb"]
 # dmm_thickness = 2.0
 #
-# tres = 2
+# tres = 1
 # sres = 20
 #
 # # negative number implies below slab, positive implies above it
 # layer_thicknesses = [
-#                 #  2.0,            # above slab mantle
+#                  2.0,            # above slab mantle
 #                  -szdict['z15'], # sediments
 #                  -0.3,           # upper volcanics
 #                  -0.3,           # lower volcanics
@@ -231,25 +310,6 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 #                  -5.0,           # gabbro
 #                  -dmm_thickness  # subslab mantle
 #                 ]
-#
-# csv_path = os.path.join(os.pardir, os.pardir, 'data', 'perple_x_v7.1.9', 'abers_25')
-# layer_h2os = [
-#     # PerpleXGrid(csv_file=os.path.join(csv_path, 'DMMdry_25_h2o.csv')),
-#     PerpleXGrid(csv_file=os.path.join(csv_path, szdict['sed_type']+'_h2o.csv')),
-#     PerpleXGrid(csv_file=os.path.join(csv_path, 'upvolc_25_h2o.csv')),
-#     PerpleXGrid(csv_file=os.path.join(csv_path, 'lovolc_25_h2o.csv')),
-#     PerpleXGrid(csv_file=os.path.join(csv_path, 'dike_25_h2o.csv')),
-#     PerpleXGrid(csv_file=os.path.join(csv_path, 'gabbro_25_h2o.csv')),
-#     PerpleXGrid(csv_file=os.path.join(csv_path, 'DMMdamp_25_h2o.csv'))
-# ]
-#
-# layer_tres = [
-#     None,
-#     None,
-#     None,
-#     None,
-#     1.4,
-# ]
 
 # %% tags=["active-ipynb"]
 # with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25", "abers_25.json"), "r") as file:
@@ -257,27 +317,172 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 
 # %% tags=["active-ipynb"]
 # layer_h2os_meemum = [
-#     PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models']) for basename in [szdict['sed_type'], 'upvolc_25', 'lovolc_25', 'dike_25', 'gabbro_25', 'DMMdamp_25']
+#     PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models']) for basename in ['DMMdry_25', szdict['sed_type'], 'upvolc_25', 'lovolc_25', 'dike_25', 'gabbro_25', 'DMMdamp_25']
 # ]
 
-# %%
-reslab = SlabRehydration(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
-                           slab=slab1, Tgrid=tfgrid, 
-                           Tname='Temperature::PotentialTemperature', 
-                           coast_distance=szdict['coast_distance'], 
-                           sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
+# %% tags=["active-ipynb"]
+# reslab = SlabRehydration(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
+#                            slab=slab1, Tgrid=tfgrid, 
+#                            Tname='Temperature::PotentialTemperature', 
+#                            coast_distance=szdict['coast_distance'], 
+#                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
 
-# %%
-fig, ax = pl.subplots(figsize=(20,20))
-reslab.plot_st(ax, C=reslab.maxH2Os, cmap='coolwarm', edgecolor = 'black', lw=0.5)
-ax.set_aspect(5)
-fig.show()
+# %% tags=["active-ipynb"]
+# _ = reslab.solution
 
-# %%
-fig, ax = pl.subplots(figsize=(20,20))
-reslab.plot_st(ax, C=reslab.cumulative_H2O_losses, cmap='coolwarm', edgecolor = 'black', lw=0.5)
-ax.set_aspect(5)
-fig.show()
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.rho, cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.css['H2O'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.cbs['H2O'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.Ffs, cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.qs, cmap='coolwarm', edgecolor = 'none', lw=0.5, norm='log', vmin=1.e-6)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.cbs['SiO2'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.css['SiO2'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.cfs['SiO2'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=np.sum(cbk for cbk in reslab.solution.cbs.values()), cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# rhos = 3300.0
+# rhof = 1000.0
+# F = reslab.solution.Ffs
+# rho = reslab.solution.rho
+#
+# dcss = {k:np.zeros_like(csk) for k, csk in reslab.solution.css.items()}
+# for cell_inds in reslab.mesh.layer_cell_inds:
+#     for sub_cell_inds in cell_inds:
+#         for k, csk in reslab.solution.css.items():
+#             dcss[k][sub_cell_inds[1:]] = ((1-F[sub_cell_inds[1:]])*rho[sub_cell_inds[1:]]*csk[sub_cell_inds[1:]] \
+#                 - (1-F[sub_cell_inds[:-1]])*rho[sub_cell_inds[:-1]]*csk[sub_cell_inds[:-1]])
+#
+#
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=dcss['SiO2'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# rhos = 3300.0
+# rhof = 1000.0
+# F = reslab.solution.Ffs
+# phi = rhos*F/(rhof*(1-F) + rhos*F)
+#
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=phi, cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=reslab.solution.Ffs, cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# # Lambda := rho/M_total (M_total = sum of all bulk component masses, cbs) must be
+# # invariant along a row for holding non-fluid bulk masses fixed to exactly satisfy
+# # their own mass-balance equations - see discussion. lam_step is the resulting
+# # per-step fractional mass-balance error (identical for every non-fluid component,
+# # so a single number captures all of them); lam_cum accumulates that drift along
+# # each row. Computed here as postprocessing from the saved rho/cbs grids
+# rho = reslab.solution.rho
+# Mtot = sum(reslab.solution.cbs.values())
+# Lambda = rho/Mtot
+#
+# lam_step = np.zeros_like(rho)
+# lam_cum = np.zeros_like(rho)
+# for cell_inds in reslab.mesh.layer_cell_inds:
+#     for sub_cell_inds in cell_inds:
+#         lam_step[sub_cell_inds[1:]] = (Lambda[sub_cell_inds[1:]] - Lambda[sub_cell_inds[:-1]]) / Lambda[sub_cell_inds[:-1]]
+#         lam_cum[sub_cell_inds[1:]] = np.cumsum(np.log(Lambda[sub_cell_inds[1:]] / Lambda[sub_cell_inds[:-1]]))
+
+# %% tags=["active-ipynb"]
+# vmax = np.max(np.abs(lam_step))
+#
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=lam_step, cmap='RdBu_r', edgecolor = 'none', lw=0.5, vmin=-vmax, vmax=vmax)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal', label='lam_step (relative)')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# vmax = np.max(np.abs(lam_cum))
+#
+# fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
+# pcm = reslab.plot_st(axs[0], C=lam_cum, cmap='RdBu_r', edgecolor = 'none', lw=0.5, vmin=-vmax, vmax=vmax)
+# axs[0].set_aspect(10)
+# fig.colorbar(pcm, cax=axs[1], orientation='horizontal', label='lam_cum (row-cumulative, log)')
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(20,20))
+# reslab.plot_st(ax, C=reslab.solution.qs, cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# ax.set_aspect(10)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# fig, ax = pl.subplots(figsize=(20,20))
+# reslab.plot_st(ax, C=reslab.cumulative_H2O_losses, cmap='coolwarm', edgecolor = 'none', lw=0.5)
+# ax.set_aspect(10)
+# fig.show()
+
+# %% tags=["active-ipynb"]
+# # need to rethink this because it is no longer necessarily >= 0
+# reslab.cumulative_H2O_losses.min()
 
 # %% tags=["active-ipynb"]
 # testslabmeemum = SlabDehydrationVerticalFlux(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
@@ -297,5 +502,15 @@ fig.show()
 # testslabmeemum.plot_st(ax, C=testslabmeemum.cumulative_H2O_losses, cmap='coolwarm', edgecolor = 'black', lw=0.5)
 # ax.set_aspect(5)
 # fig.show()
+
+# %% tags=["active-ipynb"]
+# fix, ax = pl.subplots(figsize=(5,10))
+# indices = np.argsort(-testslabmeemum.mesh.dof_xys[:,1])
+# ax.plot(testslabmeemum.total_cumulative_H2O_losses/1000.0, testslabmeemum.mesh.dof_xys[indices,1], label='no rehydration')
+# indicesre = np.argsort(-reslab.mesh.dof_xys[:,1])
+# ax.plot(reslab.total_cumulative_H2O_losses/1000.0, reslab.mesh.dof_xys[indicesre,1], label='rehydration', ls='--')
+# ax.set_xlabel('Cumulative water loss')
+# ax.set_ylabel('y (km)')
+# _ = ax.legend()
 
 # %%

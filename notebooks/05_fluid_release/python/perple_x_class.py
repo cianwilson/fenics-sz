@@ -27,6 +27,7 @@ import pathlib
 import tempfile
 import shutil
 import glob
+import re
 
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
@@ -39,7 +40,8 @@ class PerpleXGrid:
     def __init__(self, dat_file : str = None, csv_file : str = None, 
                  version : str ='7.1.9',
                  clean_tmp_folder : bool = True,
-                 work_folder : str = None):
+                 work_folder : str = None,
+                 melt_in_fluid : bool = False):
         self._df = None
         self.dat_file = None
         self.basename = None
@@ -61,6 +63,7 @@ class PerpleXGrid:
         self.version = version
         self.clean_tmp_folder = clean_tmp_folder
         self.work_folder = work_folder
+        self.melt_in_fluid = melt_in_fluid
         self.data_folder = pathlib.Path(os.path.join(basedir, os.pardir, "data", "perple_x_v"+self.version))
     
     def __del__(self):
@@ -82,6 +85,20 @@ class PerpleXGrid:
         if not self.initialized:
             shutil.copy(self.dat_file, self.tmp_work_folder)
             shutil.copy( self.data_folder / 'perplex_option.dat', self.tmp_work_folder)
+
+            # patch the copied option file's melt_is_fluid flag to match melt_in_fluid,
+            # preserving its column alignment and line ending
+            option_file = self.tmp_work_folder / 'perplex_option.dat'
+            value = 'T' if self.melt_in_fluid else 'F'
+            lines = option_file.read_text().splitlines(keepends=True)
+            for i, line in enumerate(lines):
+                m = re.match(r'^(melt_is_fluid\s+)(\S+)(\s*)(\|.*)$', line)
+                if m:
+                    key, old_value, pad, rest = m.groups()
+                    newline = '\n' if line.endswith('\n') else ''
+                    lines[i] = key + value.ljust(len(old_value) + len(pad)) + rest + newline
+                    break
+            option_file.write_text(''.join(lines))
 
             # vertex
             stdout = open(os.path.join(self.tmp_work_folder, 'vertex_'+ self.basename + '.log'), 'w')

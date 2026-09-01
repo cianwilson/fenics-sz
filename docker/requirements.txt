@@ -9,3 +9,4 @@ ipyparallel==9.1.0
 pygmt==0.15.0
 wurlitzer==3.1.1
 jupytext==1.19.1
+shapely==2.1.2

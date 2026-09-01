@@ -559,7 +559,8 @@ class BaseSubductionProblem(BaseSubductionProblem):
         dcd = fcd-pcd
         v = np.empty((self.gdim, x.shape[1]))
         for i in range(x.shape[1]):
-            v[:,i] = min(max(-(x[1,i]+pcd)/dcd, 0.0), 1.0)*self.Vs_nd*self.geom.slab_spline.unittangentx(x[0,i])
+            v[:,i] = min(max(-(x[1,i]+pcd)/dcd, 0.0), 1.0)*self.Vs_nd*self.geom.slab_spline.unittangentx(x[0,i], extrapolate=True)
+            # allow extrapolation in case of floating point errors at the slab endpoints
         return v
 
 
@@ -574,7 +575,8 @@ class BaseSubductionProblem(BaseSubductionProblem):
         """
         v = np.empty((self.gdim, x.shape[1]))
         for i in range(x.shape[1]):
-            v[:,i] = self.Vs_nd*self.geom.slab_spline.unittangentx(x[0,i])
+            v[:,i] = self.Vs_nd*self.geom.slab_spline.unittangentx(x[0,i], extrapolate=True)
+            # allow extrapolation in case of floating point errors at the slab endpoints
         return v
 
 

@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.1
 #   kernelspec:
-#     display_name: dolfinx-env
+#     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
@@ -281,8 +281,8 @@ def create_sz_geometry(slab, resscale, sztype, io_depth, extra_width,
 # And examine it to see if it looks correct.
 
 # %% tags=["active-ipynb"]
-# fig = geom.plot(label_sids=False, label_rids=False)
-# fig.savefig(output_folder / "sz_geometry_benchmark.png")
+# ax = geom.plot(label_sids=False, label_rids=False)
+# ax.get_figure().savefig(output_folder / "sz_geometry_benchmark.png")
 
 # %% [markdown]
 # The finished geometry object can now be used to generate the mesh we will use to solve our numerical problem.  To do this we are using [GMsh](https://gmsh.info/) in the background.
@@ -338,8 +338,8 @@ def create_sz_geometry(slab, resscale, sztype, io_depth, extra_width,
 # and plot the resulting geometry
 
 # %% tags=["active-ipynb"]
-# fig_ak = geom_ak.plot(label_sids=False, label_rids=False)
-# fig_ak.savefig(output_folder / "sz_geometry_ak.png")
+# ax_ak = geom_ak.plot(label_sids=False, label_rids=False)
+# ax_ak.get_figure().savefig(output_folder / "sz_geometry_ak.png")
 
 # %% [markdown]
 # where the coastline and extra width are visible.  We can now generate the mesh, visualize it and save it.
@@ -386,8 +386,8 @@ def create_sz_geometry(slab, resscale, sztype, io_depth, extra_width,
 # and plot the resulting geometry
 
 # %% tags=["active-ipynb"]
-# fig_ant = geom_ant.plot(label_sids=False, label_rids=False)
-# fig_ant.savefig(output_folder / "sz_geometry_ant.png")
+# ax_ant = geom_ant.plot(label_sids=False, label_rids=False)
+# ax_ant.get_figure().savefig(output_folder / "sz_geometry_ant.png")
 
 # %% [markdown]
 # where the coastline and extra width are visible with a single crustal layer this time.  We can now generate the mesh, visualize it and save it.

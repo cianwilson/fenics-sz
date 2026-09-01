@@ -55,7 +55,7 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbosity', metavar='verbosity', type=int, required=False, default=1,
                         help='specifiy the verbosity of the time-loop, higher values are more verbose, default is 1')
     parser.add_argument('-o', '--output', metavar='output', type=str, required=False, default=None,
-                        help='specify an output .bp file for the solution (default is no output, only affects runs without -t specified)')
+                        help='specify an output .bp file for the solution (default is no output)')
     args, unknown = parser.parse_known_args()
 
     run(args.name, args.minres, args.cfl, args.verbosity, output=args.output)

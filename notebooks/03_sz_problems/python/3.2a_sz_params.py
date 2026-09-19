@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -94,7 +95,7 @@
 #
 # Most of these are available for us to use through a file in `data/default_params.json`.
 
-# %%
+# %% tags=["active-ipynb-py"]
 import os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
@@ -103,12 +104,12 @@ params_filename = os.path.join(basedir, os.path.pardir, "data", "default_params.
 # %% [markdown]
 # Loading this file
 
-# %%
+# %% tags=["active-ipynb-py"]
 import json
 with open(params_filename, "r") as fp:
     default_params = json.load(fp)
 
-# %% tags=["active-ipynb"]
+# %%
 # print("{:<35} {:<10}".format('Key','Value'))
 # print("-"*45)
 # for k, v in default_params.items():
@@ -132,7 +133,7 @@ with open(params_filename, "r") as fp:
 #
 # Since these benchmark parameters are so few we will simply enter them as needed.  For the global suite all parameters marked as varying between models in Table 3.2.1 will change between cases.  An additional database of these parameters is provided in `data/all_sz.json`, which we also load here
 
-# %%
+# %% tags=["active-ipynb-py"]
 allsz_filename = os.path.join(basedir, os.path.pardir, "data", "all_sz.json")
 with open(allsz_filename, "r") as fp:
     allsz_params = json.load(fp)
@@ -140,7 +141,7 @@ with open(allsz_filename, "r") as fp:
 # %% [markdown]
 # The `allsz_params` dictionary contains parameters for all 56 subduction zones organized by name
 
-# %% tags=["active-ipynb"]
+# %%
 # print("{}".format('Name'))
 # print("-"*30)
 # for k in allsz_params.keys():
@@ -155,7 +156,7 @@ with open(allsz_filename, "r") as fp:
 #
 # Taking two examples (one continental-oceanic, "01_Alaska_Peninsula," and one oceanic-oceanic, "19_N_Antilles") we can examine the contents of `allsz_params`.
 
-# %% tags=["active-ipynb"]
+# %%
 # names = ['01_Alaska_Peninsula', '19_N_Antilles']
 # for name in names:
 #     print("{}:".format(name))
@@ -168,4 +169,4 @@ with open(allsz_filename, "r") as fp:
 # %% [markdown]
 # In the [next notebook](./3.2b_sz_slab.ipynb) we will use some of these parameters to define the slab geometry, as the first step in describing the geometry of the whole domain.
 
-# %%
+# %% tags=["active-ipynb-py"]

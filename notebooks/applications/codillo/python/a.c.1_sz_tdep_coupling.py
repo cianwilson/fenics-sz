@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -22,7 +23,7 @@
 #
 # As usual we start by adding the path to the modules in the `python` folder to the system path (so we can find the our earlier modules).
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os, shutil
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
@@ -31,14 +32,14 @@ sys.path.insert(0, os.path.join(basedir, os.path.pardir, os.path.pardir, os.path
 # %% [markdown]
 # Because Codillo et al. considered a time-dependent model with a disclocation creep rheology we will load that class to use as a base.
 
-# %%
+# %% tags=["active-ipynb-py"]
 from fenics_sz.sz_problems.sz_tdep_dislcreep import TDDislSubductionProblem
 import fenics_sz.utils
 
 # %% [markdown]
 # We also require a few other modules and set up output and data folders.
 
-# %%
+# %% tags=["active-ipynb-py"]
 import numpy as np
 import pathlib
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
@@ -56,7 +57,7 @@ data_folder.mkdir(exist_ok=True, parents=True)
 #
 # We implement the first by deriving the `TDGDH1DislSubductionProblem` class from our previous implementation (`TDDislSubductionProblem`) and overloading the `T_trench` member function.
 
-# %%
+# %% tags=["active-ipynb-py"]
 class TDGDH1DislSubductionProblem(TDDislSubductionProblem):
     # Overload the T_trench boundary condition function
     def T_trench(self, x):
@@ -95,7 +96,7 @@ class TDGDH1DislSubductionProblem(TDDislSubductionProblem):
 # %% [markdown]
 # Having implemented a GDH1 temperature boundary condition we derive a further `TDCDGDH1DislSubductionProblem` class (from `TDGDH1DislSubductionProblem`) that additionally overloads the `wv_slabtop` member function and indicates that the corresponding boundary condition is time-dependent.
 
-# %%
+# %% tags=["active-ipynb-py"]
 class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
     def members(self):
         # initialize the standard members in the parent class
@@ -139,7 +140,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # Loading everything we need from `sz_problem` and also set our default plotting and output preferences.
 
-# %% tags=["active-ipynb"]
+# %%
 # from fenics_sz.sz_problems.sz_params import allsz_params, default_params
 # from fenics_sz.sz_problems.sz_slab import create_slab, plot_slab
 # from fenics_sz.sz_problems.sz_geometry import create_sz_geometry
@@ -162,7 +163,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # ```
 #
 
-# %% tags=["active-ipynb"]
+# %%
 # name = "43_Izu"
 # resscale = 3
 # cfl      = 3.0
@@ -170,13 +171,13 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # Then load the remaining parameters from the global suite.
 
-# %% tags=["active-ipynb"]
+# %%
 # szdict = allsz_params[name]
 
 # %% [markdown]
 # Codillo et al. used a longer integration time and a higher mantle potential temperatures so we modify those parameters here.
 
-# %% tags=["active-ipynb"]
+# %%
 # szdict['As'] = 52 # Myr
 # szdict['Tm'] = 1421.5 
 # szdict['Ac'] = 82 # Myr, final age of overriding lithosphere
@@ -184,7 +185,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # And examine the parameters to check.
 
-# %% tags=["active-ipynb"]
+# %%
 # print("{}:".format(name))
 # print("{:<20} {:<10}".format('Key','Value'))
 # print("-"*85)
@@ -197,14 +198,14 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # As with other examples in the global suite we start by setting up a slab.
 
-# %% tags=["active-ipynb"]
+# %%
 # slab = create_slab(szdict['xs'], szdict['ys'], resscale, szdict['lc_depth'])
 # _ = plot_slab(slab)
 
 # %% [markdown]
 # Then we create the subduction zome geometry around the slab.
 
-# %% tags=["active-ipynb"]
+# %%
 # geom = create_sz_geometry(slab, resscale, szdict['sztype'], szdict['io_depth'], szdict['extra_width'], 
 #                              szdict['coast_distance'], szdict['lc_depth'], szdict['uc_depth'])
 # _ = geom.plot()
@@ -212,7 +213,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # Finally, we declare instances of the `TDGDH1DislSubductionProblem` and `TDCDGDH1DislSubductionProblem` problem classes using the dictionary of parameters we loaded and modified above.  
 
-# %% tags=["active-ipynb"]
+# %%
 # sz_gdh1 = TDGDH1DislSubductionProblem(geom, **szdict)
 
 # %% [markdown]
@@ -223,7 +224,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 #  * `tc0` - the initial time that the coupling depth starts moving (0 Myr here, the beginning of the simulation)
 #  * `tcf` - the end fo coupling depth movement (52 Myr here, the end of the simulation)
 
-# %% tags=["active-ipynb"]
+# %%
 # sz_tdcd = TDCDGDH1DislSubductionProblem(geom, **szdict, 
 #                                         cd0=30, cdf=80, dcd=default_params['coupling_depth_range'],
 #                                         tc0=0.0, tcf=szdict['As'])
@@ -234,7 +235,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # Finally, we choose the timestep to output at integer number of timesteps.
 
-# %% tags=["active-ipynb"]
+# %%
 # # save period
 # save_period = 1.0
 #
@@ -246,10 +247,10 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # And run the fixed coupling depth (GDH1) model.
 
-# %% tags=["active-ipynb"]
+# %%
 # solutions_gdh1 = sz_gdh1.solve(szdict['As'], dt, theta=0.5, rtol=1.e-1, verbosity=1, save_period=save_period)
 
-# %% tags=["active-ipynb"]
+# %%
 # solutions_tdcd = sz_tdcd.solve(szdict['As'], dt, theta=0.5, rtol=1.e-1, verbosity=1, save_period=save_period)
 
 # %% [markdown]
@@ -260,7 +261,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 #
 # First the GDH1 solution.
 
-# %% tags=["active-ipynb"]
+# %%
 # plotter = pv.Plotter()
 # fenics_sz.utils.plot.plot_scalar(sz_gdh1.T_i, plotter=plotter, scale=sz_gdh1.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
 # fenics_sz.utils.plot.plot_vector_glyphs(sz_gdh1.vw_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=fenics_sz.utils.mps_to_mmpyr(sz_gdh1.v0))
@@ -274,7 +275,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # Then the case with a time-dependent coupling depth.
 
-# %% tags=["active-ipynb"]
+# %%
 # plotter = pv.Plotter()
 # fenics_sz.utils.plot.plot_scalar(sz_tdcd.T_i, plotter=plotter, scale=sz_tdcd.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
 # fenics_sz.utils.plot.plot_vector_glyphs(sz_tdcd.vw_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=fenics_sz.utils.mps_to_mmpyr(sz_tdcd.v0))
@@ -288,14 +289,14 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # We can also save both to disk so that it can be examined with other visualization software (e.g. [Paraview](https://www.paraview.org/)).
 
-# %% tags=["active-ipynb"]
+# %%
 # filename = output_folder / "{}_codillo_gdh1_solution_resscale_{:.2f}_cfl_{:.2f}.bp".format(name, resscale, cfl,)
 # with df.io.VTXWriter(sz_gdh1.mesh.comm, filename, [sz_gdh1.T_i, sz_gdh1.vs_i, sz_gdh1.vw_i]) as vtx:
 #     vtx.write(0.0)
 # # zip the .bp folder so that it can be downloaded from jupyter lab
 # _ = shutil.make_archive(str(filename), 'zip', root_dir=str(filename.parent), base_dir=str(filename.name))
 
-# %% tags=["active-ipynb"]
+# %%
 # filename = output_folder / "{}_codillo_tdcd_solution_resscale_{:.2f}_cfl_{:.2f}.bp".format(name, resscale, cfl,)
 # with df.io.VTXWriter(sz_tdcd.mesh.comm, filename, [sz_tdcd.T_i, sz_tdcd.vs_i, sz_tdcd.vw_i]) as vtx:
 #     vtx.write(0.0)
@@ -311,7 +312,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 #
 # We begin by getting some parameters from the slab surface, firstly its bounding box coordinates.
 
-# %% tags=["active-ipynb"]
+# %%
 # # slab bounding box
 # x0 = slab.x[0]
 # y0 = slab.y[0]
@@ -321,7 +322,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # We then evaluate the coordinates of the piecewise linear representation of the slab spline.
 
-# %% tags=["active-ipynb"]
+# %%
 # # vertices
 # scoords = [(slab.interpcurves[0].points[0].x, slab.interpcurves[0].points[0].y, 0.0)]
 # scoords += [(curve.points[-1].x, curve.points[-1].y, 0.0) for curve in slab.interpcurves]
@@ -330,7 +331,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # As well as the unit normals to the slab surface.
 
-# %% tags=["active-ipynb"]
+# %%
 # # normals
 # snormals = np.stack([-slab.cs(scoords[0,:], nu=1), np.ones(scoords.shape[1]), np.zeros(scoords.shape[1])], axis=0)
 # snormags = np.sqrt(np.sum(snormals**2, axis=0))
@@ -340,7 +341,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # The sediment thicknesses are defined at the trench and at 15 km depth. Between these depths the sediment thickness varies linearly.
 # Below 15 km depth, the sediment thickness is assumed constant.  We can get the sediment thicknesses from `szdict` and evaluate the piecewise linear sediment thicknesses along the slab surface.
 
-# %% tags=["active-ipynb"]
+# %%
 # z0  = szdict['z0']  # thickness of sediment at trench
 # z15 = szdict['z15'] # thickness of sediment at 15km depth
 #
@@ -362,7 +363,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 #
 # To achieve this we set up a dictionary of layers along which we will evaluate the temperature in our models.  These layers are described by their name (as listed above) and their offset from the slab surface, which is a linear function of the sediment thickness (requiring a sediment factor and a constant offset).
 
-# %% tags=["active-ipynb"]
+# %%
 # # layer names used in output of Codillo et al. (88 -> 113)
 # layer_names = [name for name in range(88, 113)]
 # # factor by which the sediment layer thickness should be multiplied 
@@ -376,7 +377,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # In order to compare to the results of Codillo et al. we download their data from [zenodo](https://doi.org/10.5281/zenodo.15837466).
 
-# %% tags=["active-ipynb"]
+# %%
 # # download the Codillo et al. data for the static coupling depth (but using GDH1)
 # zipbasename_gdh1 = "43_Izu_52Ma"
 # zipfilename_gdh1 = pathlib.Path(os.path.join(data_folder, zipbasename_gdh1+".zip"))
@@ -398,7 +399,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # In addition to saving the slab path temperature data to file we will plot some snapshots and compare them to the data we just downloaded (so we unzip those files here).
 
-# %% tags=["active-ipynb"]
+# %%
 # # layers to plot
 # plot_layers = [88, 98, 108]
 # # simulation times to plot the data
@@ -422,7 +423,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # %% [markdown]
 # Finally, we set some density and thickness parameters in order to calculate the lithostatic pressure.
 
-# %% tags=["active-ipynb"]
+# %%
 # zcrust = sz_gdh1.deltazc if sz_gdh1.sztype == "continental" else 7.0
 #
 # rhow = 1.0e3
@@ -440,7 +441,7 @@ class TDCDGDH1DislSubductionProblem(TDGDH1DislSubductionProblem):
 # * save those temperature to the output directory
 # * plot the layers and times we requested above
 
-# %% tags=["active-ipynb"]
+# %%
 # # set up a figure
 # fig, axs = pl.subplots(nrows=1, ncols=len(plot_times), figsize=(4*len(plot_times), 6))
 # if len(plot_times) == 1: axs = [axs]

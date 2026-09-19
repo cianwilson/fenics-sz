@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -63,7 +64,7 @@
 #
 # We start by loading all the modules we will require.
 
-# %%
+# %% tags=["active-ipynb-py"]
 from mpi4py import MPI
 import gmsh
 import dolfinx as df
@@ -89,7 +90,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 # We build a workflow that contains a complete description of the coupled Stokes-temperature convecting system.  This follows much the same order as described in previous examples, with some modifications to solve the now nonlinearly coupled problem
 # 1. in `transfinite_unit_square_mesh` we use [Gmsh](https://gmsh.info/) to describe a unit square domain $\Omega = [0,1]\times[0,1]$, tesselating it into $2 \times$ `ne` $\times$ `ne` triangular cells, and allowing refinement near the top and bottom using the parameter `beta`
 
-# %%
+# %% tags=["active-ipynb-py"]
 def transfinite_unit_square_mesh(nx, ny, beta=1):
     """
     A python function to create a mesh of a square domain with refinement
@@ -162,7 +163,7 @@ def transfinite_unit_square_mesh(nx, ny, beta=1):
 #     * in `stokes_functionspaces` we declare finite elements for the velocity and pressure using Lagrange polynomials of degree `pp+1` and `pp` respectively and use these to declare function spaces, `V_v` and `V_p`, for velocity and pressure
 #     * in `temperature_functionspace` we declare a finite element for the temperature using Lagrange polynomials of degree `pT` and use this to delcare `V_T`, a function space for temperature
 
-# %%
+# %% tags=["active-ipynb-py"]
 def stokes_functionspaces(mesh, pp=1):
     """
     A python function to set up velocity and pressure function spaces.
@@ -209,7 +210,7 @@ def temperature_functionspace(mesh, pT=1):
 #     * in `pressure_bcs` we define a constraint on the pressure in the lower left corner of the domain
 #     * in `temperature_bcs` we define a list of Dirichlet boundary conditions on temperature
 
-# %%
+# %% tags=["active-ipynb-py"]
 def velocity_bcs(V_v):
     """
     A python function to set up the velocity boundary conditions.
@@ -309,7 +310,7 @@ def temperature_bcs(V_T):
 #     * the weak form for a pressure mass matrix scaled by the inverse of the viscosity in `pressure_preconditioner_weakform` is used to precondition the zero block of the Stokes matrix when using an iterative solver
 #     * `temperature_weakforms` creates weak forms for the steady-state advection-diffusion temperature equation
 
-# %%
+# %% tags=["active-ipynb-py"]
 def stokes_weakforms(v, p, T, Ra, b=None):
     """
     A python function to return the weak forms for the Stokes problem.
@@ -457,7 +458,7 @@ def temperature_weakforms(T, v):
 #     * `setup_stokes_solver_nest` sets up a PETSc [MATNEST](https://petsc.org/release/manualpages/Mat/MATNEST/) matrix and (if necessary) preconditioner matrix and assembles any blocks that do not change in the Picard iteration before attaching them to a PETSc [KSP](https://petsc.org/release/manual/ksp/) linear solver object and returning it along with vectors for the RHS and residual
 #     * `setup_temperature_solver` does the same for the temperature equations (but performs no pre-assembly because it will always need to be assembled in the nonlinear loop owing to its dependence on velocity)
 
-# %%
+# %% tags=["active-ipynb-py"]
 def setup_stokes_solver_nest(S, f, r, bcs, M=None, isoviscous=False, 
                              attach_nullspace=False, attach_nearnullspace=True):
     """
@@ -632,7 +633,7 @@ def setup_temperature_solver(S, f, r):
 #     1. `solve_stokes_nest` assembles any matrix blocks that depend on a temperature-dependent viscosity, assembles the RHS vector and solves the system
 #     2. `solve_temperature` always assembles both the matrix and vector for the temperature equations and solves the temperature system
 
-# %%
+# %% tags=["active-ipynb-py"]
 def solve_stokes_nest(solver, fm, S, f, bcs, v, p, M=None, isoviscous=False):
     """
     A python function to solve a nested matrix vector system.
@@ -748,7 +749,7 @@ def solve_temperature(solver, fm, S, f, bcs, T):
 # which is implemented in `calculate_residual` below.  Convergence is allowed based on either an absolute tolerance, `atol`, or a relative tolerance, `rtol`, relative to the residual of the initial guess.  Failure to converge in the specified maximum number of iterations, `maxits` results in an exception being raised, otherwise the velocity, pressure and temperature solution functions are returned.
 #
 
-# %%
+# %% tags=["active-ipynb-py"]
 def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, beta=1,
                       alpha=0.8, rtol=5.e-6, atol=5.e-9, maxits=50, 
                       petsc_options_s=None, petsc_options_T=None, 
@@ -940,7 +941,7 @@ def solve_blankenbach(Ra, ne, pp=1, pT=1, b=None, beta=1,
 # \end{equation}
 # These are implemented in `blankenbach_diagnostics`.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def blankenbach_diagnostics(v, T):
     """
     A python function to evaluate Nu and vrms of the solution.
@@ -984,7 +985,7 @@ def blankenbach_diagnostics(v, T):
 #
 # We can now numerically solve the equations using, e.g., 40 elements in each dimension and piecewise linear polynomials for temperature and pressure (and piecewise quadratic polynomials for velocity).  We start with the lowest vigor example, case 1a, isoviscous with Ra $=10^4$, and after solving we evaluate and print the diagnostics.
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 40
 # pp = 1
 # pT = 1
@@ -1013,10 +1014,10 @@ def blankenbach_diagnostics(v, T):
 # T_1a.name = 'Temperature'
 # print('Nu = {}, vrms = {}'.format(*blankenbach_diagnostics(v_1a, T_1a)))
 
-# %% tags=["active-ipynb"]
+# %%
 # print('{0}'.format(out.getvalue()))
 
-# %% tags=["active-ipynb"]
+# %%
 # import re
 #
 # mumps_timings = {'MUMPS analysis':0.0, 
@@ -1035,7 +1036,7 @@ def blankenbach_diagnostics(v, T):
 # %% [markdown]
 # At this low uniform resolution our Nu estimate is a little off but our $V_\text{rms}$ are quite close to the benchmark values.  We can also use some utility functions (see `python/fenics_sz/utils/plot.py`) to plot the temperature and velocity solutions.
 
-# %% tags=["active-ipynb"]
+# %%
 # # visualize
 # plotter_1a = fenics_sz.utils.plot.plot_scalar(T_1a, cmap='coolwarm', clim=[0,1])
 # fenics_sz.utils.plot.plot_vector_glyphs(v_1a, plotter=plotter_1a, color='k', factor=0.0005)
@@ -1049,7 +1050,7 @@ def blankenbach_diagnostics(v, T):
 #
 # Case 1b is still isoviscous, using slightly higher vigor Ra $=10^5$.
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 40
 # pp = 1
 # pT = 1
@@ -1062,7 +1063,7 @@ def blankenbach_diagnostics(v, T):
 # %% [markdown]
 # Again, the low resolution means our Nu value is inaccurate while our $V_\text{rms}$ is close to the benchmark.  Visualizing the solution we see a thinner upwelling and, still symmetric, downwelling.
 
-# %% tags=["active-ipynb"]
+# %%
 # # visualize
 # plotter_1b = fenics_sz.utils.plot.plot_scalar(T_1b, cmap='coolwarm', clim=[0,1])
 # fenics_sz.utils.plot.plot_vector_glyphs(v_1b, plotter=plotter_1b, color='k', factor=0.00005)
@@ -1073,7 +1074,7 @@ def blankenbach_diagnostics(v, T):
 #
 # Case 1c increase the Rayleigh number further to Ra $=10^6$.  This requires using higher resolution to resolve the boundary layers.
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 60
 # pp = 1
 # pT = 1
@@ -1086,7 +1087,7 @@ def blankenbach_diagnostics(v, T):
 # %% [markdown]
 # We can see those thinner boundary features in the solution below.
 
-# %% tags=["active-ipynb"]
+# %%
 # # visualize
 # plotter_1c = fenics_sz.utils.plot.plot_scalar(T_1c, cmap='coolwarm', clim=[0,1])
 # fenics_sz.utils.plot.plot_vector_glyphs(v_1c, plotter=plotter_1c, color='k', factor=0.00001)
@@ -1097,7 +1098,7 @@ def blankenbach_diagnostics(v, T):
 #
 # Case 2a uses Ra $=10^4$ but introduces a simple temperature dependent viscosity with a 1000-fold change in the viscosity across the domain (using $\eta = e^{-b T}$ with $b = \ln(10^3)$).
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 60
 # pp = 1
 # pT = 1
@@ -1111,7 +1112,7 @@ def blankenbach_diagnostics(v, T):
 # %% [markdown]
 # Visualizing this solution we can see that the symmetry is gone with the upwelling now being much broader than the downwelling.
 
-# %% tags=["active-ipynb"]
+# %%
 # # visualize
 # plotter_2a = fenics_sz.utils.plot.plot_scalar(T_2a, cmap='coolwarm', clim=[0,1])
 # fenics_sz.utils.plot.plot_vector_glyphs(v_2a, plotter=plotter_2a, color='k', factor=0.00002)
@@ -1126,7 +1127,7 @@ def blankenbach_diagnostics(v, T):
 #
 # We begin by noting the averaged extrapolated benchmark values from [Wilson & van Keken (2023)](http://dx.doi.org/10.1186/s40645-023-00588-6) (WvK in Table 2.5.1) as well as the relevant parameter values for each case.
 
-# %%
+# %% tags=["active-ipynb-py"]
 values_wvk = {
     '1a': {'Nu': 4.88440907, 'vrms': 42.8649484},
     '1b': {'Nu': 10.53404, 'vrms': 193.21445},
@@ -1146,7 +1147,7 @@ params = {
 #
 # The benchmark values will be used in our evaluation of the errors in `convergence_errors` where we loop over the cases, polynomial orders (only of temperature here, `pT`), and numbers of elements (`ne`) comparing our diagnostic values to the published values.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def convergence_errors(pTs, nelements, cases, beta=1, 
                        petsc_options_s=None, petsc_options_T=None, 
                        attach_nullspace=False, attach_nearnullspace=True,
@@ -1240,7 +1241,7 @@ def convergence_errors(pTs, nelements, cases, beta=1,
 # %% [markdown]
 # Running this function on all cases we can see that our errors are (for the most part) decreasing.
 
-# %% tags=["active-ipynb"]
+# %%
 # cases = ['1a', '1b', '1c', '2a']
 # # List of polynomial orders to try
 # pTs = [1]
@@ -1252,7 +1253,7 @@ def convergence_errors(pTs, nelements, cases, beta=1,
 # %% [markdown]
 # As before, this is easiest to see by plotting the errors and fitting an estimated convergence order to them using the function `plot_convergence`.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def plot_convergence(pTs, nelements, errors, output_filename=None):
     """
     A python function to plot convergence of the given errors.
@@ -1311,13 +1312,13 @@ def plot_convergence(pTs, nelements, errors, output_filename=None):
     
     return fits
 
-# %% tags=["active-ipynb"]
+# %%
 # fits = plot_convergence(pTs, nelements, errors, output_filename=output_folder / "blankenbach_convergence.png")
 
 # %% [markdown]
 # As some of the resulting estimated orders of convergence are quite low we can try improving the solution by refining the mesh near the top and bottom of the domain using the parameter `beta`.  For example for a low resolution mesh `ne = 32` this looks like
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 32
 # beta = 0.2
 # mesh = transfinite_unit_square_mesh(ne, ne, beta=beta)
@@ -1327,17 +1328,17 @@ def plot_convergence(pTs, nelements, errors, output_filename=None):
 # %% [markdown]
 # Rerunning the convergence test with `beta = 0.2`
 
-# %% tags=["active-ipynb"]
+# %%
 # errors_beta = convergence_errors(pTs, nelements, cases, beta=beta)
 # fits_beta = plot_convergence(pTs, nelements, errors_beta, output_filename=output_folder / "blankenbach_convergence_beta.png")
 
 # %% [markdown]
 # We see some improvements in the convergence and can put a simple test that these solutions should converge at at least first order.
 
-# %% tags=["active-ipynb"]
+# %%
 # assert(all(fit > 1.0 for fits_p in fits_beta.values() for fits in fits_p for fit in fits))
 
 # %% [markdown]
 # In the [next notebook](./2.5c_blankenbach_parallel.ipynb) we will test that this convergence behavior is maintained in parallel and also examine the performance of our implementation.
 
-# %%
+# %% tags=["active-ipynb-py"]

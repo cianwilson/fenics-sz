@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -51,7 +52,7 @@
 #
 # We start by loading all the modules we will require.
 
-# %%
+# %% tags=["active-ipynb-py"]
 from mpi4py import MPI
 import dolfinx as df
 import dolfinx.fem.petsc
@@ -84,7 +85,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 #
 #  1. describe a weak form for a pressure pre-conditioner matrix, for which we use a pressure mass matrix - this pre-conditioner matrix has to be different to the coupled system matrix owing to the zero block in the saddle-point system
 
-# %%
+# %% tags=["active-ipynb-py"]
 def pressure_preconditioner_weakform(V_p):
     """
     A python function to return a weak form for the pressure preconditioner of 
@@ -112,7 +113,7 @@ def pressure_preconditioner_weakform(V_p):
 # %% [markdown]
 #  2. define a new assembly function to return a nested matrix and (optionally) a preconditioner matrix
 
-# %%
+# %% tags=["active-ipynb-py"]
 def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspace=True):
     """
     A python function to assemble the forms into a nested matrix and vector.
@@ -214,7 +215,7 @@ def assemble_nest(S, f, bcs, M=None, attach_nullspace=False, attach_nearnullspac
 # %% [markdown]
 #  3. define a new solve function to solve a nested matrix allowing preconditioning options to be set on each block using a "fieldsplit" preconditioner
 
-# %%
+# %% tags=["active-ipynb-py"]
 def solve_nest(Sm, fm, V_v, V_p, Pm=None):
     """
     A python function to solve a nested matrix vector system.
@@ -270,7 +271,7 @@ def solve_nest(Sm, fm, V_v, V_p, Pm=None):
 # %% [markdown]
 # Finally we set up a python function, `solve_batchelor_nest`, that brings these steps together with the unchanged functions from `solver_batchelor`.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def solve_batchelor_nest(ne, p=1, U=1, petsc_options=None, attach_nullspace=False, attach_nearnullspace=True):
     """
     A python function to solve a two-dimensional corner flow 
@@ -336,7 +337,7 @@ def solve_batchelor_nest(ne, p=1, U=1, petsc_options=None, attach_nullspace=Fals
 # %% [markdown]
 # Let's check that we can now numerically solve the equations using the new function.  With the default options we should still be using a direct LU solver, just with a new nested matrix format.
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 10
 # pp = 1
 # U = 1
@@ -347,7 +348,7 @@ def solve_batchelor_nest(ne, p=1, U=1, petsc_options=None, attach_nullspace=Fals
 # %% [markdown]
 # And visualize the result.
 
-# %% tags=["active-ipynb"]
+# %%
 # plotter = fenics_sz.utils.plot.plot_mesh(v.function_space.mesh, gather=True, show_edges=True, style="wireframe")
 # fenics_sz.utils.plot.plot_vector_glyphs(v, plotter=plotter, gather=True, factor=0.3, scalar_bar_args={'title': 'Speed'})
 # fenics_sz.utils.plot.plot_show(plotter)
@@ -356,7 +357,7 @@ def solve_batchelor_nest(ne, p=1, U=1, petsc_options=None, attach_nullspace=Fals
 # %% [markdown]
 # We can also perform a convergence test of the new implementation to check the solution is still correct.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def convergence_errors_nest(ps, nelements, U=1, petsc_options=None, attach_nullspace=False, attach_nearnullspace=True):
     """
     A python function to run a convergence test of a two-dimensional corner flow 
@@ -398,13 +399,13 @@ def convergence_errors_nest(ps, nelements, U=1, petsc_options=None, attach_nulls
     
     return errors_l2
 
-# %% tags=["active-ipynb"]
+# %%
 # # List of polynomial orders to try
 # ps = [1, 2]
 # # List of resolutions to try
 # nelements = [10, 20, 40, 80, 160]
 
-# %% tags=["active-ipynb"]
+# %%
 # errors_l2 = convergence_errors_nest(ps, nelements)
 #
 # test_passes = test_plot_convergence(ps, nelements, errors_l2,
@@ -415,4 +416,4 @@ def convergence_errors_nest(ps, nelements, U=1, petsc_options=None, attach_nulls
 # %% [markdown]
 # This shows the same (suboptimal) rate of convergence as we saw in the [original implementation](./2.4b_batchelor.ipynb). [Next](./2.4e_batchelor_nest_parallel.ipynb) we will test if our new solver strategy performs any better when we time its performance.
 
-# %%
+# %% tags=["active-ipynb-py"]

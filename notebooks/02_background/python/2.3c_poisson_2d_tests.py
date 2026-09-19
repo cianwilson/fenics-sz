@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -46,7 +47,7 @@
 #
 # Start by loading some required modules and functions, including `solve_poisson_2d` from `python/fenics_sz/background/poisson_2d.py`, which was automatically created at the end of [`notebooks/02_background/2.3b_poisson_2d.ipynb`](./2.3b_poisson_2d.ipynb).
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
@@ -69,7 +70,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 #
 # We can quantify the error in cases where the analytical solution is known by taking the L2 norm of the difference between the numerical and (known) exact solutions.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def evaluate_error(T_i):
     """
     A python function to evaluate the l2 norm of the error in 
@@ -100,7 +101,7 @@ def evaluate_error(T_i):
 #
 # We implement a function, `convergence_errors` to loop over different polynomial orders, `p`, and numbers of elements, `ne` evaluating the error for each.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def convergence_errors(ps, nelements, petsc_options=None):
     """
     A python function to evaluate the convergence errors in a two-dimensional 
@@ -138,7 +139,7 @@ def convergence_errors(ps, nelements, petsc_options=None):
 # %% [markdown]
 # We can use this function to get the errors at a range of polynomial orders and numbers of elements.
 
-# %% tags=["active-ipynb"]
+# %%
 # # List of polynomial orders to try
 # ps = [1, 2]
 # # List of resolutions to try
@@ -149,7 +150,7 @@ def convergence_errors(ps, nelements, petsc_options=None):
 # %% [markdown]
 # Here we can see that the error is decreasing both with increasing `ne` and increasing `p` but this is clearer if we plot the errors and evaluate their **order of convergence**.  To do this we write a python function `test_plot_convergence`.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
     """
     A python function to test and plot convergence of the given errors.
@@ -209,7 +210,7 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
     # Return if we passed the test
     return test_passes
 
-# %% tags=["active-ipynb"]
+# %%
 # test_passes = test_plot_convergence(ps, nelements, errors_l2, 
 #                 output_basename = output_folder / '2d_poisson_convergence')
 #
@@ -235,7 +236,7 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
 # 5. we describe the **discrete weak forms**, `Sg` and `fg`, that will be used to assemble the left-hand-side matrix $\mathbf{S}_g$ and right-hand-side vector $\mathbf{f}_g$
 # 6. we solve the matrix problem using a linear algebra back-end and return the solution
 
-# %% tags=["active-ipynb"]
+# %%
 # # solve for T
 # ne = 10
 # p = 1
@@ -268,7 +269,7 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
 # %% [markdown]
 # We can then plot the solutions, `T` and `gh`.
 
-# %% tags=["active-ipynb"]
+# %%
 # # plot T as a colormap
 # plotter_g = fenics_sz.utils.plot.plot_scalar(T, gather=True)
 # # plot g as glyphs
@@ -276,4 +277,4 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
 # fenics_sz.utils.plot.plot_show(plotter_g)
 # fenics_sz.utils.plot.plot_save(plotter_g, output_folder / "2d_poisson_gradient.png")
 
-# %%
+# %% tags=["active-ipynb-py"]

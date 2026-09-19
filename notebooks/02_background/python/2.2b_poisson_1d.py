@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -65,7 +66,7 @@
 #
 # We start by loading all the modules we will require and setting up an output folder.
 
-# %%
+# %% tags=["active-ipynb-py"]
 from mpi4py import MPI
 import dolfinx as df
 import dolfinx.fem.petsc
@@ -97,7 +98,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 #
 # For a more detailed description of solving the Poisson equation using FEniCSx, see [the FEniCSx tutorial](https://jsdokken.com/dolfinx-tutorial/chapter1/fundamentals.html).
 
-# %%
+# %% tags=["active-ipynb-py"]
 def solve_poisson_1d(ne, p=1):
     """
     A python function to solve a one-dimensional Poisson problem
@@ -151,7 +152,7 @@ def solve_poisson_1d(ne, p=1):
 # %% [markdown]
 # We can then use `solve_poisson_1d` to solve on, for example, `ne = 4` elements with P1, `p = 1` elements.
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 4
 # p = 1
 # T_P1 = solve_poisson_1d(ne, p=p)
@@ -160,7 +161,7 @@ def solve_poisson_1d(ne, p=1):
 # %% [markdown]
 # In order to visualize the solution, we write a python function that evaluates both the numerical and analytical solutions at a series of points and plots them both using [matplotlib](https://matplotlib.org/).
 
-# %%
+# %% tags=["active-ipynb-py"]
 def plot_1d(T, x, filename=None):
     """
     A python function to evaluate and plot the solution to the 1D Poisson example, T, at the specified points, x.
@@ -203,14 +204,14 @@ def plot_1d(T, x, filename=None):
 # %% [markdown]
 # Comparing the numerical, $\tilde{T}$, and analytical, $T$, solutions we can see that even at this small number of elements we do a good job at reproducing the correct answer.
 
-# %% tags=["active-ipynb"]
+# %%
 # x = np.linspace(0, 1, 201)
 # plot_1d(T_P1, x, filename=output_folder / '1d_poisson_P1_solution.pdf')
 
 # %% [markdown]
 # We can also try with a higher order element and see how it improves the solution.
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 4
 # p = 2
 # T_P2 = solve_poisson_1d(ne, p=p)
@@ -219,7 +220,7 @@ def plot_1d(T, x, filename=None):
 # %% [markdown]
 # The higher polynomial degree qualitatively appears to have a dramatic improvement in the solution accuracy.
 
-# %% tags=["active-ipynb"]
+# %%
 # x = np.linspace(0, 1, 201)
 # plot_1d(T_P2, x, filename=output_folder / '1d_poisson_P2_solution.pdf')
 
@@ -229,7 +230,7 @@ def plot_1d(T, x, filename=None):
 # %% [markdown]
 # We can quantify the error in cases where the analytical solution is known by taking the L2 norm of the difference between the numerical and exact solutions.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def evaluate_error(T_i):
     """
     A python function to evaluate the l2 norm of the error in 
@@ -260,7 +261,7 @@ def evaluate_error(T_i):
 # \end{equation}
 # The rate at which this decreases is known as the order of convergence. Numerical analysis predicts a certain order depending on the type of the polynomials used as finite element shape functions and other constraints related to the well-posedness of the problem. For piecewise linear shape functions we expect second-order convergence, that is that the error decreases as $h^{-2}$ where $h$ is the nodal point spacing. With piecewise quadratic elements we expect to see third-order convergence.
 
-# %% tags=["active-ipynb"]
+# %%
 # # Open a figure for plotting
 # fig = pl.figure()
 # ax = fig.gca()
@@ -326,4 +327,4 @@ def evaluate_error(T_i):
 # %% [markdown]
 # The convergence tests show that we achieve the expected orders of convergence for all polynomial degrees tested.  [Next](./2.3a_poisson_2d_intro.ipynb) we will generalize this example to two dimensions and see that the implementation using [FEniCS](https://fenicsproject.org/) is remarkably similar.
 
-# %%
+# %% tags=["active-ipynb-py"]

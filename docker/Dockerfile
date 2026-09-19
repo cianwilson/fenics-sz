@@ -36,6 +36,9 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then python3 -m pip install --no-c
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then python3 -m pip install --no-cache-dir vtk==9.4.2; pip install --no-cache-dir pyvista[trame]==0.47.3; fi
 
 ADD requirements.txt /tmp/requirements.txt
+# hatchling is needed to build jupytext from source under --no-build-isolation below
+RUN python3 -m pip install --no-cache-dir "hatchling>=1.5.0" "hatch-jupyter-builder>=0.5" "jupyter-builder>=1.0.0" && \
+    python3 -m pip cache purge
 RUN python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation -v h5py==3.13.0 -r requirements.txt && \
     python3 -m pip cache purge
 ENTRYPOINT ["jupyter", "lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root"]

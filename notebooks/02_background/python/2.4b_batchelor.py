@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -46,7 +47,7 @@
 #
 # We start by loading all the modules we will require.
 
-# %%
+# %% tags=["active-ipynb-py"]
 from mpi4py import MPI
 import dolfinx as df
 import dolfinx.fem.petsc
@@ -80,7 +81,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 # \end{equation}
 # We describe this solution using UFL in the python function `v_exact_batchelor`.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def v_exact_batchelor(mesh, U=1):
     """
     A python function that returns the exact Batchelor velocity solution
@@ -114,7 +115,7 @@ def v_exact_batchelor(mesh, U=1):
 # We then build a workflow that contains a complete description of the discrete Stokes equation problem.  This follows much the same flow as described in previous examples but because this case is more complicated we split up each step into individual functions that we combine later into a single function call
 # 1. in `unit_square_mesh` we describe the unit square domain $\Omega = [0,1]\times[0,1]$ and discretize it into $2 \times$ `ne` $\times$ `ne` triangular elements or cells to make a `mesh`
 
-# %%
+# %% tags=["active-ipynb-py"]
 def unit_square_mesh(ne):
     """
     A python function to set up a mesh of a unit square domain.
@@ -136,7 +137,7 @@ def unit_square_mesh(ne):
 # %% [markdown]
 # 2. in `functionspaces` we declare finite elements for velocity and pressure using Lagrange polynomials of degree `p+1` and `p` respectively and use these to declare the **function spaces**, `V_v` and `V_p`, for velocity and pressure respectively
 
-# %%
+# %% tags=["active-ipynb-py"]
 def functionspaces(mesh, p=1):
     """
     A python function to set up velocity and pressure function spaces.
@@ -164,7 +165,7 @@ def functionspaces(mesh, p=1):
 #     1. in `velocity_bcs` we define a list of Dirichlet boundary conditions on velocity
 #     2. in `pressure_bcs` we define a constraint on the pressure in the lower left corner of the domain
 
-# %%
+# %% tags=["active-ipynb-py"]
 def velocity_bcs(V_v, U=1):
     """
     A python function to set up the velocity boundary conditions.
@@ -241,7 +242,7 @@ def pressure_bcs(V_p):
 #     * `stokes_weakforms` uses the velocity and pressure function spaces to declare trial, `v_a` and `p_a`, and test, `v_t` and `p_t`, functions for the velocity and pressure respectively and uses them to describe the discrete weak forms, `S` and `f`, that will be used to assemble the matrix $\mathbf{A}$ and vector $\mathbf{b}$
 #     * we also implement a dummy weak form for the pressure block in `dummy_pressure_weakform` that allows us to apply a pressure boundary condition
 
-# %%
+# %% tags=["active-ipynb-py"]
 def stokes_weakforms(V_v, V_p):  
     """
     A python function to return the weak forms of the Stokes problem.
@@ -303,7 +304,7 @@ def dummy_pressure_weakform(V_p):
 # %% [markdown]
 # 5. in `assemble` we assemble the matrix problem 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def assemble(S, f, bcs):
     """
     A python function to assemble the forms into a matrix and a vector.
@@ -325,7 +326,7 @@ def assemble(S, f, bcs):
 # %% [markdown]
 # 6. in `solve` we solve the matrix problem using a PETSc linear algebra back-end, returning the solution functions for velocity, `v_i`, and pressure, `p_i`
 
-# %%
+# %% tags=["active-ipynb-py"]
 def solve(Sm, fm, V_v, V_p):
     """
     A python function to solve a matrix vector system.
@@ -369,7 +370,7 @@ def solve(Sm, fm, V_v, V_p):
 # %% [markdown]
 # Finally, we set up a python function, `solve_batchelor`, that brings all these steps together into a complete problem.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def solve_batchelor(ne, p=1, U=1, petsc_options=None):
     """
     A python function to solve a two-dimensional corner flow 
@@ -420,7 +421,7 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None):
 # %% [markdown]
 # We can now numerically solve the equations using, e.g., 10 elements in each dimension and piecewise linear polynomials for pressure (and piecewise quadratic polynomials for velocity).
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 10
 # p = 1
 # U = 1
@@ -430,7 +431,7 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None):
 # %% [markdown]
 # And use some utility functions (see `python/fenics_sz/utils/plot.py`) to plot it.
 
-# %% tags=["active-ipynb"]
+# %%
 # plotter = fenics_sz.utils.plot.plot_mesh(v.function_space.mesh, gather=True, show_edges=True, style="wireframe")
 # fenics_sz.utils.plot.plot_vector_glyphs(v, plotter=plotter, gather=True, factor=0.3, scalar_bar_args={'title': 'Speed'})
 # fenics_sz.utils.plot.plot_show(plotter)
@@ -443,7 +444,7 @@ def solve_batchelor(ne, p=1, U=1, petsc_options=None):
 #
 # We can quantify the error in cases where the analytical solution is known by taking the L2 norm of the difference between the numerical and exact solutions.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def evaluate_error(v_i, U=1):
     """
     A python function to evaluate the l2 norm of the error in 
@@ -472,7 +473,7 @@ def evaluate_error(v_i, U=1):
 #
 # We implement a function, `convergence_errors` to loop over different pressure polynomial orders, `p`, and numbers of elements, `ne` evaluating the error for each.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def convergence_errors(ps, nelements, U=1, petsc_options=None):
     """
     A python function to run a convergence test of a two-dimensional corner flow 
@@ -512,7 +513,7 @@ def convergence_errors(ps, nelements, U=1, petsc_options=None):
 # %% [markdown]
 # We can use this function to get the errors at a range of polynomial orders and numbers of elements.
 
-# %% tags=["active-ipynb"]
+# %%
 # # List of polynomial orders to try
 # ps = [1, 2]
 # # List of resolutions to try
@@ -523,7 +524,7 @@ def convergence_errors(ps, nelements, U=1, petsc_options=None):
 # %% [markdown]
 # Here we can see that the error is decreasing both with increasing `ne` and increasing `p` but this is clearer if we plot the errors and evaluate their **order of convergence**.  To do this we write a python function `test_plot_convergence`.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
     """
     A python function to test and plot convergence of the given errors.
@@ -581,7 +582,7 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
     
     return test_passes
 
-# %% tags=["active-ipynb"]
+# %%
 # test_passes = test_plot_convergence(ps, nelements, errors_l2, 
 #                                     output_basename=output_folder / 'batchelor_convergence')
 #
@@ -598,4 +599,4 @@ def test_plot_convergence(ps, nelements, errors_l2, output_basename=None):
 #
 # Aside from the convergence rate we are also interested in the performance of our implementation.  We will test this in the [next notebook](./2.4c_batchelor_parallel.ipynb) by timing different sections of our calculation both in serial and parallel.
 
-# %%
+# %% tags=["active-ipynb-py"]

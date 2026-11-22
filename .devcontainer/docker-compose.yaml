@@ -1,6 +1,6 @@
 services:
   fenics-sz:
-    image: ghcr.io/cianwilson/fenics-sz:thermocalcs
+    image: ghcr.io/cianwilson/fenics-sz:thermocalcs-crwmods
     volumes:
       - ../..:/workspaces:cached
     command: sleep infinity

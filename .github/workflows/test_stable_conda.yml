@@ -58,6 +58,9 @@ jobs:
               start_xvfb(0.1)
             except:
               pass"
+      
+      - name: Check package modules import cleanly
+        run: bin/check_imports
 
       - name: Check scripts are up to date
         working-directory: notebooks

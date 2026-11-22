@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+
+# Checks that every module in the fenics_sz package imports cleanly.
+#
+# Most files under python/fenics_sz/ are symlinks to jupytext-paired
+# notebooks (notebooks/*/python/*.py). Cells meant only for interactive
+# use in the notebook are tagged "active-ipynb" so jupytext comments them
+# out of the paired .py script; anything left untagged stays live and
+# runs as top-level code whenever the module is imported. A demo/test
+# cell that's accidentally left untagged - especially one that references
+# a name only defined in another, correctly-tagged-out cell - typically
+# fails with a NameError the moment the module is imported, rather than
+# only when the notebook cell itself is run. This script catches that
+# by importing every such module fresh, in its own subprocess.
+
+import os
+import subprocess
+import sys
+
+fdir = os.path.dirname(os.path.realpath(__file__))
+rdir = os.path.join(fdir, os.pardir)
+pydir = os.path.realpath(os.path.join(rdir, "python"))
+
+
+def find_modules():
+    """Dotted module paths for every symlinked .py file under fenics_sz."""
+    modules = []
+    pkg_root = os.path.join(pydir, "fenics_sz")
+    for dirpath, dirnames, filenames in os.walk(pkg_root):
+        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+        for filename in filenames:
+            if not filename.endswith(".py") or filename == "__init__.py":
+                continue
+            full_path = os.path.join(dirpath, filename)
+            if not os.path.islink(full_path):
+                continue
+            rel = os.path.relpath(full_path, pydir)
+            modules.append(rel[:-len(".py")].replace(os.sep, "."))
+    return sorted(modules)
+
+
+def check_module(module, timeout):
+    env = dict(os.environ)
+    env["PYTHONPATH"] = pydir + os.pathsep + env.get("PYTHONPATH", "")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", "import " + module],
+            cwd=pydir, env=env, capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return False, ("timed out after {}s - this usually means top-level code "
+                        "is actually running rather than failing fast; check for "
+                        "cells missing an 'active-ipynb' tag").format(timeout)
+    if result.returncode != 0:
+        tail = "\n".join(result.stderr.strip().splitlines()[-20:])
+        return False, tail
+    return True, None
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="""Check that every module in the fenics_sz package imports
+        cleanly, catching jupytext-paired .py files with a demo/test cell that
+        was left untagged (missing 'active-ipynb') and so runs as live
+        top-level code on import.""")
+    parser.add_argument('-t', '--timeout', type=int, default=120,
+                         help='per-module import timeout in seconds (default: 120)')
+    args = parser.parse_args()
+
+    modules = find_modules()
+    print("Checking {} fenics_sz module(s) import cleanly...".format(len(modules)))
+    failures = []
+    for module in modules:
+        ok, detail = check_module(module, args.timeout)
+        print("  [{}] {}".format("OK" if ok else "FAILED", module))
+        if not ok:
+            failures.append((module, detail))
+
+    if failures:
+        print()
+        print("{} module(s) failed to import cleanly:".format(len(failures)))
+        for module, detail in failures:
+            print()
+            print("--- {} ---".format(module))
+            print(detail)
+        sys.exit(1)
+
+    print()
+    print("All modules imported cleanly.")

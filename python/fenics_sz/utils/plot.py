@@ -4,6 +4,8 @@ import pyvista as pv
 import numpy as np
 import functools
 import vtk
+from matplotlib.collections import PolyCollection
+from matplotlib.tri import Triangulation
 
 try:
     pv.start_xvfb()
@@ -63,18 +65,16 @@ def _(V: df.fem.FunctionSpace, gather=False):
 def _(u: df.fem.Function, gather=False):
     return pyvista_grids(*vtk_mesh(u), comm=u.function_space.mesh.comm, gather=gather)
 
-def plot_mesh(mesh, tags=None, plotter=None, gather=False, **pv_kwargs):
+def grids_mesh(mesh, tags=None, gather=False):
     """
-    Plot a dolfinx mesh using pyvista.
+    Return a list of pyvista grids for a dolfinx mesh, optionally coloring by mesh tags.
 
     Arguments:
-      * mesh        - the mesh to plot
+      * mesh        - the mesh to grid
 
     Keyword Arguments:
       * tags        - mesh tags to color plot by (either cell or facet, default=None)
-      * plotter     - a pyvista plotter, one will be created if none supplied (default=None)
       * gather      - gather plot to rank 0 (default=False)
-      * **pv_kwargs - kwargs for adding the mesh to the plotter
     """
 
     comm = mesh.comm
@@ -107,7 +107,25 @@ def plot_mesh(mesh, tags=None, plotter=None, gather=False, **pv_kwargs):
         for r, grid in enumerate(grids):
             grid.cell_data["Marker"] = marker_g[r]
             grid.set_active_scalars("Marker")
-    
+
+    return grids
+
+def plot_mesh(mesh, tags=None, plotter=None, gather=False, **pv_kwargs):
+    """
+    Plot a dolfinx mesh using pyvista.
+
+    Arguments:
+      * mesh        - the mesh to plot
+
+    Keyword Arguments:
+      * tags        - mesh tags to color plot by (either cell or facet, default=None)
+      * plotter     - a pyvista plotter, one will be created if none supplied (default=None)
+      * gather      - gather plot to rank 0 (default=False)
+      * **pv_kwargs - kwargs for adding the mesh to the plotter
+    """
+
+    grids = grids_mesh(mesh, tags=tags, gather=gather)
+
     if len(grids) > 0 and plotter is None: plotter = pv.Plotter()
 
     if plotter is not None:
@@ -119,6 +137,58 @@ def plot_mesh(mesh, tags=None, plotter=None, gather=False, **pv_kwargs):
             plotter.view_xy()
 
     return plotter
+
+def mpl_plot_pv_mesh(grid, ax, **mpl_kwargs):
+    """
+    Plot a pyvista (unstructured) grid as a mesh using matplotlib.
+
+    Arguments:
+      * grid - a pyvista grid
+      * ax   - a matplotlib axis to plot on
+
+    Keyword Arguments:
+      * **mpl_kwargs - kwargs for the matplotlib PolyCollection
+    """
+
+    if grid.n_cells == 0: return ax
+
+    polygons = [grid.points[grid.get_cell(i).point_ids, :2] for i in range(grid.n_cells)]
+
+    active_scalars_name = grid.active_scalars_name
+    if active_scalars_name is not None and active_scalars_name in grid.cell_data:
+        collection = PolyCollection(polygons, array=grid.cell_data[active_scalars_name], **mpl_kwargs)
+    else:
+        collection = PolyCollection(polygons, **mpl_kwargs)
+
+    ax.add_collection(collection)
+    ax.autoscale_view()
+
+    return ax
+
+def mpl_plot_mesh(mesh, ax, tags=None, gather=False, **mpl_kwargs):
+    """
+    Plot a dolfinx mesh using matplotlib.
+
+    Arguments:
+      * mesh        - the mesh to plot
+      * ax          - a matplotlib axis to plot on
+
+    Keyword Arguments:
+      * tags         - mesh tags to color plot by (either cell or facet, default=None)
+      * gather       - gather plot to rank 0 (default=False)
+      * **mpl_kwargs - kwargs for the matplotlib PolyCollection
+    """
+
+    grids = grids_mesh(mesh, tags=tags, gather=gather)
+
+    for grid in grids:
+        if grid.GetNumberOfPoints() > 0:
+            mpl_plot_pv_mesh(grid, ax, **mpl_kwargs)
+
+    if mesh.geometry.dim == 2:
+        ax.set_aspect("equal")
+
+    return ax
 
 def grids_scalar(scalar, scale=1.0, gather=False):
     """
@@ -184,6 +254,99 @@ def plot_scalar(scalar, scale=1.0, plotter=None, gather=False, **pv_kwargs):
             plotter.view_xy()
 
     return plotter
+
+def mpl_pv_triangles(grid):
+    """
+    Return a matplotlib-compatible (n, 3) triangle connectivity array for a pyvista grid.
+
+    Straight-sided (3-node) triangle cells map to a single matplotlib triangle.
+    Quadratic (6-node) triangle cells are subdivided into 4 linear sub-triangles
+    using their existing corner and mid-edge points. This exactly reproduces the
+    quadratic field along the sub-triangle edges but only approximates it in the
+    interior of each sub-triangle, since matplotlib only supports linear (Gouraud)
+    interpolation across a triangle.
+
+    Arguments:
+      * grid - a pyvista grid (triangle or quadratic-triangle cells only)
+    """
+    triangles = []
+    for i in range(grid.n_cells):
+        cell = grid.get_cell(i)
+        pids = cell.point_ids
+        if cell.type == vtk.VTK_TRIANGLE:
+            triangles.append(pids)
+        elif cell.type in (vtk.VTK_QUADRATIC_TRIANGLE, vtk.VTK_LAGRANGE_TRIANGLE) and len(pids) == 6:
+            p0, p1, p2, p3, p4, p5 = pids
+            triangles.extend([[p0, p3, p5], [p3, p1, p4], [p5, p4, p2], [p3, p4, p5]])
+        else:
+            raise Exception("mpl_pv_triangles only supports linear (3-node) and quadratic (6-node) triangle cells, not cell type {} with {} points!".format(cell.type, len(pids)))
+    return np.asarray(triangles, dtype=np.int64)
+
+def mpl_plot_pv_scalar(grid, ax, **mpl_kwargs):
+    """
+    Plot a scalar field on a pyvista grid using matplotlib.
+
+    Cell data (e.g. from a DG0 Function) is drawn as flat-shaded polygons, one
+    color per cell, via mpl_plot_pv_mesh. Point data (e.g. from a continuous
+    Lagrange Function) is drawn with Gouraud-shaded triangles via mpl_pv_triangles,
+    which is exact for linear (P1) triangles and a piecewise-linear approximation
+    for quadratic (P2) triangles. Only triangle and quadratic-triangle cells are
+    supported for point data.
+
+    Arguments:
+      * grid - a pyvista grid with an active scalar field
+      * ax   - a matplotlib axis to plot on
+
+    Keyword Arguments:
+      * **mpl_kwargs - kwargs for the matplotlib PolyCollection (cell data) or
+                        tripcolor (point data)
+    """
+
+    if grid.n_cells == 0: return ax
+
+    active_scalars_name = grid.active_scalars_name
+    if active_scalars_name is None:
+        raise Exception("grid has no active scalars to plot!")
+
+    if active_scalars_name in grid.cell_data:
+        return mpl_plot_pv_mesh(grid, ax, **mpl_kwargs)
+
+    values = grid.point_data[active_scalars_name]
+    points = grid.points
+    triangles = mpl_pv_triangles(grid)
+    triangulation = Triangulation(points[:, 0], points[:, 1], triangles)
+
+    mpl_kwargs.setdefault("shading", "gouraud")
+    ax.tripcolor(triangulation, values, **mpl_kwargs)
+    ax.autoscale_view()
+
+    return ax
+
+def mpl_plot_scalar(scalar, ax, scale=1.0, gather=False, **mpl_kwargs):
+    """
+    Plot a dolfinx scalar Function using matplotlib.
+
+    Arguments:
+      * scalar - the dolfinx scalar Function to plot
+      * ax     - a matplotlib axis to plot on
+
+    Keyword Arguments:
+      * scale        - a scalar scale factor that the values are multipled by (default=1.0)
+      * gather       - gather plot to rank 0 (default=False)
+      * **mpl_kwargs - kwargs for the matplotlib PolyCollection (cell data) or
+                        tripcolor (point data)
+    """
+
+    grids = grids_scalar(scalar, scale=scale, gather=gather)
+
+    for grid in grids:
+        if grid.GetNumberOfPoints() > 0:
+            mpl_plot_pv_scalar(grid, ax, **mpl_kwargs)
+
+    if scalar.function_space.mesh.geometry.dim == 2:
+        ax.set_aspect("equal")
+
+    return ax
 
 def plot_scalar_values(scalar, scale=1.0, fmt=".2f", plotter=None, gather=False, **pv_kwargs):
     """

@@ -17,7 +17,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: ghcr.io/cianwilson/fenics-sz:release
+    container: ghcr.io/cianwilson/fenics-sz:thermocalcs-crwmods
     env:
       PYVISTA_OFF_SCREEN: true
 
@@ -29,6 +29,9 @@ jobs:
         run: |
             git config --global --add safe.directory "$GITHUB_WORKSPACE"
             python3 -c "from pyvista import start_xvfb; start_xvfb(0.1)"
+
+      - name: Check package modules import cleanly
+        run: bin/check_imports
 
       - name: Check scripts are up to date
         working-directory: notebooks

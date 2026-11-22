@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -21,16 +22,16 @@
 # %% [markdown]
 # Start with the usual imports and file path settings
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
-# %%
+# %% tags=["active-ipynb-py"]
 import pandas as pd
 import numpy as np
 import scipy as sci
@@ -45,24 +46,24 @@ import fenics_sz.utils
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 
-# %%
+# %% tags=["active-ipynb-py"]
 from fenics_sz.sz_problems.sz_slab import create_slab, plot_slab
 from fenics_sz.sz_problems.sz_geometry import create_sz_geometry
 from fenics_sz.sz_problems.sz_steady_dislcreep import SteadyDislSubductionProblem
 from fenics_sz.sz_problems.sz_tdep_dislcreep import TDDislSubductionProblem
 from fenics_sz.sz_problems.sz_params import default_params, allsz_params
 
-# %%
+# %% tags=["active-ipynb-py"]
 from fenics_sz.fluid_release.perple_x_integration import get_PT_data_from_tabs, plot_PT_data
 import fenics_sz.fluid_release.get_PT_curves 
 
-# %%
+# %% tags=["active-ipynb-py"]
 resscale = 5.0
 cascadia_dict = allsz_params["04_Cascadia"]
 cascadia_slab = create_slab(cascadia_dict['xs'], cascadia_dict['ys'], resscale, cascadia_dict['lc_depth'])
 plot_slab(cascadia_slab)
 
-# %%
+# %% tags=["active-ipynb-py"]
 cascadia_geom = create_sz_geometry(cascadia_slab, resscale, cascadia_dict['sztype'], cascadia_dict['io_depth'], cascadia_dict['extra_width'], 
                              cascadia_dict['coast_distance'], cascadia_dict['lc_depth'], cascadia_dict['uc_depth'])
 cascadia_sz = TDDislSubductionProblem(cascadia_geom, **cascadia_dict)
@@ -79,33 +80,33 @@ fenics_sz.utils.plot.plot_points([[cdpt.x, cdpt.y, 0.0]], plotter=plotter, rende
 fenics_sz.utils.plot.plot_show(plotter)
 # fenics_sz.utils.plot.plot_save(plotter, output_folder / "{}_td_solution_resscale_{:.2f}.png".format("kamchatka", resscale))
 
-# %%
+# %% tags=["active-ipynb-py"]
 h_serp = 12
 fenics_sz.fluid_release.get_PT_curves.plot_geotherms(cascadia_sz, "Cascadia", h_serp, legend=True, save=False)
 
-# %%
+# %% tags=["active-ipynb-py"]
 basenames = ["DMMdamp_25" , "dike_25" , "gabbro_25" , "lovolc_25" , "upvolc_25"]
 
-# %%
+# %% tags=["active-ipynb-py"]
 data = []
 for basename in basenames:
     data.append(get_PT_data_from_tabs(basename))
 
-# %%
+# %% tags=["active-ipynb-py"]
 paths = ["mantle" , "dikes" , "gabbro" , "lower_volc" , "upper_volc"]
 
-# %%
+# %% tags=["active-ipynb-py"]
 all_probe = []
 for path in paths:
     all_probe.append(fenics_sz.fluid_release.get_PT_curves.probe(cascadia_sz, path, 12))
 
-# %%
+# %% tags=["active-ipynb-py"]
 pt_dict = {}
 for i in range(len(paths)):
     pt_dict[paths[i]] = all_probe[i]
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def interpolate_h20_content(grid_points, data, points_to_find, method='linear'):
     """
     A function to interpolate hydration data given a set of P-T_H2O data, and a set of P-T points to interpolate for
@@ -125,13 +126,13 @@ def interpolate_h20_content(grid_points, data, points_to_find, method='linear'):
     return predict(points_to_find)
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 points = fenics_sz.fluid_release.get_PT_curves.get_probe_paths(cascadia_sz, 12)
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(points[0][0]))
 
-# %%
+# %% tags=["active-ipynb-py"]
 plotter = pv.Plotter()
 fenics_sz.utils.plot.plot_scalar(cascadia_sz.T_i, plotter=plotter, scale=cascadia_sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
 cascadia_geom.pyvistaplot(plotter=plotter, color='green', width=2)
@@ -147,24 +148,24 @@ fenics_sz.utils.plot.plot_show(plotter)
 # %% [markdown]
 # I plotted this to see if making a slab-based coordinate system from the points I'd already probed was feasible. I determined it was, but elected for the orthogonal grid approach to avoid parsing for depth and calculating varying areas later on.
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(cascadia_dict['ys'])
 
-# %%
+# %% tags=["active-ipynb-py"]
 slab_points = (cascadia_sz.geom.slab_spline.points)
 
-# %%
+# %% tags=["active-ipynb-py"]
 for i in range(len(slab_points)):
     print(slab_points[i].x , " , ", slab_points[i].y)
 
 # %% [markdown]
 # Try this setup for the lower_volcs path
 
-# %%
+# %% tags=["active-ipynb-py"]
 upper_volcs = copy.deepcopy(cascadia_sz.geom.slab_spline)
 upper_volcs.translatenormalandcrop(-0.15)
 
-# %%
+# %% tags=["active-ipynb-py"]
 upper_volcs_points = (upper_volcs.points)
 for i in range(len(upper_volcs_points)):
     print(upper_volcs_points[i].x , " , ", upper_volcs_points[i].y)
@@ -173,7 +174,7 @@ for i in range(len(upper_volcs_points)):
 # %% [markdown]
 # I now know how to return points that define the boundaries between the layers.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def interpret_curve(slab_spline, input_x):
     points = slab_spline.points
     xs = []
@@ -188,7 +189,7 @@ def interpret_curve(slab_spline, input_x):
 # %% [markdown]
 # Give this function an x, it will output what the corresponding y should be based on its interpolation. This can be used to find out if a point is above or below a curve. Take a point's x value, plug it into this curve interpretter for the corresponding curve. If the predicted y is higher than the actual y, (comparision made using some epsilon )the point is below or on the curve, otherwise it's above the curve
 
-# %%
+# %% tags=["active-ipynb-py"]
 def is_below_curve(x, y, curve):
     curve_points = curve.points
     xs = []
@@ -206,7 +207,7 @@ def is_below_curve(x, y, curve):
 # this code neglects issue of floating point precision, effects seem like they should be negligable
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 resx = 500
 resy = 250
 xs = np.linspace(0, 468.0, resx)
@@ -216,12 +217,12 @@ for x in xs:
     for y in ys:
         points.append([x,y])
 
-# %%
+# %% tags=["active-ipynb-py"]
 for point in points:
     if is_below_curve(point[0], point[1], cascadia_sz.geom.slab_spline) == False:
         points.remove(point)
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(points))
 
 
@@ -229,7 +230,7 @@ print(len(points))
 # Define bounding curves:
 # (starting depth of each zone used)
 
-# %%
+# %% tags=["active-ipynb-py"]
 def bounding_curves(sz, h_serp):
 
     lower_volcs = copy.deepcopy(sz.geom.slab_spline)
@@ -251,10 +252,10 @@ def bounding_curves(sz, h_serp):
 
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 lower_volcs, dikes, gabbro, mantle, end = bounding_curves(cascadia_sz, 8)
 
-# %%
+# %% tags=["active-ipynb-py"]
 xs = np.linspace(0, 468.0, resx)
 ys = np.linspace(0, -240.0, resy)
 points = []
@@ -262,31 +263,31 @@ for x in xs:
     for y in ys:
         points.append([x,y])
 
-# %%
+# %% tags=["active-ipynb-py"]
 upper_volcs_points = []
 for point in points:
     if is_below_curve(point[0], point[1], cascadia_sz.geom.slab_spline) == True and is_below_curve(point[0], point[1], lower_volcs) == False:
         upper_volcs_points.append([point[0], point[1]])
 
-# %%
+# %% tags=["active-ipynb-py"]
 lower_volcs_points = []
 for point in points:
     if is_below_curve(point[0], point[1], lower_volcs) == True and is_below_curve(point[0], point[1], dikes) == False:
         lower_volcs_points.append([point[0], point[1]])
 
-# %%
+# %% tags=["active-ipynb-py"]
 dikes_points = []
 for point in points:
     if is_below_curve(point[0], point[1], dikes) == True and is_below_curve(point[0], point[1], gabbro) == False:
         dikes_points.append([point[0], point[1]])
 
-# %%
+# %% tags=["active-ipynb-py"]
 gabbros_points = []
 for point in points:
     if is_below_curve(point[0], point[1], gabbro) == True and is_below_curve(point[0], point[1], mantle) == False:
         gabbros_points.append([point[0], point[1]])
 
-# %%
+# %% tags=["active-ipynb-py"]
 mantle_points = []
 for point in points:
     if is_below_curve(point[0], point[1], mantle) == True and is_below_curve(point[0], point[1], end) == False:
@@ -295,7 +296,7 @@ for point in points:
 # %% [markdown]
 # Sanity check plotter
 
-# %%
+# %% tags=["active-ipynb-py"]
 plotter = pv.Plotter()
 fenics_sz.utils.plot.plot_scalar(cascadia_sz.T_i, plotter=plotter, scale=cascadia_sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
 cascadia_geom.pyvistaplot(plotter=plotter, color='green', width=2)
@@ -311,7 +312,7 @@ fenics_sz.utils.plot.plot_show(plotter)
 # %% [markdown]
 # Probe P-T for each of those sets, and compare to set's minerology stability:
 
-# %%
+# %% tags=["active-ipynb-py"]
 DMM_data = get_PT_data_from_tabs('DMMdamp_25')
 DMM_points = (DMM_data[0], DMM_data[1])
 
@@ -322,26 +323,26 @@ cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(mantle_points_with_depth
 t, z, p = (cascadia_sz.T_i.eval(mantle_points_with_depth, cells)[:,0], -mantle_points_with_depth[:,1], (-mantle_points_with_depth[:,1])*1000 * 3300 * 9.81 *1e-9)
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(t), len(z), len(p))
 print(len(mantle_points))
 # print(p)
 # print(t)
 # print((DMM_data[1]))
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(mantle_points[0]))
 print(len(mantle_points_with_depth[0]))
 
-# %%
+# %% tags=["active-ipynb-py"]
 predicter_test=[]
 for i in range(len(mantle_points)):
     predicter_test.append(predict((p[i], t[i])))
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(predicter_test))
 
-# %%
+# %% tags=["active-ipynb-py"]
 cascadia_probe = fenics_sz.fluid_release.get_PT_curves.probe(cascadia_sz, "mantle", 8)
 
 mantle_p=[]
@@ -380,7 +381,7 @@ ax.set_box_aspect(1)
 
 ax.secondary_yaxis('right', functions=(fenics_sz.fluid_release.get_PT_curves.get_depth, fenics_sz.fluid_release.get_PT_curves.get_pressure), label=(r"z (km)"))
 
-# %%
+# %% tags=["active-ipynb-py"]
 fig = pl.figure()
 ax = fig.gca()
 ax.plot(z, predicter_test, 'bo', markersize=2)
@@ -388,13 +389,13 @@ ax.set_xlabel("Depth (km)")
 ax.set_ylabel("%wt. H2O")
 ax.set_title("Cascadia Mantle depth vs H2O %wt at points")
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(mantle_points[0]))
 
 # %% [markdown]
 # Get volume of one cell per meter of trench length:
 
-# %%
+# %% tags=["active-ipynb-py"]
 grid_volume = (cascadia_dict['xs'][-1] / resx) * (-cascadia_dict['ys'][-1] / resy)
 
 # remember to redimensionalize before plotting!!
@@ -402,11 +403,11 @@ grid_volume = (cascadia_dict['xs'][-1] / resx) * (-cascadia_dict['ys'][-1] / res
 
 grid_mass_mantle = grid_volume * 3300 *1e6 #redimensionalizing : units are kg/m
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(grid_volume)
 print(grid_mass_mantle)
 
-# %%
+# %% tags=["active-ipynb-py"]
 mantle_start = -7.0
 def find_depth_ind(depth, ys):
     for i in range(len(ys)):
@@ -419,7 +420,7 @@ mantle_ys = ys[mantle_depth_ind:]
 
 # was planning to use this to only index depths where the mantle acutally starts, but I couldn't get it to work without bugs
 
-# %%
+# %% tags=["active-ipynb-py"]
 depth_water_sums = []
 for y in ys:
     depth_water_sum = 0
@@ -429,10 +430,10 @@ for y in ys:
     depth_water_sum = depth_water_sum * 1e-2 * grid_mass_mantle * 1e-9
     depth_water_sums.append(depth_water_sum)
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(depth_water_sums))
 
-# %%
+# %% tags=["active-ipynb-py"]
 fig = pl.figure()
 ax = fig.gca()
 
@@ -446,7 +447,7 @@ ax.set_title("Cascadia slab H2O weight per meter of trench distance vs depth")
 # %% [markdown]
 # ### Now we repeat this process for the gabbros:
 
-# %%
+# %% tags=["active-ipynb-py"]
 gabbro_data = get_PT_data_from_tabs('gabbro_25')
 gabbro_PT_points = (gabbro_data[0], gabbro_data[1])
 
@@ -456,11 +457,11 @@ gabbro_points_3d = np.array([[gabbros_points[i][0],gabbros_points[i][1],0.0] for
 cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(gabbro_points_3d, cascadia_sz.mesh)
 gabbro_t, gabbro_z, gabbro_p = (cascadia_sz.T_i.eval(gabbro_points_3d, cells)[:,0], -gabbro_points_3d[:,1], (-gabbro_points_3d[:,1])*1000 * 3300 * 9.81 *1e-9)
 
-# %%
+# %% tags=["active-ipynb-py"]
 print((gabbro_p))
 print((gabbro_t))
 
-# %%
+# %% tags=["active-ipynb-py"]
 gabbro_h2o=[]
 for i in range(len(gabbros_points)):
     if gabbro_t[i] < 200:
@@ -468,11 +469,11 @@ for i in range(len(gabbros_points)):
     else:
         gabbro_h2o.append(gabbro_predict((gabbro_p[i], gabbro_t[i])))
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(gabbro_h2o))
 print(len(gabbro_z))
 
-# %%
+# %% tags=["active-ipynb-py"]
 cascadia_probe_gabbro = fenics_sz.fluid_release.get_PT_curves.probe(cascadia_sz, "gabbro")
 
 gabbro_geotherm_p=[]
@@ -511,7 +512,7 @@ ax.set_box_aspect(1)
 
 ax.secondary_yaxis('right', functions=(fenics_sz.fluid_release.get_PT_curves.get_depth, fenics_sz.fluid_release.get_PT_curves.get_pressure), label=(r"z (km)"))
 
-# %%
+# %% tags=["active-ipynb-py"]
 fig = pl.figure()
 ax = fig.gca()
 ax.plot(gabbro_z, gabbro_h2o, 'red', markersize=2)
@@ -519,7 +520,7 @@ ax.set_xlabel("Depth (km)")
 ax.set_ylabel("%wt. H2O")
 ax.set_title("Cascadia Gabbro depth vs H2O %wt at points")
 
-# %%
+# %% tags=["active-ipynb-py"]
 gabbro_depth_water_sums = []
 for y in ys:
     gabbro_depth_water_sum = 0
@@ -529,10 +530,10 @@ for y in ys:
     gabbro_depth_water_sum = gabbro_depth_water_sum* 1e-2 * grid_mass_mantle * 1e-9
     gabbro_depth_water_sums.append(gabbro_depth_water_sum)
 
-# %%
+# %% tags=["active-ipynb-py"]
 print(len(gabbro_depth_water_sums))
 
-# %%
+# %% tags=["active-ipynb-py"]
 fig = pl.figure()
 ax = fig.gca()
 
@@ -543,7 +544,7 @@ ax.set_ylabel("H2O (Tg/m)")
 ax.legend()
 ax.set_title("Cascadia Gabbro H2O weight per meter of trench distance vs depth")
 
-# %%
+# %% tags=["active-ipynb-py"]
 fig = pl.figure()
 ax = fig.gca()
 

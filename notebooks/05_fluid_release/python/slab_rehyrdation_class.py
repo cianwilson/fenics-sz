@@ -1,24 +1,25 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os, shutil
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
-# %%
+# %% tags=["active-ipynb-py"]
 import pyvista as pv
 import copy
 import pathlib
@@ -36,7 +37,7 @@ from scipy import integrate as integ
 from scipy import optimize as opt
 from tqdm.auto import tqdm
 
-# %%
+# %% tags=["active-ipynb-py"]
 import fenics_sz.utils
 from fenics_sz.sz_problems.sz_params import allsz_params
 from fenics_sz.sz_problems.sz_slab import create_slab, plot_slab
@@ -45,7 +46,7 @@ from fenics_sz.fluid_release.perple_x_class_meemum import PerpleXMeemum
 from fenics_sz.fluid_release.vertical_slab_dehyrdation_class import SlabDehydrationVerticalFlux
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 @dataclass
 class SlabSolution:
     cfs : dict[str,np.typing.NDArray[np.float64]]
@@ -56,7 +57,7 @@ class SlabSolution:
     rho : np.typing.NDArray[np.float64]
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 class SlabRehydration(SlabDehydrationVerticalFlux):
     def __init__(self, *args, **kwargs):
         # call parent constructor
@@ -263,11 +264,11 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
     def maxH2Os(self):
         return self.solution.css['H2O']
 
-# %% tags=["active-ipynb"]
+# %%
 # name = "03_British_Columbia"
 # resscale = 5.0
 
-# %% tags=["active-ipynb"]
+# %%
 # szdict = allsz_params[name]
 # print("{}:".format(name))
 # print("{:<20} {:<10}".format('Key','Value'))
@@ -275,11 +276,11 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 # for k, v in allsz_params[name].items():
 #     if v is not None: print("{:<20} {}".format(k, v))
 
-# %% tags=["active-ipynb"]
+# %%
 # slab1 = create_slab(szdict['xs'], szdict['ys'], resscale, szdict['lc_depth'])
 # _ = plot_slab(slab1)
 
-# %% tags=["active-ipynb"]
+# %%
 # zipfilename = pathlib.Path(os.path.join(basedir, os.path.pardir, os.path.pardir, "data", "vankeken_wilson_peps_2023_TF_lowres_minimal.zip"))
 # if not zipfilename.is_file():
 #     zipfileurl = 'https://zenodo.org/records/13234021/files/vankeken_wilson_peps_2023_TF_lowres_minimal.zip'
@@ -287,14 +288,14 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 #     open(zipfilename, 'wb').write(r.content)
 # assert hashlib.md5(open(zipfilename, 'rb').read()).hexdigest() == 'a8eca6220f9bee091e41a680d502fe0d'
 
-# %% tags=["active-ipynb"]
+# %%
 # tffilename = os.path.join('vankeken_wilson_peps_2023_TF_lowres_minimal', 'sz_suite_td', szdict['dirname']+'_minres_2.00_cfl_2.00.vtu')
 # tffilepath = os.path.join(basedir, os.path.pardir, os.path.pardir, 'data')
 # with zipfile.ZipFile(zipfilename, 'r') as z:
 #     z.extract(tffilename, path=tffilepath)
 # tfgrid = pv.get_reader(os.path.join(tffilepath, tffilename)).read()
 
-# %% tags=["active-ipynb"]
+# %%
 # dmm_thickness = 2.0
 #
 # tres = 1
@@ -311,89 +312,89 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 #                  -dmm_thickness  # subslab mantle
 #                 ]
 
-# %% tags=["active-ipynb"]
+# %%
 # with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25", "abers_25.json"), "r") as file:
 #     abers_25 = json.load(file)
 
-# %% tags=["active-ipynb"]
+# %%
 # layer_h2os_meemum = [
 #     PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models']) for basename in ['DMMdry_25', szdict['sed_type'], 'upvolc_25', 'lovolc_25', 'dike_25', 'gabbro_25', 'DMMdamp_25']
 # ]
 
-# %% tags=["active-ipynb"]
+# %%
 # reslab = SlabRehydration(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
 #                            slab=slab1, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
 
-# %% tags=["active-ipynb"]
+# %%
 # _ = reslab.solution
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.rho, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.css['H2O'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.cbs['H2O'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.Ffs, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.qs, cmap='coolwarm', edgecolor = 'none', lw=0.5, norm='log', vmin=1.e-6)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.cbs['SiO2'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.css['SiO2'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.cfs['SiO2'], cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=np.sum(cbk for cbk in reslab.solution.cbs.values()), cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # rhos = 3300.0
 # rhof = 1000.0
 # F = reslab.solution.Ffs
@@ -413,7 +414,7 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # rhos = 3300.0
 # rhof = 1000.0
 # F = reslab.solution.Ffs
@@ -425,14 +426,14 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
 # pcm = reslab.plot_st(axs[0], C=reslab.solution.Ffs, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # axs[0].set_aspect(10)
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # # Lambda := rho/M_total (M_total = sum of all bulk component masses, cbs) must be
 # # invariant along a row for holding non-fluid bulk masses fixed to exactly satisfy
 # # their own mass-balance equations - see discussion. lam_step is the resulting
@@ -450,7 +451,7 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 #         lam_step[sub_cell_inds[1:]] = (Lambda[sub_cell_inds[1:]] - Lambda[sub_cell_inds[:-1]]) / Lambda[sub_cell_inds[:-1]]
 #         lam_cum[sub_cell_inds[1:]] = np.cumsum(np.log(Lambda[sub_cell_inds[1:]] / Lambda[sub_cell_inds[:-1]]))
 
-# %% tags=["active-ipynb"]
+# %%
 # vmax = np.max(np.abs(lam_step))
 #
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
@@ -459,7 +460,7 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal', label='lam_step (relative)')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # vmax = np.max(np.abs(lam_cum))
 #
 # fig, axs = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1, 0.1])
@@ -468,42 +469,42 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 # fig.colorbar(pcm, cax=axs[1], orientation='horizontal', label='lam_cum (row-cumulative, log)')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(20,20))
 # reslab.plot_st(ax, C=reslab.solution.qs, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # ax.set_aspect(10)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(20,20))
 # reslab.plot_st(ax, C=reslab.cumulative_H2O_losses, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # ax.set_aspect(10)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # # need to rethink this because it is no longer necessarily >= 0
 # reslab.cumulative_H2O_losses.min()
 
-# %% tags=["active-ipynb"]
+# %%
 # testslabmeemum = SlabDehydrationVerticalFlux(sres, tres, layer_thicknesses, layer_h2os_meemum, layer_tres=None,
 #                            slab=slab1, Tgrid=tfgrid, 
 #                            Tname='Temperature::PotentialTemperature', 
 #                            coast_distance=szdict['coast_distance'], 
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(20,20))
 # testslabmeemum.plot_st(ax, C=testslabmeemum.maxH2Os, cmap='coolwarm', edgecolor = 'black', lw=0.5)
 # ax.set_aspect(5)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(20,20))
 # testslabmeemum.plot_st(ax, C=testslabmeemum.cumulative_H2O_losses, cmap='coolwarm', edgecolor = 'black', lw=0.5)
 # ax.set_aspect(5)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fix, ax = pl.subplots(figsize=(5,10))
 # indices = np.argsort(-testslabmeemum.mesh.dof_xys[:,1])
 # ax.plot(testslabmeemum.total_cumulative_H2O_losses/1000.0, testslabmeemum.mesh.dof_xys[indices,1], label='no rehydration')
@@ -513,4 +514,4 @@ class SlabRehydration(SlabDehydrationVerticalFlux):
 # ax.set_ylabel('y (km)')
 # _ = ax.legend()
 
-# %%
+# %% tags=["active-ipynb-py"]

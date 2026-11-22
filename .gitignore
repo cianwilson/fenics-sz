@@ -1,0 +1,24 @@
+# jupytext-generated python files that are not symlinked into python/fenics_sz/
+# should not be tracked in git.
+notebooks/**/python/*.py
+
+# ...except the ones that are symlinked into python/fenics_sz/
+!notebooks/02_background/python/2.2b_poisson_1d.py
+!notebooks/02_background/python/2.3b_poisson_2d.py
+!notebooks/02_background/python/2.3c_poisson_2d_tests.py
+!notebooks/02_background/python/2.4b_batchelor.py
+!notebooks/02_background/python/2.4d_batchelor_nest.py
+!notebooks/02_background/python/2.5b_blankenbach.py
+!notebooks/03_sz_problems/python/3.2a_sz_params.py
+!notebooks/03_sz_problems/python/3.2b_sz_slab.py
+!notebooks/03_sz_problems/python/3.2c_sz_geometry.py
+!notebooks/03_sz_problems/python/3.2d_sz_base.py
+!notebooks/03_sz_problems/python/3.2e_sz_problem.py
+!notebooks/03_sz_problems/python/3.3a_sz_steady_problem.py
+!notebooks/03_sz_problems/python/3.3b_sz_steady_isoviscous.py
+!notebooks/03_sz_problems/python/3.3c_sz_steady_dislcreep.py
+!notebooks/03_sz_problems/python/3.4b_sz_benchmark.py
+!notebooks/03_sz_problems/python/3.5a_sz_tdep_problem.py
+!notebooks/03_sz_problems/python/3.5b_sz_tdep_isoviscous.py
+!notebooks/03_sz_problems/python/3.5c_sz_tdep_dislcreep.py
+!notebooks/applications/codillo/python/a.c.1_sz_tdep_coupling.py

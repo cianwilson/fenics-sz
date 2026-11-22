@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
@@ -27,12 +28,12 @@
 # %% [markdown]
 # First we import the modules we need
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 
-# %%
+# %% tags=["active-ipynb-py"]
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as pl
@@ -45,7 +46,7 @@ data_folder = pathlib.Path(os.path.join(basedir, os.pardir, "data", "perple_x_da
 # %% [markdown]
 # Create array of lithology file basenames.
 
-# %%
+# %% tags=["active-ipynb-py"]
 basenames = ["AlaskaTurb46_25", "Carbonate41_25", "Chert42_25", 
              "DMMdamp_25" , "DMMdry_25" , "DMMwet_25" ,
              "Diatom44_25" , "Pelagic45_25" , "Terrigenous43_25" ,
@@ -55,7 +56,7 @@ basenames = ["AlaskaTurb46_25", "Carbonate41_25", "Chert42_25",
 # %% [markdown]
 # #### Run vertex (the first and longest Perple_X command that performs the free energy minimization) for all given lithologies
 
-# %%
+# %% tags=["active-ipynb-py"]
 def run_vertex(basenames):
     for basename in basenames:
         input = str(data_folder / basename)
@@ -67,7 +68,7 @@ def run_vertex(basenames):
         print(basename, " vertex run complete")
 
 
-# %% tags=["active-ipynb"]
+# %%
 # run_vertex(basenames)
 
 # %% [markdown]
@@ -86,7 +87,7 @@ def run_vertex(basenames):
 # * 0: end
 #
 
-# %%
+# %% tags=["active-ipynb-py"]
 def run_werami(basenames):
     for basename in basenames:
         input=str(data_folder / basename)+"""
@@ -111,7 +112,7 @@ def run_werami(basenames):
 # %% [markdown]
 # Now we call this function, again using our list of basenames as our input
 
-# %% tags=["active-ipynb"]
+# %%
 # run_werami(basenames)
 
 # %% [markdown]
@@ -121,7 +122,7 @@ def run_werami(basenames):
 #
 # Specifically, we need to extract the pressure, temperature, and $H_2O$ wt% values from the .tab files created by running werami:
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_PT_data_from_tabs(basename):
 
     cols = ["T(K)", "P(bar)", "H2O,wt%"] #these are the column headers we're searching for
@@ -161,7 +162,7 @@ def get_PT_data_from_tabs(basename):
 # %% [markdown]
 # We can call this function for each supported basename, or we can use a for loop to call it for all of them, which we do here in order to verify that the data looks as expected for all the files:
 
-# %% tags=["active-ipynb"]
+# %%
 # data = []
 # for basename in basenames:
 #     data.append(get_PT_data_from_tabs(basename))
@@ -169,7 +170,7 @@ def get_PT_data_from_tabs(basename):
 # %% [markdown]
 # Now, if we want, we can plot the data we've just extracted to make sure it looks like we would expect it to:
 
-# %%
+# %% tags=["active-ipynb-py"]
 def plot_PT_data(basenames, data, h20_max=5.5, save_figs=True):
     i=0
     for basename in basenames:
@@ -196,7 +197,7 @@ def plot_PT_data(basenames, data, h20_max=5.5, save_figs=True):
 # %% [markdown]
 # Now we can call the function to visualize the data:
 
-# %% tags=["active-ipynb"]
+# %%
 # plot_PT_data(basenames, data, save_figs=True)
 
 # %% [markdown]

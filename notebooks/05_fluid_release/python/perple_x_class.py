@@ -1,23 +1,24 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 
-# %%
+# %% tags=["active-ipynb-py"]
 import pandas as pd
 import numpy as np
 import scipy as sp
@@ -35,7 +36,7 @@ work_folder = pathlib.Path(os.path.join(os.getcwd(), "work"))
 work_folder.mkdir(exist_ok=True, parents=True)
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 class PerpleXGrid:
     def __init__(self, dat_file : str = None, csv_file : str = None, 
                  version : str ='7.1.9',
@@ -204,11 +205,11 @@ class PerpleXGrid:
         PT = np.stack((Parr, Tarr), axis=1)
         return {'H2O' : self.interpolator(PT)}
 
-# %% tags=["active-ipynb"] vscode={"languageId": "raw"}
+# %% [raw] vscode={"languageId": "raw"}
 # grid = PerpleXGrid(dat_file = '../../data/perple_x_v7.1.9/abers_25/dike_25.dat')
 # fig, ax = grid.plot_h2o()
 
-# %% tags=["active-ipynb"] vscode={"languageId": "raw"}
+# %% [raw] vscode={"languageId": "raw"}
 # files = glob.glob('../../data/perple_x_v7.1.9/abers_25/*_25.dat')
 # for dat_file in files:
 #     grid = PerpleXGrid(dat_file = dat_file)
@@ -217,7 +218,7 @@ class PerpleXGrid:
 #     fig.savefig(output_folder / str(grid.basename+'.png'), dpi=400)
 #     grid.save_h2o(os.path.splitext(dat_file)[0]+'_h2o.csv')
 
-# %% tags=["active-ipynb"]
+# %%
 # files = glob.glob('../../data/perple_x_v7.1.9/abers_25/*_25_h2o.csv')
 # for csv_file in files:
 #     basename = os.path.basename(csv_file).split('.')[0][:-4]
@@ -226,4 +227,4 @@ class PerpleXGrid:
 #     fig, ax = grid.plot_h2o()
 #     _ = ax.set_title(basename)
 
-# %%
+# %% tags=["active-ipynb-py"]

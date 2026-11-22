@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -40,7 +41,7 @@
 #
 # We start by loading all the modules we will require.
 
-# %%
+# %% tags=["active-ipynb-py"]
 from mpi4py import MPI
 import dolfinx as df
 from petsc4py import PETSc
@@ -79,7 +80,7 @@ output_folder.mkdir(exist_ok=True, parents=True)
 #
 # For a more detailed description of solving the Poisson equation using FEniCSx, see [the FEniCSx tutorial](https://jsdokken.com/dolfinx-tutorial/chapter1/fundamentals.html).
 
-# %%
+# %% tags=["active-ipynb-py"]
 def solve_poisson_2d(ne, p=1, petsc_options=None):
     """
     A python function to solve a two-dimensional Poisson problem
@@ -183,7 +184,7 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
 # %% [markdown]
 # We can now numerically solve the equations using, e.g., 4 elements and piecewise linear polynomials.
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 4
 # p = 1
 # T_P1 = solve_poisson_2d(ne, p=p)
@@ -192,7 +193,7 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
 # %% [markdown]
 # And use some utility functions (see `python/fenics_sz/utils/plot.py`) to plot it.
 
-# %% tags=["active-ipynb"]
+# %%
 # # plot the solution as a colormap
 # plotter_P1 = fenics_sz.utils.plot.plot_scalar(T_P1, gather=True, cmap='coolwarm')
 # # plot the mesh
@@ -207,13 +208,13 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
 # %% [markdown]
 # Similarly, we can solve the equation using quadratic elements (`p=2`).
 
-# %% tags=["active-ipynb"]
+# %%
 # ne = 4
 # p = 2
 # T_P2 = solve_poisson_2d(ne, p=p)
 # T_P2.name = "T (P2)"
 
-# %% tags=["active-ipynb"]
+# %%
 # # plot the solution as a colormap
 # plotter_P2 = fenics_sz.utils.plot.plot_scalar(T_P2, gather=True, cmap='coolwarm')
 # # plot the mesh
@@ -238,4 +239,4 @@ def solve_poisson_2d(ne, p=1, petsc_options=None):
 #
 # We will provide solutions to these tasks in the [next notebook](./2.3c_poisson_2d_tests.ipynb).
 
-# %%
+# %% tags=["active-ipynb-py"]

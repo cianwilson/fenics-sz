@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env
 #     language: python
@@ -21,13 +22,13 @@
 # %% [markdown]
 # Start with the usual imports and file path settings:
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
-# %%
+# %% tags=["active-ipynb-py"]
 import pandas as pd
 import numpy as np
 import scipy as sci
@@ -42,7 +43,7 @@ import fenics_sz.utils
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 
-# %%
+# %% tags=["active-ipynb-py"]
 from fenics_sz.sz_problems.sz_slab import create_slab, plot_slab
 from fenics_sz.sz_problems.sz_geometry import create_sz_geometry
 from fenics_sz.sz_problems.sz_steady_dislcreep import SteadyDislSubductionProblem
@@ -53,13 +54,13 @@ from fenics_sz.sz_problems.sz_params import default_params, allsz_params
 # %% [markdown]
 # Set resolution for the FEM solver
 
-# %% tags=["active-ipynb"]
+# %%
 # resscale = 5.0
 
 # %% [markdown]
 # Printing the list of subduction zones in the global suite, to recall their names
 
-# %% tags=["active-ipynb"]
+# %%
 # print("\n".join(allsz_params))
 
 # %% [markdown]
@@ -71,13 +72,13 @@ from fenics_sz.sz_problems.sz_params import default_params, allsz_params
 # %% [markdown]
 # #### Solve SZ problem (case 2; TD)
 
-# %% tags=["active-ipynb"]
+# %%
 # tonga_sz_dict = allsz_params["35_Tonga"]
 
 # %% [markdown]
 # As a reminder, we can look at the given parameters for the Tonga SZ problem:
 
-# %% tags=["active-ipynb"]
+# %%
 # for key, value in tonga_sz_dict.items():
 #     print(f"{key}, : {value}")
 #
@@ -85,25 +86,25 @@ from fenics_sz.sz_problems.sz_params import default_params, allsz_params
 # %% [markdown]
 # Create and plot the slab:
 
-# %% tags=["active-ipynb"]
+# %%
 # tonga_slab = create_slab(tonga_sz_dict['xs'], tonga_sz_dict['ys'], resscale, tonga_sz_dict['lc_depth'])
 
 # %% [markdown]
 # Now create and solve the subduction zone problem:
 
-# %% tags=["active-ipynb"]
+# %%
 # tonga_geom = create_sz_geometry(tonga_slab, resscale, tonga_sz_dict['sztype'], tonga_sz_dict['io_depth'], tonga_sz_dict['extra_width'], 
 #                              tonga_sz_dict['coast_distance'], tonga_sz_dict['lc_depth'], tonga_sz_dict['uc_depth'])
 # tonga_sz = TDDislSubductionProblem(tonga_geom, **tonga_sz_dict)
 
-# %% tags=["active-ipynb"]
+# %%
 # tonga_sz.solve(tonga_sz_dict['As'], dt=0.05, theta=0.5, rtol=1.e-1, verbosity=1)
 
 # %% [markdown]
 # Plot the solution.
 # Comment and uncomment certain lines according to what you want to plot / whether or not you want to save the plot.
 
-# %% tags=["active-ipynb"]
+# %%
 # plotter = pv.Plotter()
 # fenics_sz.utils.plot.plot_scalar(tonga_sz.T_i, plotter=plotter, scale=tonga_sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
 # # fenics_sz.utils.plot.plot_vector_glyphs(tonga_sz.vw_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=fenics_sz.utils.mps_to_mmpyr(tonga_sz.v0))
@@ -120,7 +121,7 @@ from fenics_sz.sz_problems.sz_params import default_params, allsz_params
 # %% [markdown]
 # For the hydration modeling, we'll be examining the temperatures of many paths parallel to the curve of our slabs. Therefore, we will now define a function that, given a subduction problem, will generate paths of interest and return their temperatures.
 
-# %%
+# %% tags=["active-ipynb-py"]
 #add a resolution parameter? thickness with which to discretize the probed layers?
 #add thickness params for other layers besides hydrated mantle?
 #add ability to probe an array of custom depths?
@@ -199,7 +200,7 @@ def probe(sz, depth, h_serp=None):
         return results
 
 
-# %% tags=["active-ipynb"]
+# %%
 # slabpoints = np.array([[curve.points[0].x, curve.points[0].y, 0.0] for curve in tonga_sz.geom.slab_spline.interpcurves])
 # cinds, cells = fenics_sz.utils.mesh.get_cell_collisions(slabpoints, tonga_sz.mesh)
 #
@@ -214,7 +215,7 @@ def probe(sz, depth, h_serp=None):
 # Lets also add a way to plot all of this temperature data:
 # This function is almost identical to the previous one, except now instead of returning the data, the temperatures of each point are being plotted as a function of the point's depth.
 
-# %%
+# %% tags=["active-ipynb-py"]
 # development notes:
 # legend generator is maybe a bit strange
 
@@ -302,7 +303,7 @@ def plot_geotherms(sz, sz_name, h_serp, legend=False, save=False):
 # %% [markdown]
 # Now we'll use the plotting function to plot the depth-temperature paths of the Tonga slab, considering a 12km thick hydrated mantle.
 
-# %% tags=["active-ipynb"]
+# %%
 # plot_geotherms(tonga_sz, "Tonga", 12, legend=True, save=True)
 
 # %% [markdown]
@@ -311,16 +312,16 @@ def plot_geotherms(sz, sz_name, h_serp, legend=False, save=False):
 # %% [markdown]
 # One paper in the literature that uses similar depth-temperature plots is Gies et al. 2024, which correlates depth to pressue and plots the curves as P-T curves. They consider a 12km thick serpentinized mantle layer, and use the Kamchatka subduction zone as one of their examples, so we'll use our model to generate the same conditions and compare our results against theirs.
 
-# %% tags=["active-ipynb"]
+# %%
 # h_serp = 12
 
-# %% tags=["active-ipynb"]
+# %%
 # kamchatka_dict = allsz_params["52_Kamchatka"]
 
 # %% [markdown]
 # We can see the differences between the default parameters for Tonga and the default parameters for Kamchatka.
 
-# %% tags=["active-ipynb"]
+# %%
 # print("Tonga:")
 # for key, value in tonga_sz_dict.items():
 #     print(f"{key}, : {value}")
@@ -332,14 +333,14 @@ def plot_geotherms(sz, sz_name, h_serp, legend=False, save=False):
 # %% [markdown]
 # Create and plot the slab as before:
 
-# %% tags=["active-ipynb"]
+# %%
 # kamchatka_slab = create_slab(kamchatka_dict['xs'], kamchatka_dict['ys'], resscale, kamchatka_dict['lc_depth'])
 # plot_slab(kamchatka_slab)
 
 # %% [markdown]
 # Create and solve the subduction problem as before:
 
-# %% tags=["active-ipynb"]
+# %%
 # kamchatka_geom = create_sz_geometry(kamchatka_slab, resscale, kamchatka_dict['sztype'], kamchatka_dict['io_depth'], kamchatka_dict['extra_width'], 
 #                              kamchatka_dict['coast_distance'], kamchatka_dict['lc_depth'], kamchatka_dict['uc_depth'])
 # kamchatka_sz = TDDislSubductionProblem(kamchatka_geom, **kamchatka_dict)
@@ -349,7 +350,7 @@ def plot_geotherms(sz, sz_name, h_serp, legend=False, save=False):
 # %% [markdown]
 # Plot the solution as a sanity check to ensure everything as run correctly.
 
-# %% tags=["active-ipynb"]
+# %%
 # plotter = pv.Plotter()
 # fenics_sz.utils.plot.plot_scalar(kamchatka_sz.T_i, plotter=plotter, scale=kamchatka_sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
 # # fenics_sz.utils.plot.plot_vector_glyphs(kamchatka_sz.vw_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=fenics_sz.utils.mps_to_mmpyr(kamchatka_sz.v0))
@@ -363,7 +364,7 @@ def plot_geotherms(sz, sz_name, h_serp, legend=False, save=False):
 # %% [markdown]
 # Now we can plot the depth-temperature paths of the kamchatka slab, considering 12km of serpentinized mantle, and compare our results with the P-T curves from Gies et al.
 
-# %% tags=["active-ipynb"]
+# %%
 # plot_geotherms(kamchatka_sz, "kamchatka", h_serp, legend=True, save=True)
 
 # %% [markdown]
@@ -371,7 +372,7 @@ def plot_geotherms(sz, sz_name, h_serp, legend=False, save=False):
 #
 # This function is very similar to the probing and plotting functions previously defined in this notebook, but this returns arrays that we will use to plot connecting line segments.
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_probe_paths(sz, h_serp):
 
     """
@@ -420,13 +421,13 @@ def get_probe_paths(sz, h_serp):
     return(probe_paths)
 
 
-# %% tags=["active-ipynb"]
+# %%
 # kamchatka_paths = get_probe_paths(kamchatka_sz, h_serp)
 
 # %% [markdown]
 # We can define a function to use this data to plot a few representative paths, as plotting all of the paths would make them appear as just one thick curve beneath the slab:
 
-# %%
+# %% tags=["active-ipynb-py"]
 def plot_temp_probes(sz, sz_geom, sz_slab, sz_paths, res=5, filename=None):
 
     """
@@ -464,7 +465,7 @@ def plot_temp_probes(sz, sz_geom, sz_slab, sz_paths, res=5, filename=None):
 
 
 
-# %% tags=["active-ipynb"]
+# %%
 # plot_temp_probes(kamchatka_sz, kamchatka_geom, kamchatka_slab, kamchatka_paths, res=5, filename="Kamchatka_lines_res_5")
 
 # %% [markdown]
@@ -476,7 +477,7 @@ def plot_temp_probes(sz, sz_geom, sz_slab, sz_paths, res=5, filename=None):
 # %% [markdown]
 # First, we need a function to convert depth to pressure:
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_pressure(depth):
     #simplified pressure calculation:
     # pressure = depth (in meters) * 3300kg/m^3 (density) * g
@@ -484,21 +485,21 @@ def get_pressure(depth):
     return depth*1000 * 3300 * 9.81 *1e-9
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_depth(pressure):
     return pressure/1000 * 3300 * 9.81
 
 
-# %% tags=["active-ipynb"]
+# %%
 # results = probe(tonga_sz, "mantle", 12)
 
-# %% tags=["active-ipynb"]
+# %%
 # len(results)
 
-# %% tags=["active-ipynb"]
+# %%
 # print(results[2][1])
 
-# %% tags=["active-ipynb"]
+# %%
 # p=[]
 # t=[]
 # for i in range(len(results)):
@@ -516,7 +517,7 @@ def get_depth(pressure):
 # %% [markdown]
 # We now have P-T information from our depth-temp. data. Let's plot it to make sure it looks all good.
 
-# %% tags=["active-ipynb"]
+# %%
 # fig = pl.figure()
 # ax = fig.gca()
 # for i in range(len(t)):
@@ -535,18 +536,18 @@ def get_depth(pressure):
 # %% [markdown]
 # First we need to input functions from the previous notebook:
 
-# %% tags=["active-ipynb"]
+# %%
 # from fenics_sz.fluid_release.perple_x_integration import get_PT_data_from_tabs, plot_PT_data
 # # import fenics_sz.thermo_calcs.perple_x_integration
 
-# %% tags=["active-ipynb"]
+# %%
 # p, t, H2O = get_PT_data_from_tabs("DMMdamp_25")
 # DMM_data = [p,t,H2O]
 
-# %% tags=["active-ipynb"]
+# %%
 # plot_PT_data(["DMMdamp_25"],[DMM_data])
 
-# %% tags=["active-ipynb"]
+# %%
 # results = probe(tonga_sz, "mantle", 12)
 #
 # p=[]
@@ -563,7 +564,7 @@ def get_depth(pressure):
 #     p.append(path_p)
 #     t.append(path_t)
 
-# %% tags=["active-ipynb"]
+# %%
 # fig = pl.figure()
 # ax = fig.gca()
 # for i in range(len(t)):
@@ -573,7 +574,7 @@ def get_depth(pressure):
 # ax.set_ylabel('Pressure (GPa)')
 # fig.savefig(output_folder / "{}_P-T_geotherms_{:.1f}_km_serp.png".format("Tonga", 12))
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(7, 4.5))
 #
 # vmin = 0.0
@@ -594,7 +595,7 @@ def get_depth(pressure):
 # ax.set_title("Tonga serp mantle P-T curves")
 # ax.set_box_aspect(1)
 
-# %% tags=["active-ipynb"]
+# %%
 # results_kamchatka = probe(kamchatka_sz, "mantle", 12)
 #
 # kamchatka_p=[]
@@ -611,7 +612,7 @@ def get_depth(pressure):
 #     kamchatka_p.append(path_p)
 #     kamchatka_t.append(path_t)
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(7, 4.5))
 #
 # vmin = 0.0
@@ -641,20 +642,20 @@ def get_depth(pressure):
 #
 # * All that's missing is extracting data from that comparision (and doing it for the rest of the slab besides the mantle)
 
-# %% tags=["active-ipynb"]
+# %%
 # print("\n".join(allsz_params))
 
-# %% tags=["active-ipynb"]
+# %%
 # BC_sz_dict = allsz_params["03_British_Columbia"]
 
-# %% tags=["active-ipynb"]
+# %%
 # BC_sz_slab = create_slab(BC_sz_dict['xs'], BC_sz_dict['ys'], resscale, BC_sz_dict['lc_depth'])
 # plot_slab(BC_sz_slab)
 
 # %% [markdown]
 # Create and solve the subduction problem as before:
 
-# %% tags=["active-ipynb"]
+# %%
 # BC_sz_geom = create_sz_geometry(BC_sz_slab, resscale, BC_sz_dict['sztype'], BC_sz_dict['io_depth'], BC_sz_dict['extra_width'], 
 #                              BC_sz_dict['coast_distance'], BC_sz_dict['lc_depth'], BC_sz_dict['uc_depth'])
 # BC_sz_sz = TDDislSubductionProblem(BC_sz_geom, **BC_sz_dict)
@@ -664,7 +665,7 @@ def get_depth(pressure):
 # %% [markdown]
 # Plot the solution as a sanity check to ensure everything as run correctly.
 
-# %% tags=["active-ipynb"]
+# %%
 # plotter = pv.Plotter()
 # fenics_sz.utils.plot.plot_scalar(BC_sz_sz.T_i, plotter=plotter, scale=BC_sz_sz.T0, gather=True, cmap='coolwarm', scalar_bar_args={'title': 'Temperature (deg C)', 'bold':True})
 # # fenics_sz.utils.plot.plot_vector_glyphs(BC_sz_sz.vw_i, plotter=plotter, gather=True, factor=0.1, color='k', scale=fenics_sz.utils.mps_to_mmpyr(BC_sz_sz.v0))
@@ -678,10 +679,10 @@ def get_depth(pressure):
 # %% [markdown]
 # Now we can plot the depth-temperature paths of the kamchatka slab, considering 12km of serpentinized mantle, and compare our results with the P-T curves from Gies et al.
 
-# %% tags=["active-ipynb"]
+# %%
 # plot_geotherms(BC_sz_sz, "BC", h_serp, legend=True, save=True)
 
-# %% tags=["active-ipynb"]
+# %%
 # results_BC = probe(BC_sz_sz, "mantle", 12)
 #
 # BC_p=[]
@@ -698,7 +699,7 @@ def get_depth(pressure):
 #     BC_p.append(path_p)
 #     BC_t.append(path_t)
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(7, 4.5))
 #
 # vmin = 0.0
@@ -723,14 +724,14 @@ def get_depth(pressure):
 #
 # fig.savefig(output_folder / "{}_geotherms_over_phase_{:.1f}_km_serp.png".format("BC_SZ_mantle", h_serp))
 
-# %% tags=["active-ipynb"]
+# %%
 # points = (DMM_data[0], DMM_data[1])
 # values = (DMM_data[2][0],DMM_data[2][1])
 
-# %% tags=["active-ipynb"]
+# %%
 # predict = sci.interpolate.RegularGridInterpolator(points, DMM_data[2], method = 'linear')
 
-# %% tags=["active-ipynb"]
+# %%
 # test_points = []
 # for i in range(len(BC_t)):
 #     test_path=[]
@@ -738,22 +739,22 @@ def get_depth(pressure):
 #         test_path.append([BC_p[i][j],BC_t[i][j]])
 #     test_points.append(test_path)
 
-# %% tags=["active-ipynb"]
+# %%
 # longer_intrp_test =[]
 # for i in range(len(test_points)):
 #     longer_intrp_test.append(predict(test_points[i]))
 
-# %% tags=["active-ipynb"]
+# %%
 # print(len(interpolate_test))
 # print(len(longer_intrp_test[23]))
 
-# %%
+# %% tags=["active-ipynb-py"]
 def find_water_line(H20):
     for i in range(len(H20)):
         if H20[i] == 0:
             return i
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(7, 4.5))
 #
 # vmin = 0.0
@@ -795,4 +796,4 @@ def find_water_line(H20):
 # * make sure hydration values are actually percents
 # * calculate water *lost* at each depth
 
-# %%
+# %% tags=["active-ipynb-py"]

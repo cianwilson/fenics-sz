@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: 'defaultInterpreterPath: 3.12.3.final.0'
 #     language: python
@@ -18,13 +19,13 @@
 # %% [markdown]
 # #### Imports
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
-# %%
+# %% tags=["active-ipynb-py"]
 import pandas as pd
 import numpy as np
 import scipy as sci
@@ -39,14 +40,14 @@ import fenics_sz.utils
 output_folder = pathlib.Path(os.path.join(basedir, "output"))
 output_folder.mkdir(exist_ok=True, parents=True)
 
-# %%
+# %% tags=["active-ipynb-py"]
 from fenics_sz.sz_problems.sz_slab import create_slab, plot_slab
 from fenics_sz.sz_problems.sz_geometry import create_sz_geometry
 from fenics_sz.sz_problems.sz_steady_dislcreep import SteadyDislSubductionProblem
 from fenics_sz.sz_problems.sz_tdep_dislcreep import TDDislSubductionProblem
 from fenics_sz.sz_problems.sz_params import default_params, allsz_params
 
-# %%
+# %% tags=["active-ipynb-py"]
 from fenics_sz.fluid_release.perple_x_integration import get_PT_data_from_tabs, plot_PT_data
 import fenics_sz.fluid_release.get_PT_curves 
 
@@ -54,17 +55,17 @@ import fenics_sz.fluid_release.get_PT_curves
 # %% [markdown]
 # ### Test to make sure a slab orthogonal grid can be made
 
-# %%
+# %% tags=["active-ipynb-py"]
 def in_domain(sz, point):
     return ((0 < point[0] < int(sz.geom.slab_spline(1)[0])) and (int(sz.geom.slab_spline(1)[1]) < point[1] < 0))
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 # zslab = np.asarray([-slab.intersectx(x)[1] for x in nscoords[:,0]])
 
 # use this to get the propper depth later on
 
-# %%
+# %% tags=["active-ipynb-py"]
 # variable sediment offset
 
 def get_st_grid(sz, h_serp, u_res, z0, z15):
@@ -139,7 +140,7 @@ def get_st_grid(sz, h_serp, u_res, z0, z15):
     return xys_as_array, spline_dist, layer_offsets, spline_depth
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 # disregarding anything before 15km depth
 
 def get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=1):
@@ -207,12 +208,12 @@ def get_regular_grid_attempt_8(sz, h_serp, u_res, z15, verbosity=1):
     xys_as_array = np.asarray(new_xys)
     return xys_as_array, spline_dist, spline_depth, distance_increment
 
-# %%
+# %% tags=["active-ipynb-py"]
 layer_offsets = [-0.0, -0.3, -0.6, -1.3] + np.arange(-2.0, -10.0, -1).tolist()
 (layer_offsets)
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_interpolator(perple_x_data):
     PT_points = (perple_x_data[0], perple_x_data[1])
     predict = sci.interpolate.RegularGridInterpolator(PT_points, perple_x_data[2], method = 'linear')
@@ -235,7 +236,7 @@ def predict_h2o(interpolator, t, p):
 # %% [markdown]
 # ## The Cell class
 
-# %%
+# %% tags=["active-ipynb-py"]
 # pass in a PT H2O interpolator when initializing the class, instead of the perpleX data
 # one interpolator per lithology
 
@@ -321,7 +322,7 @@ class Cell:
 # %% [markdown]
 # #### Disallowing rehydration
 
-# %%
+# %% tags=["active-ipynb-py"]
 def remove_rehydration(cell_hydrations):
     for i in range(len(cell_hydrations)):
         for j in range(len(cell_hydrations[i])-1):
@@ -335,7 +336,7 @@ def remove_rehydration(cell_hydrations):
 # %% [markdown]
 # #### Water Loss
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_water_loss_old(cells, cell_hydrations):
     slab_losses_and_depths = []
     for i in range(len(cell_hydrations)):
@@ -358,7 +359,7 @@ def get_water_loss_old(cells, cell_hydrations):
     return slab_losses_and_depths
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_water_loss(cells, cell_hydrations):
 
     slab_losses_and_depths = []
@@ -388,7 +389,7 @@ def get_water_loss(cells, cell_hydrations):
     return slab_losses_and_depths
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_flux_in(sz_dict, cells, distance_increment):
     flux_in = 0
     for i in range(len(cells)):
@@ -397,7 +398,7 @@ def get_flux_in(sz_dict, cells, distance_increment):
     # trench length is in km, multiply my 1000 to convert to m
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_flux_out(sz_dict, cells, distance_increment):
     flux_out = 0
     for i in range(len(cells)):
@@ -409,7 +410,7 @@ def get_flux_out(sz_dict, cells, distance_increment):
 # %% [markdown]
 # #### Sidebar: splitting up water loss tracking by lithology
 
-# %%
+# %% tags=["active-ipynb-py"]
 #FIXME this function is very specifc
 # to how I've manually defined the layers of cells in each lithology
 
@@ -497,17 +498,17 @@ def sorted_water_loss_by_layer(cells, cell_hydrations):
     return sorted(sediment_losses_and_depths, key=lambda l:l[1]), sorted(uvolc_losses_and_depths, key=lambda l:l[1]), sorted(lvolc_losses_and_depths, key=lambda l:l[1]), sorted(dike_losses_and_depths, key=lambda l:l[1]), sorted(gabbros_losses_and_depths, key=lambda l:l[1]), sorted(mantle_losses_and_depths, key=lambda l:l[1]),
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def flux_in():
     pass
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def flux_out():
     pass
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 def water_retention():
     pass
 
@@ -515,7 +516,7 @@ def water_retention():
 # %% [markdown]
 # ### Master Function
 
-# %%
+# %% tags=["active-ipynb-py"]
 def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
 
     if verbosity >=0.5:
@@ -848,4 +849,4 @@ def get_TSMstye_line(sz_dict, h_serp, u_res, resscale, interps, verbosity=1):
 
     return cum_sum_time_standardized_array, sorted_water_losses_and_depths, layer_losses, loss_depths, flux_in, flux_out, flux_out_sanity_check
 
-# %%
+# %% tags=["active-ipynb-py"]

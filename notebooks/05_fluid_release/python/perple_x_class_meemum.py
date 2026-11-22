@@ -1,24 +1,25 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
-# %%
+# %% tags=["active-ipynb-py"]
 import pandas as pd
 import numpy as np
 import scipy as sp
@@ -40,7 +41,7 @@ work_folder = pathlib.Path(os.path.join(os.getcwd(), "work"))
 work_folder.mkdir(exist_ok=True, parents=True)
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 @dataclass
 class Meemum:
     process : subprocess.Popen = None
@@ -49,7 +50,7 @@ class Meemum:
     err     : TextIO           = None
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 class PerpleXMeemum:
     def __init__(self, basename : str, 
                  component_masses : dict, excluded_phases : list,
@@ -325,41 +326,41 @@ class PerpleXMeemum:
 
         return output_dict
 
-# %% tags=["active-ipynb"]
+# %%
 # import json
 # with open(os.path.join(basedir, os.pardir, "data", "perple_x_v7.1.9", "abers_25", "abers_25.json"), "r") as file:
 #     abers_25 = json.load(file)
 
-# %% tags=["active-ipynb"]
+# %%
 # basename = 'dike_25'
 # grid = PerpleXMeemum(basename, abers_25[basename]['component_masses'], abers_25[basename]['excluded_phases'], abers_25[basename]['solution_models'], work_folder=work_folder)
 
-# %% tags=["active-ipynb"]
+# %%
 # grid.tmp_work_folder
 
-# %% tags=["active-ipynb"]
+# %%
 # grid.eval([0.2, 1.7], [400, 1200.0], SiO2=[40.2, 57.1], H2O=[1.2, 5.6])
 
-# %% tags=["active-ipynb"]
+# %%
 # grid.eval(3.0, 1000.0)
 
-# %% tags=["active-ipynb"]
+# %%
 # grid.tmp_work_folder
 
-# %% tags=["active-ipynb"]
+# %%
 #
 # from fenics_sz.fluid_release.perple_x_class import PerpleXGrid
 
-# %% tags=["active-ipynb"]
+# %%
 # oggrid = PerpleXGrid(csv_file = '../../data/perple_x_v7.1.9/abers_25/dike_25_h2o.csv')
 
-# %% tags=["active-ipynb"]
+# %%
 # oggrid.eval(0.2, 400)
 
-# %% tags=["active-ipynb"]
+# %%
 # oggrid.eval(3.0, 1000)
 
-# %% tags=["active-ipynb"]
+# %%
 # oggrid.tmp_work_folder
 
-# %%
+# %% tags=["active-ipynb-py"]

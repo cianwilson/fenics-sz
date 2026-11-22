@@ -1,24 +1,25 @@
 # ---
 # jupyter:
 #   jupytext:
+#     default_cell_active: false
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.6.dev0
 #   kernelspec:
 #     display_name: dolfinx-env (3.12.3.final.0)
 #     language: python
 #     name: python3
 # ---
 
-# %%
+# %% tags=["active-ipynb-py"]
 import sys, os, shutil
 basedir = ''
 if "__file__" in globals(): basedir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(basedir, os.path.pardir, os.path.pardir, 'python'))
 
-# %%
+# %% tags=["active-ipynb-py"]
 import numpy as np
 import math
 import matplotlib.pyplot as pl
@@ -31,18 +32,18 @@ import requests
 from dataclasses import dataclass
 import itertools
 
-# %%
+# %% tags=["active-ipynb-py"]
 import fenics_sz.utils
 from fenics_sz.sz_problems.sz_params import allsz_params
 from fenics_sz.sz_problems.sz_slab import create_slab, plot_slab
 from fenics_sz.fluid_release.perple_x_class import PerpleXGrid
 
 
-# %% tags=["active-ipynb"]
+# %%
 # name = "03_British_Columbia"
 # resscale = 5.0
 
-# %% tags=["active-ipynb"]
+# %%
 # szdict = allsz_params[name]
 # print("{}:".format(name))
 # print("{:<20} {:<10}".format('Key','Value'))
@@ -50,13 +51,13 @@ from fenics_sz.fluid_release.perple_x_class import PerpleXGrid
 # for k, v in allsz_params[name].items():
 #     if v is not None: print("{:<20} {}".format(k, v))
 
-# %%
+# %% tags=["active-ipynb-py"]
 
-# %% tags=["active-ipynb"]
+# %%
 # slab = create_slab(szdict['xs'], szdict['ys'], resscale, szdict['lc_depth'])
 # _ = plot_slab(slab)
 
-# %% tags=["active-ipynb"]
+# %%
 # zipfilename = pathlib.Path(os.path.join(basedir, os.path.pardir, os.path.pardir, "data", "vankeken_wilson_peps_2023_TF_lowres_minimal.zip"))
 # if not zipfilename.is_file():
 #     zipfileurl = 'https://zenodo.org/records/13234021/files/vankeken_wilson_peps_2023_TF_lowres_minimal.zip'
@@ -64,14 +65,14 @@ from fenics_sz.fluid_release.perple_x_class import PerpleXGrid
 #     open(zipfilename, 'wb').write(r.content)
 # assert hashlib.md5(open(zipfilename, 'rb').read()).hexdigest() == 'a8eca6220f9bee091e41a680d502fe0d'
 
-# %% tags=["active-ipynb"]
+# %%
 # tffilename = os.path.join('vankeken_wilson_peps_2023_TF_lowres_minimal', 'sz_suite_td', szdict['dirname']+'_minres_2.00_cfl_2.00.vtu')
 # tffilepath = os.path.join(basedir, os.path.pardir, os.path.pardir, 'data')
 # with zipfile.ZipFile(zipfilename, 'r') as z:
 #     z.extract(tffilename, path=tffilepath)
 # tfgrid = pv.get_reader(os.path.join(tffilepath, tffilename)).read()
 
-# %%
+# %% tags=["active-ipynb-py"]
 @dataclass
 class SlabMesh:
     vertex_xys : np.typing.NDArray[np.float64]
@@ -83,7 +84,7 @@ class SlabMesh:
     cell_areas : np.typing.NDArray[np.float64]
 
 
-# %%
+# %% tags=["active-ipynb-py"]
 class SlabDehydration:
     """
     
@@ -493,7 +494,7 @@ class SlabDehydration:
         pcm = ax.pcolormesh(X, Y, C, **mpl_kwargs)
         return pcm
 
-# %% tags=["active-ipynb"]
+# %%
 # dmm_thickness = 2.0
 #
 # # negative number implies below slab, positive implies above it
@@ -526,7 +527,7 @@ class SlabDehydration:
 # #     1.4,
 # # ]
 
-# %% tags=["active-ipynb"]
+# %%
 # sres = 1.0
 # tres = 0.5
 # testslab = SlabDehydration(sres, tres, layer_thicknesses, layer_h2os, layer_tres=None,
@@ -535,53 +536,53 @@ class SlabDehydration:
 #                            coast_distance=szdict['coast_distance'], 
 #                            sztype=szdict['sztype'], lc_depth=szdict['lc_depth'], trench_length=szdict['trench_length'], Vs=szdict['Vs'])
 
-# %% tags=["active-ipynb"]
+# %%
 # sum([errors.sum() for errors in testslab.conservation_errors])
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(10,8))
 # testslab.plot_xy(ax, C=testslab.Ts, cmap='coolwarm', edgecolor = 'none')
 # ax.set_aspect(3)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(10,8))
 # testslab.plot_xy(ax, C=testslab.H2O_fluxes, cmap='coolwarm', edgecolor = 'none', lw=0.5)
 # ax.set_aspect(3)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(20,20))
 # testslab.plot_st(ax, C=testslab.maxH2Os, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(20,20))
 # testslab.plot_st(ax, C=testslab.H2Os, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(20,20))
 # testslab.plot_st(ax, C=testslab.H2O_fluxes, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, ax = pl.subplots(figsize=(20,20))
 # testslab.plot_st(ax, C=testslab.H2O_losses, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
 # pcm = testslab.plot_st(ax, C=testslab.cumulative_H2O_losses/1000.0, cmap = 'coolwarm', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.colorbar(pcm, cax=axc, orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
 # # work out areas relative to first cell of each row of mesh (easier to visualize)
 # relcellareas = np.empty_like(testslab.mesh.cell_areas)
@@ -593,18 +594,18 @@ class SlabDehydration:
 # fig.colorbar(pcm, cax=axc, orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fig, (ax, axc) = pl.subplots(figsize=(20,5), nrows=2, height_ratios=[1,0.05])
 # pcm = testslab.plot_st(ax, C=testslab.mesh.cell_areas, cmap = 'viridis', edgecolor = 'none', linewidth=0.5, shading='flat')
 # ax.set_aspect(10.0)
 # fig.colorbar(pcm, cax=axc, orientation='horizontal')
 # fig.show()
 
-# %% tags=["active-ipynb"]
+# %%
 # fix, ax = pl.subplots(figsize=(5,10))
 # indices = np.argsort(-testslab.mesh.dof_xys[:,1])
 # ax.plot(testslab.total_cumulative_H2O_losses/1000.0, testslab.mesh.dof_xys[indices,1])
 
-# %%
+# %% tags=["active-ipynb-py"]
 
-# %%
+# %% tags=["active-ipynb-py"]

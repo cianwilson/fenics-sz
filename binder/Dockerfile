@@ -1,4 +1,4 @@
-FROM ghcr.io/cianwilson/fenics-sz:release
+FROM ghcr.io/cianwilson/fenics-sz:jupytext-dca
 
 # create user with a home directory
 ARG NB_USER=jovyan
